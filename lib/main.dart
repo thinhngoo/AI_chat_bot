@@ -17,6 +17,8 @@ Future<void> main() async {
 }
 
 class ChatBotApp extends StatelessWidget {
+  const ChatBotApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

@@ -35,7 +35,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Chatbot DeepSeek")),
+      appBar: AppBar(title: const Text("Chatbot DeepSeek")),
       body: Column(
         children: [
           Expanded(
@@ -47,17 +47,17 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           Padding(
-            padding: EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(8.0),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    decoration: InputDecoration(hintText: "Nhập tin nhắn..."),
+                    decoration: const InputDecoration(hintText: "Nhập tin nhắn..."),
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.send),
+                  icon: const Icon(Icons.send),
                   onPressed: _isSending ? null : () => _sendMessage(_controller.text),
                 ),
               ],
