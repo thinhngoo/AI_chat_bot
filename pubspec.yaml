@@ -11,6 +11,9 @@ dependencies:
   http: ^0.13.5          # Gọi API
   flutter_dotenv: ^5.0.2 # Đọc file .env
   logger: ^2.0.2
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.16.0
+  google_sign_in: ^6.2.1
 
 dev_dependencies:
   flutter_test:
