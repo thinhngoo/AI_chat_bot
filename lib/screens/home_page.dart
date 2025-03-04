@@ -16,7 +16,7 @@ class HomePage extends StatelessWidget {
     );
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => LoginPage()), // Remove const
+      MaterialPageRoute(builder: (context) => const LoginPage()), // Add const
     );
   }
 
@@ -45,7 +45,7 @@ class HomePage extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => LoginPage()), // Remove const
+                  MaterialPageRoute(builder: (context) => const LoginPage()), // Add const
                 );
               },
               child: const Text('Đăng nhập'), // Add const
@@ -55,7 +55,7 @@ class HomePage extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => SignUpPage()), // Remove const
+                  MaterialPageRoute(builder: (context) => const SignUpPage()), // Add const
                 );
               },
               child: const Text('Đăng ký'), // Add const

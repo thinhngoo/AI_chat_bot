@@ -4,11 +4,13 @@ import '../services/auth_service.dart';
 import 'login_page.dart';
 
 class SignUpPage extends StatefulWidget {
+  const SignUpPage({Key? key}) : super(key: key); // Add key parameter
+
   @override
-  _SignUpPageState createState() => _SignUpPageState();
+  SignUpPageState createState() => SignUpPageState(); // Make state class public
 }
 
-class _SignUpPageState extends State<SignUpPage> {
+class SignUpPageState extends State<SignUpPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -16,8 +18,9 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Future<void> _signUp() async {
     if (_passwordController.text != _confirmPasswordController.text) {
+      if (!mounted) return; // Ensure context is mounted before using it
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Mật khẩu không khớp')),
+        const SnackBar(content: Text('Mật khẩu không khớp')),
       );
       return;
     }
@@ -27,14 +30,17 @@ class _SignUpPageState extends State<SignUpPage> {
         _passwordController.text.trim(),
       );
       await FirebaseAuth.instance.currentUser?.sendEmailVerification();
+      if (!mounted) return; // Ensure context is mounted before using it
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đăng ký thành công! Vui lòng kiểm tra email.')),
+        const SnackBar(content: Text('Đăng ký thành công! Vui lòng kiểm tra email.')),
       );
+      if (!mounted) return; // Check if the state is still mounted
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => LoginPage()),
+        MaterialPageRoute(builder: (context) => const LoginPage()), // Add const
       );
     } catch (e) {
+      if (!mounted) return; // Ensure context is mounted before using it
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi: ${e.toString()}')),
       );
@@ -44,29 +50,29 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Đăng ký')),
+      appBar: AppBar(title: const Text('Đăng ký')), // Add const
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0), // Add const
         child: Column(
           children: [
             TextField(
               controller: _emailController,
-              decoration: InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(labelText: 'Email'), // Add const
             ),
             TextField(
               controller: _passwordController,
-              decoration: InputDecoration(labelText: 'Mật khẩu'),
+              decoration: const InputDecoration(labelText: 'Mật khẩu'), // Add const
               obscureText: true,
             ),
             TextField(
               controller: _confirmPasswordController,
-              decoration: InputDecoration(labelText: 'Xác nhận mật khẩu'),
+              decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu'), // Add const
               obscureText: true,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20), // Add const
             ElevatedButton(
               onPressed: _signUp,
-              child: Text('Đăng ký'),
+              child: const Text('Đăng ký'), // Add const
             ),
           ],
         ),
