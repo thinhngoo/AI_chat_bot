@@ -14,3 +14,17 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+# Widget tree
+
+AI chat page
+📂 [Draw.io source](./documents/widgets/sources/ai-chat-page-widget-tree.drawio)
+![AI Chat Page](./documents/widgets/images/ai-chat-page-widget-tree.png)
+
+Chat history page
+📂 [Draw.io source](./documents/widgets/sources/chat-history-page-widget-tree.drawio)
+![Chat History](./documents/widgets/images/chat-history-page-widget-tree.png)
+
+Profile page
+📂 [Draw.io source](./documents/widgets/sources/profile-page-widget-tree.drawio)
+![Profile Page](./documents/widgets/images/profile-page-widget-tree.png)
