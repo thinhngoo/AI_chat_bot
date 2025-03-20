@@ -1,0 +1,8 @@
+{
+  "enableFirebaseOnWindows": false,
+  "mockDelays": {
+    "auth": 1000,
+    "api": 1500
+  },
+  "fallbackApiEndpoint": "https://api.deepseek.com/v1/chat/completions"
+}

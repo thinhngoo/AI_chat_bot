@@ -4,10 +4,10 @@ class AccountManagementPage extends StatefulWidget {
   const AccountManagementPage({super.key});
 
   @override
-  _AccountManagementPageState createState() => _AccountManagementPageState();
+  AccountManagementPageState createState() => AccountManagementPageState();
 }
 
-class _AccountManagementPageState extends State<AccountManagementPage> {
+class AccountManagementPageState extends State<AccountManagementPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 

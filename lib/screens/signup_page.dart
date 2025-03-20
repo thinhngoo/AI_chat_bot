@@ -14,6 +14,7 @@ class SignUpPageState extends State<SignUpPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final AuthService _authService = AuthService();
+  bool _isLoading = false;
 
   bool isValidEmail(String email) {
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
@@ -70,6 +71,11 @@ class SignUpPageState extends State<SignUpPage> {
       );
       return;
     }
+    
+    setState(() {
+      _isLoading = true;
+    });
+    
     try {
       await _authService.signUpWithEmailAndPassword(
         _emailController.text.trim(),
@@ -77,7 +83,7 @@ class SignUpPageState extends State<SignUpPage> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đăng ký thành công! Vui lòng đăng nhập.')),
+        const SnackBar(content: Text('Đăng ký thành công! Vui lòng kiểm tra email để xác minh tài khoản.')),
       );
       Navigator.pushReplacement(
         context,
@@ -94,6 +100,12 @@ class SignUpPageState extends State<SignUpPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage)),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -103,39 +115,41 @@ class SignUpPageState extends State<SignUpPage> {
       appBar: AppBar(title: const Text('Đăng ký')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-              keyboardType: TextInputType.emailAddress,
+        child: _isLoading 
+          ? const Center(child: CircularProgressIndicator()) 
+          : Column(
+              children: [
+                TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                TextField(
+                  controller: _passwordController,
+                  decoration: const InputDecoration(labelText: 'Mật khẩu'),
+                  obscureText: true,
+                  onChanged: (value) {
+                    setState(() {}); // Update UI when typing
+                  },
+                ),
+                Text(
+                  'Độ mạnh mật khẩu: ${getPasswordStrength(_passwordController.text)}',
+                  style: TextStyle(
+                    color: getPasswordStrengthColor(getPasswordStrength(_passwordController.text)),
+                  ),
+                ),
+                TextField(
+                  controller: _confirmPasswordController,
+                  decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu'),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _signUp,
+                  child: const Text('Đăng ký'),
+                ),
+              ],
             ),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Mật khẩu'),
-              obscureText: true,
-              onChanged: (value) {
-                setState(() {}); // Update UI when typing
-              },
-            ),
-            Text(
-              'Độ mạnh mật khẩu: ${getPasswordStrength(_passwordController.text)}',
-              style: TextStyle(
-                color: getPasswordStrengthColor(getPasswordStrength(_passwordController.text)),
-              ),
-            ),
-            TextField(
-              controller: _confirmPasswordController,
-              decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _signUp,
-              child: const Text('Đăng ký'),
-            ),
-          ],
-        ),
       ),
     );
   }

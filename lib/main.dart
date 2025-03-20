@@ -1,9 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:logger/logger.dart';
 import 'services/auth_service.dart';
+import 'services/platform_service_helper.dart';
 import 'screens/login_page.dart';
 import 'screens/home_page.dart';
 
-void main() {
+final Logger _logger = Logger();
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load environment variables with error handling
+  try {
+    await dotenv.load(fileName: ".env");
+    _logger.i('Environment variables loaded successfully');
+  } catch (e) {
+    _logger.w('Failed to load .env file: $e');
+    // Create default environment variables
+    dotenv.env['DEEPSEEK_API_KEY'] = 'demo_api_key';
+  }
+  
+  // Initialize Firebase only on supported platforms
+  if (PlatformServiceHelper.supportsFirebaseAuth) {
+    try {
+      await Firebase.initializeApp();
+      _logger.i('Firebase initialized successfully');
+    } catch (e) {
+      _logger.e('Failed to initialize Firebase: $e');
+    }
+  } else {
+    _logger.w('Firebase Auth not supported on this platform. Using fallback implementation.');
+  }
+  
   runApp(const MyApp());
 }
 
