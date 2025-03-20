@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import 'login_page.dart';
 
@@ -16,7 +15,54 @@ class SignUpPageState extends State<SignUpPage> {
   final _confirmPasswordController = TextEditingController();
   final AuthService _authService = AuthService();
 
+  bool isValidEmail(String email) {
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    return emailRegex.hasMatch(email);
+  }
+
+  bool isValidPassword(String password) {
+    if (password.length < 8) return false;
+    if (!password.contains(RegExp(r'[A-Z]'))) return false; // Chữ hoa
+    if (!password.contains(RegExp(r'[a-z]'))) return false; // Chữ thường
+    if (!password.contains(RegExp(r'[0-9]'))) return false; // Số
+    if (!password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) return false; // Ký tự đặc biệt
+    return true;
+  }
+
+  String getPasswordStrength(String password) {
+    if (password.isEmpty) return 'Nhập mật khẩu';
+    if (password.length < 6) return 'Yếu';
+    if (password.length < 8) return 'Trung bình';
+    if (isValidPassword(password)) return 'Mạnh';
+    return 'Trung bình';
+  }
+
+  Color getPasswordStrengthColor(String strength) {
+    switch (strength) {
+      case 'Yếu':
+        return Colors.red;
+      case 'Trung bình':
+        return Colors.orange;
+      case 'Mạnh':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
   Future<void> _signUp() async {
+    if (!isValidEmail(_emailController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email không hợp lệ')),
+      );
+      return;
+    }
+    if (!isValidPassword(_passwordController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mật khẩu không hợp lệ. Phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.')),
+      );
+      return;
+    }
     if (_passwordController.text != _confirmPasswordController.text) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -31,22 +77,22 @@ class SignUpPageState extends State<SignUpPage> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đăng ký thành công! Vui lòng kiểm tra email để xác thực.')),
+        const SnackBar(content: Text('Đăng ký thành công! Vui lòng đăng nhập.')),
       );
-      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const LoginPage()),
       );
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: ${e.message}')),
-      );
     } catch (e) {
       if (!mounted) return;
+      String errorMessage;
+      if (e.toString().contains('Email already exists')) {
+        errorMessage = 'Email đã được sử dụng.';
+      } else {
+        errorMessage = 'Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại.';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi không xác định: $e')),
+        SnackBar(content: Text(errorMessage)),
       );
     }
   }
@@ -68,6 +114,15 @@ class SignUpPageState extends State<SignUpPage> {
               controller: _passwordController,
               decoration: const InputDecoration(labelText: 'Mật khẩu'),
               obscureText: true,
+              onChanged: (value) {
+                setState(() {}); // Update UI when typing
+              },
+            ),
+            Text(
+              'Độ mạnh mật khẩu: ${getPasswordStrength(_passwordController.text)}',
+              style: TextStyle(
+                color: getPasswordStrengthColor(getPasswordStrength(_passwordController.text)),
+              ),
             ),
             TextField(
               controller: _confirmPasswordController,

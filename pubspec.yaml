@@ -8,12 +8,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  firebase_auth: ^4.16.0 # Upgrade to a compatible version
+  firebase_auth: ^5.5.1
   http: ^0.13.3
-  flutter_dotenv: ^5.0.2 # Đọc file .env
+  flutter_dotenv: ^5.0.2
   logger: ^2.0.2
-  firebase_core: ^2.24.2
+  firebase_core: ^3.12.1
   google_sign_in: ^6.2.1
+  shared_preferences: ^2.0.15 # Add this line
 
 dev_dependencies:
   flutter_test:

@@ -1,69 +1,58 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'dart:convert';
+import 'package:collection/collection.dart';
 import 'package:logger/logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final Logger _logger = Logger();
 
+  Future<List<Map<String, String>>> getUsers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final usersJson = prefs.getString('users');
+    if (usersJson == null) {
+      return [];
+    }
+    return (jsonDecode(usersJson) as List).map((item) => Map<String, String>.from(item)).toList();
+  }
+
   Future<void> signInWithEmailAndPassword(String email, String password) async {
-    try {
-      _logger.i('Bắt đầu đăng nhập email: $email');
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
-      _logger.i('Đăng nhập email thành công');
-    } on FirebaseAuthException catch (e) {
-      _logger.e('Lỗi đăng nhập email: ${e.code} - ${e.message}');
-      rethrow;
-    } catch (e) {
-      _logger.e('Lỗi không xác định khi đăng nhập email: $e');
-      rethrow;
+    final users = await getUsers();
+    final user = users.firstWhereOrNull(
+      (user) => user['email'] == email && user['password'] == password,
+    );
+    if (user != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
+      _logger.i('Đăng nhập thành công');
+    } else {
+      _logger.e('Thông tin đăng nhập không hợp lệ');
+      throw Exception('Invalid credentials');
     }
   }
 
   Future<void> signUpWithEmailAndPassword(String email, String password) async {
-    try {
-      _logger.i('Bắt đầu đăng ký email: $email');
-      await _auth.createUserWithEmailAndPassword(email: email, password: password);
-      _logger.i('Đăng ký email thành công');
-    } on FirebaseAuthException catch (e) {
-      _logger.e('Lỗi đăng ký: ${e.code} - ${e.message}');
-      rethrow;
-    } catch (e) {
-      _logger.e('Lỗi không xác định khi đăng ký: $e');
-      rethrow;
+    final users = await getUsers();
+    if (users.any((user) => user['email'] == email)) {
+      throw Exception('Email already exists');
     }
+    users.add({'email': email, 'password': password});
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('users', jsonEncode(users));
+    _logger.i('Đăng ký thành công');
   }
 
-  Future<User?> signInWithGoogle() async {
-    try {
-      _logger.i('Bắt đầu đăng nhập Google');
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        _logger.w('Người dùng hủy đăng nhập Google');
-        return null;
-      }
-      _logger.i('Đã chọn tài khoản Google: ${googleUser.email}');
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      _logger.i('Lấy token Google thành công');
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      UserCredential result = await _auth.signInWithCredential(credential);
-      _logger.i('Đăng nhập Google thành công: ${result.user?.email}');
-      return result.user;
-    } on FirebaseAuthException catch (e) {
-      _logger.e('Lỗi Firebase khi đăng nhập Google: ${e.code} - ${e.message}');
-      rethrow;
-    } catch (e) {
-      _logger.e('Lỗi không xác định khi đăng nhập Google: $e');
-      rethrow;
-    }
+  Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('isLoggedIn') ?? false;
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
-    await GoogleSignIn().signOut();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', false);
     _logger.i('Đăng xuất thành công');
+  }
+
+  Future<void> signInWithGoogle() async {
+    throw Exception('Google sign-in not implemented in local mode');
   }
 }

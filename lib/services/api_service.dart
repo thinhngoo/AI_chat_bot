@@ -3,8 +3,7 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   Future<String> getDeepSeekResponse(String message) async {
-    // Replace with your API endpoint
-    final url = Uri.parse('https://api.example.com/deepseek');
+    final url = Uri.parse('https://api.example.com/deepseek'); // Replace with your actual API endpoint
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -13,9 +12,9 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data['response'];
+      return data['response']; // Ensure the API returns a 'response' field
     } else {
-      throw Exception('Failed to load response');
+      throw Exception('Failed to load response: ${response.statusCode}');
     }
   }
 }

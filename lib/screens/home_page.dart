@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:http/http.dart' as http;
 import '../models/message.dart';
+import '../services/auth_service.dart';
+import '../services/api_service.dart'; // Add this import
 import 'login_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -12,9 +12,9 @@ class HomePage extends StatefulWidget {
 }
 
 class HomePageState extends State<HomePage> {
-  final _auth = FirebaseAuth.instance;
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ApiService _apiService = ApiService(); // Add ApiService
 
   final List<Message> _messages = [
     Message(
@@ -35,7 +35,7 @@ class HomePageState extends State<HomePage> {
   ];
 
   Future<void> _signOut() async {
-    await _auth.signOut();
+    await AuthService().signOut();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Đăng xuất thành công!')),
@@ -55,20 +55,29 @@ class HomePageState extends State<HomePage> {
           timestamp: DateTime.now(),
         ));
       });
-      // Gọi API AI
-      final response = await http.post(
-        Uri.parse('https://api.xai.com/chat'), // Thay bằng URL API thực tế
-        body: {'message': _messageController.text},
-      );
-      if (!mounted) return;
-      setState(() {
-        _messages.add(Message(
-          text: response.body, // Phản hồi từ API
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
-        _messageController.clear();
-      });
+      try {
+        // Call API from ApiService
+        final response = await _apiService.getDeepSeekResponse(_messageController.text);
+        if (!mounted) return;
+        setState(() {
+          _messages.add(Message(
+            text: response,
+            isUser: false,
+            timestamp: DateTime.now(),
+          ));
+          _messageController.clear();
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _messages.add(Message(
+            text: "Đã xảy ra lỗi khi gọi API: $e",
+            isUser: false,
+            timestamp: DateTime.now(),
+          ));
+          _messageController.clear();
+        });
+      }
       // Cuộn xuống tin nhắn mới nhất
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent + 100,

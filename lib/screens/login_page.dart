@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import 'home_page.dart';
 import 'signup_page.dart';
@@ -16,7 +15,18 @@ class LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
 
+  bool isValidEmail(String email) {
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    return emailRegex.hasMatch(email);
+  }
+
   Future<void> _signIn() async {
+    if (!isValidEmail(_emailController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email không hợp lệ')),
+      );
+      return;
+    }
     try {
       await _authService.signInWithEmailAndPassword(
         _emailController.text.trim(),
@@ -27,41 +37,21 @@ class LoginPageState extends State<LoginPage> {
         context,
         MaterialPageRoute(builder: (context) => const HomePage()),
       );
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: ${e.message ?? "Đăng nhập thất bại"}')),
-      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi không xác định: $e')),
+        SnackBar(content: Text('Lỗi: ${e.toString()}')),
       );
     }
   }
 
   Future<void> _signInWithGoogle() async {
     try {
-      final user = await _authService.signInWithGoogle();
-      if (user != null && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
-        );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đăng nhập Google bị hủy')),
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi đăng nhập Google: ${e.message ?? "Thất bại"}')),
-      );
+      await _authService.signInWithGoogle();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi không xác định: $e')),
+        SnackBar(content: Text('Lỗi: ${e.toString()}')),
       );
     }
   }
