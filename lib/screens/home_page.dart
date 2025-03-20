@@ -3,6 +3,8 @@ import '../models/message.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart'; // Add this import
 import 'login_page.dart';
+import 'account_management_page.dart'; // Add this import
+import 'help_feedback_page.dart'; // Add this import
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -95,9 +97,21 @@ class HomePageState extends State<HomePage> {
         backgroundColor: Colors.grey[900], // Màu tối giống ChatGPT/Grok
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _signOut,
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'account') {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountManagementPage()));
+              } else if (value == 'help') {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const HelpFeedbackPage()));
+              } else if (value == 'logout') {
+                _signOut();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'account', child: Text('Quản lý tài khoản')),
+              const PopupMenuItem(value: 'help', child: Text('Trợ giúp & Phản hồi')),
+              const PopupMenuItem(value: 'logout', child: Text('Đăng xuất')),
+            ],
           ),
         ],
       ),
