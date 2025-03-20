@@ -15,6 +15,7 @@ dependencies:
   firebase_core: ^3.12.1
   firebase_auth: ^5.5.1
   google_sign_in: ^6.2.2
+  uuid: ^4.3.2 # Added for generating unique IDs for chat sessions
 
 dev_dependencies:
   flutter_test:
