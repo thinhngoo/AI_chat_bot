@@ -16,6 +16,7 @@ dependencies:
   firebase_auth: ^5.5.1
   google_sign_in: ^6.2.2
   uuid: ^4.3.2 # Added for generating unique IDs for chat sessions
+  url_launcher: ^6.2.5 # Added to open email apps
 
 dev_dependencies:
   flutter_test:

@@ -20,6 +20,7 @@ void main() async {
     _logger.w('Failed to load .env file: $e');
     // Create default environment variables
     dotenv.env['DEEPSEEK_API_KEY'] = 'demo_api_key';
+    dotenv.env['GEMINI_API_KEY'] = 'demo_api_key';
   }
   
   // Initialize Firebase only on supported platforms
@@ -43,7 +44,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AI chat bot app',
+      title: 'AI của Vinh',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),

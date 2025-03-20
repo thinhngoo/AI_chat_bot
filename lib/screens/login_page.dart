@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'home_page.dart';
 import 'signup_page.dart';
+import 'email_verification_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -48,10 +49,19 @@ class LoginPageState extends State<LoginPage> {
           MaterialPageRoute(builder: (context) => const HomePage()),
         );
       } else {
+        // Navigate to verification page with email
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EmailVerificationPage(
+              email: _emailController.text.trim(),
+            ),
+          ),
+        );
+        
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Vui lòng xác minh email của bạn trước khi đăng nhập')),
         );
-        await _authService.signOut();
       }
     } catch (e) {
       if (!mounted) return;

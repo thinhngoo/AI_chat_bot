@@ -82,12 +82,40 @@ class SignUpPageState extends State<SignUpPage> {
         _passwordController.text.trim(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đăng ký thành công! Vui lòng kiểm tra email để xác minh tài khoản.')),
-      );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginPage()),
+      
+      // Show more detailed dialog with instructions instead of just a snackbar
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Đăng ký thành công!'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text('Email xác minh đã được gửi đến địa chỉ email của bạn.'),
+                SizedBox(height: 8),
+                Text('Lưu ý:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('• Vui lòng kiểm tra cả thư mục SPAM hoặc Junk Mail'),
+                Text('• Email có thể mất vài phút để đến'),
+                Text('• Nếu không nhận được, bạn có thể yêu cầu gửi lại tại trang xác minh'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                child: const Text('OK'),
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                  );
+                },
+              ),
+            ],
+          );
+        },
       );
     } catch (e) {
       if (!mounted) return;

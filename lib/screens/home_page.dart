@@ -39,7 +39,7 @@ class HomePageState extends State<HomePage> {
       title: 'New Chat',
       messages: [
         Message(
-          text: "Xin chào! Tôi là AI của DeepSeek. Bạn khỏe không?",
+          text: "Xin chào! Tôi là AI của Vinh. Bạn khỏe không?",
           isUser: false,
           timestamp: DateTime.now(),
         ),
@@ -216,7 +216,7 @@ class HomePageState extends State<HomePage> {
               setState(() {
                 _currentSession!.messages.clear();
                 _currentSession!.messages.add(Message(
-                  text: "Xin chào! Tôi là AI của DeepSeek. Bạn khỏe không?",
+                  text: "Xin chào! Tôi là AI của Vinh. Bạn khỏe không?",
                   isUser: false,
                   timestamp: DateTime.now(),
                 ));
@@ -234,7 +234,7 @@ class HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_currentSession != null ? _getChatTitle(_currentSession!) : 'DeepSeek Chat'),
+        title: Text(_currentSession != null ? _getChatTitle(_currentSession!) : 'AI của Vinh'),
         backgroundColor: Colors.grey[900],
         foregroundColor: Colors.white,
         actions: [
@@ -256,7 +256,7 @@ class HomePageState extends State<HomePage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
-                      'DeepSeek Chat',
+                      'AI của Vinh',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 24,

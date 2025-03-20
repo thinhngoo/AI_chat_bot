@@ -138,4 +138,26 @@ class AuthService {
       throw 'Đăng nhập với Google thất bại';
     }
   }
+
+  // Resend verification email
+  Future<void> resendVerificationEmail() async {
+    try {
+      if (_useWindowsAuth) {
+        // For Windows, we just simulate this since verification is auto-approved
+        _logger.i('Simulating resend verification email on Windows platform');
+        return;
+      } 
+      
+      User? user = _auth.currentUser;
+      if (user != null) {
+        await user.sendEmailVerification();
+        _logger.i('Verification email resent to ${user.email}');
+      } else {
+        throw 'No user logged in';
+      }
+    } catch (e) {
+      _logger.e('Error resending verification email: $e');
+      throw e.toString();
+    }
+  }
 }
