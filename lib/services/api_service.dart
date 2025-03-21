@@ -35,7 +35,8 @@ class ApiService {
     try {
       // Get API key from environment variables
       final apiKey = dotenv.env['GEMINI_API_KEY'];
-      if (apiKey == null || apiKey == 'your_gemini_api_key_here' || apiKey == 'demo_api_key') {
+      if (apiKey == null || apiKey == 'your_gemini_api_key_here' || 
+          apiKey == 'demo_api_key_please_configure' || apiKey == 'demo_api_key') {
         _logger.w('Valid GEMINI_API_KEY not found in environment variables, using fallback mode');
         _useFallbackResponses = true;
         return _getFallbackResponse();

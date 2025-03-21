@@ -1,22 +1,25 @@
 import 'package:logger/logger.dart';
 import 'platform_service_helper.dart';
-
-// Import conditionally to avoid errors on Windows
-import 'package:firebase_auth/firebase_auth.dart' if (dart.library.io) 'windows_auth_stub.dart';
 import 'windows_auth_service.dart';
+import 'firebase_auth_provider.dart';
+import 'auth_provider_interface.dart';
 
 class AuthService {
   final Logger _logger = Logger();
-  late final dynamic _auth;
+  late final AuthProviderInterface _auth;
   final bool _useWindowsAuth = PlatformServiceHelper.isDesktopWindows;
   
-  AuthService() {
+  // Singleton pattern
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
+  
+  AuthService._internal() {
     if (_useWindowsAuth) {
       _auth = WindowsAuthService();
       _logger.i('Using Windows Auth Service');
     } else {
       try {
-        _auth = FirebaseAuth.instance;
+        _auth = FirebaseAuthProvider();
         _logger.i('Using Firebase Auth Service');
       } catch (e) {
         _logger.e('Failed to initialize Firebase Auth: $e');
@@ -27,27 +30,22 @@ class AuthService {
   }
 
   // Method to get currently logged in user
-  dynamic get currentUser => _useWindowsAuth ? null : _auth.currentUser;
+  dynamic get currentUser => _auth.currentUser;
+  
+  // Method to get auth state changes
+  Stream<dynamic> authStateChanges() {
+    return _auth.authStateChanges();
+  }
 
   // Check if user is logged in
   Future<bool> isLoggedIn() async {
-    if (_useWindowsAuth) {
-      return await _auth.isLoggedIn();
-    }
-    return _auth.currentUser != null;
+    return await _auth.isLoggedIn();
   }
 
   // Sign in with email and password
   Future<void> signInWithEmailAndPassword(String email, String password) async {
     try {
-      if (_useWindowsAuth) {
-        await _auth.signInWithEmailAndPassword(email, password);
-      } else {
-        await _auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-      }
+      await _auth.signInWithEmailAndPassword(email, password);
       _logger.i('Đăng nhập thành công');
     } catch (e) {
       _logger.e('Lỗi đăng nhập: $e');
@@ -58,18 +56,7 @@ class AuthService {
   // Sign up with email and password
   Future<void> signUpWithEmailAndPassword(String email, String password) async {
     try {
-      if (_useWindowsAuth) {
-        await _auth.signUpWithEmailAndPassword(email, password);
-      } else {
-        UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-        
-        // Send email verification
-        await userCredential.user!.sendEmailVerification();
-      }
-      
+      await _auth.signUpWithEmailAndPassword(email, password);
       _logger.i('Đăng ký thành công, email xác minh đã được gửi');
     } catch (e) {
       _logger.e('Lỗi đăng ký: $e');
@@ -84,22 +71,14 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
-    if (_useWindowsAuth) {
-      await _auth.signOut();
-    } else {
-      await _auth.signOut();
-    }
+    await _auth.signOut();
     _logger.i('Đăng xuất thành công');
   }
 
   // Send password reset email
   Future<void> sendPasswordResetEmail(String email) async {
     try {
-      if (_useWindowsAuth) {
-        await _auth.sendPasswordResetEmail(email);
-      } else {
-        await _auth.sendPasswordResetEmail(email: email);
-      }
+      await _auth.sendPasswordResetEmail(email);
       _logger.i('Email đặt lại mật khẩu đã được gửi');
     } catch (e) {
       _logger.e('Lỗi gửi email đặt lại mật khẩu: $e');
@@ -109,71 +88,54 @@ class AuthService {
 
   // Check if email is verified
   bool isEmailVerified() {
-    if (_useWindowsAuth) {
-      return _auth.isEmailVerified();
-    }
-    
-    User? user = _auth.currentUser;
-    return user?.emailVerified ?? false;  // Add null check for user
+    return _auth.isEmailVerified();
   }
 
   // Reload user to check if email has been verified
   Future<void> reloadUser() async {
-    if (_useWindowsAuth) {
-      await _auth.reloadUser();
-      return;
-    }
-    
-    User? user = _auth.currentUser;
-    if (user != null) {
-      await user.reload();
-    }
+    await _auth.reloadUser();
   }
 
   // Sign in with Google
   Future<void> signInWithGoogle() async {
     try {
       if (_useWindowsAuth) {
-        await _auth.signInWithGoogle();
+        throw 'Google Sign-In không được hỗ trợ trên Windows';
       } else {
-        // Implementation would normally go here
-        throw Exception('Google sign-in not fully implemented');
+        await _auth.signInWithGoogle();
       }
     } catch (e) {
       _logger.e('Lỗi đăng nhập Google: $e');
-      throw 'Đăng nhập với Google thất bại';
+      throw e.toString();
     }
   }
 
   // Resend verification email
   Future<void> resendVerificationEmail() async {
     try {
-      if (_useWindowsAuth) {
-        // For Windows, we just simulate this since verification is auto-approved
-        _logger.i('Simulating resend verification email on Windows platform');
-        return;
-      } 
-      
-      User? user = _auth.currentUser;
-      if (user != null) {
-        await user.sendEmailVerification();
-        _logger.i('Verification email resent to ${user.email}');
-      } else {
-        throw 'No user logged in';
+      // Check if a user is logged in before attempting to resend verification
+      if (_auth.currentUser == null) {
+        _logger.w('No user logged in when trying to resend verification email');
+        throw 'Người dùng chưa đăng nhập, không thể gửi lại email xác minh';
       }
+      
+      await _auth.resendVerificationEmail();
+      _logger.i('Email xác minh đã được gửi lại');
     } catch (e) {
       _logger.e('Error resending verification email: $e');
-      throw e.toString();
+      // Convert general errors to user-friendly messages
+      if (e.toString().contains('too-many-requests')) {
+        throw 'Đã gửi quá nhiều email. Vui lòng thử lại sau ít phút.';
+      } else if (e.toString().contains('network-request-failed')) {
+        throw 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet và thử lại.';
+      } else {
+        throw e.toString();
+      }
     }
   }
 
   // Add this method to check if Firebase is initialized properly
   bool isFirebaseInitialized() {
-    if (_useWindowsAuth) return false;
-    try {
-      return FirebaseAuth.instance != null;
-    } catch (e) {
-      return false;
-    }
+    return _auth is FirebaseAuthProvider && (_auth).isInitialized();
   }
 }

@@ -300,7 +300,7 @@ class HomePageState extends State<HomePage> {
                       ),
                       leading: const Icon(Icons.chat_bubble_outline, color: Colors.white),
                       selected: isSelected,
-                      selectedTileColor: Colors.blue.withValues(alpha: 77), // 0.3 * 255 ≈ 77
+                      selectedTileColor: Colors.blue.withAlpha(77), // Use withAlpha instead of withOpacity for better precision
                       onTap: () => _selectChat(session),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete, color: Colors.red),
