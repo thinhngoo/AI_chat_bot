@@ -6,20 +6,22 @@ class FirebaseChecker {
   static bool _isInitialized = false;
   
   static Future<bool> checkFirebaseInitialization() async {
+    // If we already know Firebase is initialized, return immediately
     if (_isInitialized) return true;
     
     try {
-      // Check if Firebase is already initialized
-      if (Firebase.apps.isNotEmpty) {
+      // Fast check - just see if apps list is populated
+      final isInitialized = Firebase.apps.isNotEmpty;
+      
+      if (isInitialized) {
         _isInitialized = true;
-        _logger.i('Firebase is already initialized');
         return true;
       }
       
-      _logger.w('Firebase is not initialized');
       return false;
     } catch (e) {
-      _logger.e('Error checking Firebase initialization: $e');
+      // Don't log detailed error to avoid freezing
+      _logger.w('Firebase check failed');
       return false;
     }
   }

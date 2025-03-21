@@ -8,24 +8,45 @@ class AuthService {
   final Logger _logger = Logger();
   late final AuthProviderInterface _auth;
   final bool _useWindowsAuth = PlatformServiceHelper.isDesktopWindows;
+  bool _firebaseInitialized = false;
   
   // Singleton pattern
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   
   AuthService._internal() {
-    if (_useWindowsAuth) {
-      _auth = WindowsAuthService();
-      _logger.i('Using Windows Auth Service');
-    } else {
-      try {
-        _auth = FirebaseAuthProvider();
-        _logger.i('Using Firebase Auth Service');
-      } catch (e) {
-        _logger.e('Failed to initialize Firebase Auth: $e');
+    _initializeAuth();
+  }
+  
+  // Initialize auth provider with fast path for known platforms
+  void _initializeAuth() {
+    try {
+      if (_useWindowsAuth) {
         _auth = WindowsAuthService();
-        _logger.i('Falling back to Windows Auth Service');
+      } else {
+        try {
+          // Use lightweight check before creating Firebase provider
+          _auth = FirebaseAuthProvider();
+        } catch (e) {
+          _logger.w('Firebase provider creation failed, using fallback');
+          _auth = WindowsAuthService();
+        }
       }
+    } catch (e) {
+      // Emergency fallback
+      _logger.e('Auth initialization error: $e');
+      _auth = WindowsAuthService(); 
+    }
+  }
+
+  // Set Firebase initialization status
+  void setFirebaseInitialized(bool status) {
+    _firebaseInitialized = status;
+    
+    // Only switch to fallback if we're using Firebase but it failed
+    if (!_useWindowsAuth && !status && _auth is FirebaseAuthProvider) {
+      _auth = WindowsAuthService();
+      _logger.w('Firebase not initialized. Using fallback authentication.');
     }
   }
 
@@ -136,6 +157,6 @@ class AuthService {
 
   // Add this method to check if Firebase is initialized properly
   bool isFirebaseInitialized() {
-    return _auth is FirebaseAuthProvider && (_auth).isInitialized();
+    return _firebaseInitialized && _auth is FirebaseAuthProvider;
   }
 }

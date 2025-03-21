@@ -5,6 +5,7 @@ import 'home_page.dart';
 import 'signup_page.dart';
 import 'email_verification_page.dart';
 import 'package:logger/logger.dart';
+import '../utils/error_utils.dart'; // Import new utility class
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -23,6 +24,7 @@ class LoginPageState extends State<LoginPage> {
   String? _emailError;
   String? _passwordError;
   int _failedAttempts = 0;
+  String? _generalErrorMessage;
   
   @override
   void initState() {
@@ -41,6 +43,8 @@ class LoginPageState extends State<LoginPage> {
     bool isValid = true;
     
     setState(() {
+      _generalErrorMessage = null; // Clear any general error message
+      
       // Validate email
       if (!AuthValidators.isValidEmail(_emailController.text.trim())) {
         _emailError = 'Vui lòng nhập email hợp lệ';
@@ -62,11 +66,16 @@ class LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _signIn() async {
+    // Clear any previous general error
+    setState(() {
+      _generalErrorMessage = null;
+    });
+    
     // Check for rate limiting
     if (_failedAttempts >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau.')),
-      );
+      setState(() {
+        _generalErrorMessage = 'Quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau.';
+      });
       return;
     }
     
@@ -120,32 +129,19 @@ class LoginPageState extends State<LoginPage> {
       
       _logger.e('Login error: $e');
       
-      // Provide friendly error messages based on error type
-      String errorMessage = 'Đăng nhập thất bại';
+      // Use our utility class to get a friendly error message
+      final errorInfo = ErrorUtils.getAuthErrorInfo(e.toString());
       
-      if (e.toString().contains('user-not-found') || 
-          e.toString().contains('Tài khoản không tồn tại')) {
-        errorMessage = 'Email không tồn tại trong hệ thống';
-      } else if (e.toString().contains('wrong-password') || 
-                e.toString().contains('Mật khẩu không đúng')) {
-        errorMessage = 'Mật khẩu không chính xác';
-      } else if (e.toString().contains('too-many-requests')) {
-        errorMessage = 'Quá nhiều yêu cầu. Vui lòng thử lại sau';
-      } else if (e.toString().contains('network-request-failed')) {
-        errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet';
-      }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          action: e.toString().contains('network-request-failed') 
-              ? SnackBarAction(
-                  label: 'Thử lại',
-                  onPressed: _signIn,
-                ) 
-              : null,
-        ),
-      );
+      setState(() {
+        _generalErrorMessage = errorInfo.message;
+        
+        // If the error is related to a specific field, set that field's error
+        if (errorInfo.field == 'email') {
+          _emailError = errorInfo.message;
+        } else if (errorInfo.field == 'password') {
+          _passwordError = errorInfo.message;
+        }
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -312,6 +308,32 @@ class LoginPageState extends State<LoginPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 30),
+                    
+                    // Show general error message if there is one
+                    if (_generalErrorMessage != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          border: Border.all(color: Colors.red.shade200),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.red),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _generalErrorMessage!,
+                                style: TextStyle(color: Colors.red.shade800),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    
                     EmailField(
                       controller: _emailController,
                       errorText: _emailError,

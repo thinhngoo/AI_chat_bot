@@ -6,37 +6,84 @@ import 'package:logger/logger.dart';
 
 class PlatformServiceHelper {
   static final Logger _logger = Logger();
-
-  static bool get isDesktopWindows => 
-      !kIsWeb && Platform.isWindows;
-      
-  static bool get isMobileOrWeb =>
-      kIsWeb || Platform.isAndroid || Platform.isIOS;
-      
-  static bool get supportsFirebaseAuth =>
-      kIsWeb || Platform.isAndroid || Platform.isIOS || Platform.isMacOS || 
-      (Platform.isWindows && _isFirebaseWindowsSupported());
-
-  // Add a method to check if the Firebase Windows plugin is available
-  static bool _isFirebaseWindowsSupported() {
-    try {
-      // This will throw an exception if the Firebase Windows plugin is not properly set up
-      return true;
-    } catch (e) {
-      _logger.w('Firebase Windows support check failed: $e');
-      return false;
+  
+  // Pre-calculate platform info immediately at class load time
+  static final Map<String, dynamic> _platformCache = _initPlatformCache();
+  
+  // Initialize platform cache once at startup
+  static Map<String, dynamic> _initPlatformCache() {
+    final Map<String, dynamic> cache = {};
+    
+    // Detect platform with minimal overhead
+    final bool isWeb = kIsWeb;
+    String platform;
+    bool supportsFirebase;
+    
+    if (isWeb) {
+      platform = 'web';
+      supportsFirebase = true;
+    } else {
+      try {
+        if (Platform.isAndroid) {
+          platform = 'android';
+          supportsFirebase = true;
+        } else if (Platform.isIOS) {
+          platform = 'ios';
+          supportsFirebase = true;
+        } else if (Platform.isMacOS) {
+          platform = 'macos';
+          supportsFirebase = true;
+        } else if (Platform.isWindows) {
+          platform = 'windows';
+          supportsFirebase = true; // Optimistically assume support
+        } else if (Platform.isLinux) {
+          platform = 'linux';
+          supportsFirebase = false;
+        } else {
+          platform = 'unknown';
+          supportsFirebase = false;
+        }
+      } catch (e) {
+        // Fallback for any platform detection errors
+        platform = 'unknown';
+        supportsFirebase = false;
+      }
     }
+    
+    // Cache platform information
+    cache['platform'] = platform;
+    cache['supportsFirebase'] = supportsFirebase;
+    cache['isWeb'] = isWeb;
+    cache['isDesktopWindows'] = !isWeb && platform == 'windows';
+    cache['isMobileOrWeb'] = isWeb || platform == 'android' || platform == 'ios';
+    
+    // Create platform info result map
+    final Map<String, dynamic> platformInfo = {
+      'platform': platform,
+      'supportsFirebase': supportsFirebase,
+      'isDesktop': platform == 'windows' || platform == 'macos' || platform == 'linux',
+      'isMobile': platform == 'android' || platform == 'ios',
+      'isWeb': isWeb,
+    };
+    
+    cache['platformInfo'] = platformInfo;
+    
+    return cache;
   }
-      
+
+  // Fast getters that use pre-calculated values  
+  static bool get isDesktopWindows => _platformCache['isDesktopWindows'] as bool;
+  static bool get isMobileOrWeb => _platformCache['isMobileOrWeb'] as bool;
+  static bool get supportsFirebaseAuth => _platformCache['supportsFirebase'] as bool;
+  
+  // Return the cached platform info immediately
+  static Map<String, dynamic> getPlatformInfo() {
+    return _platformCache['platformInfo'] as Map<String, dynamic>;
+  }
+  
   // Helper method to determine which auth service to use
   static String get authServiceImplementation {
-    if (isDesktopWindows) {
-      _logger.i('Using Windows-specific auth implementation');
-      return 'windows';
-    } else {
-      _logger.i('Using Firebase auth implementation');
-      return 'firebase';
-    }
+    return isDesktopWindows ? 'windows' : 'firebase';
   }
   
   // Helper method for loading platform-specific config
