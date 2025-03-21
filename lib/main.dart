@@ -44,6 +44,9 @@ void main() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
       _logger.i('Firebase initialized successfully with project: vinh-aff13');
+      
+      // Log Firestore initialization
+      _logger.i('Firestore is now available for storing user data');
     } catch (e) {
       _logger.e('Failed to initialize Firebase: $e');
       _logger.i('Application will use fallback authentication mechanism');

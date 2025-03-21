@@ -193,8 +193,8 @@ class GoogleSignInButton extends StatelessWidget {
                   strokeWidth: 2,
                 ),
               )
-            : Image.network(
-                'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
+            : Image.asset(
+                'assets/images/google_logo.png',
                 height: 24,
               ),
         label: const Text('Đăng nhập với Google'),

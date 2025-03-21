@@ -1,10 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user_model.dart';
 import 'auth_provider_interface.dart';
+import 'firestore_service.dart';
 
 class FirebaseAuthProvider implements AuthProviderInterface {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final Logger _logger = Logger();
+  final FirestoreService _firestoreService = FirestoreService();
 
   @override
   User? get currentUser => _firebaseAuth.currentUser;
@@ -51,12 +55,26 @@ class FirebaseAuthProvider implements AuthProviderInterface {
   }
 
   @override
-  Future<void> signUpWithEmailAndPassword(String email, String password) async {
+  Future<void> signUpWithEmailAndPassword(String email, String password, {String? name}) async {
     try {
+      // Create user in Firebase Authentication
       UserCredential result = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+      
+      // Save additional user data to Firestore
+      if (result.user != null) {
+        UserModel userModel = UserModel(
+          uid: result.user!.uid,
+          email: email,
+          name: name,
+          createdAt: DateTime.now(),
+          isEmailVerified: false,
+        );
+        
+        await _firestoreService.saveUserData(userModel);
+      }
       
       // Send email verification
       await result.user?.sendEmailVerification();
@@ -124,6 +142,11 @@ class FirebaseAuthProvider implements AuthProviderInterface {
       User? user = _firebaseAuth.currentUser;
       if (user != null) {
         await user.reload();
+        
+        // Update email verification status in Firestore if needed
+        if (user.emailVerified) {
+          await _firestoreService.updateEmailVerificationStatus(user.uid, true);
+        }
       }
     } catch (e) {
       _logger.e('Error reloading user: $e');

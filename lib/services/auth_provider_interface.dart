@@ -7,7 +7,8 @@ abstract class AuthProviderInterface {
   
   Future<void> signInWithEmailAndPassword(String email, String password);
   
-  Future<void> signUpWithEmailAndPassword(String email, String password);
+  // Update to support additional user data
+  Future<void> signUpWithEmailAndPassword(String email, String password, {String? name});
   
   Future<void> signOut();
   

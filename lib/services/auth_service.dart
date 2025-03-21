@@ -53,10 +53,10 @@ class AuthService {
     }
   }
 
-  // Sign up with email and password
-  Future<void> signUpWithEmailAndPassword(String email, String password) async {
+  // Sign up with email and password - updated to support name
+  Future<void> signUpWithEmailAndPassword(String email, String password, {String? name}) async {
     try {
-      await _auth.signUpWithEmailAndPassword(email, password);
+      await _auth.signUpWithEmailAndPassword(email, password, name: name);
       _logger.i('Đăng ký thành công, email xác minh đã được gửi');
     } catch (e) {
       _logger.e('Lỗi đăng ký: $e');

@@ -14,6 +14,7 @@ class SignUpPage extends StatefulWidget {
 
 class SignUpPageState extends State<SignUpPage> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController(); // New name controller
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -22,6 +23,7 @@ class SignUpPageState extends State<SignUpPage> {
   
   bool _isLoading = false;
   String _passwordStrength = '';
+  String? _nameError; // For name validation
   String? _emailError;
   String? _passwordError;
   String? _confirmPasswordError;
@@ -36,6 +38,14 @@ class SignUpPageState extends State<SignUpPage> {
     bool isValid = true;
     
     setState(() {
+      // Validate name (optional)
+      if (_nameController.text.isNotEmpty && _nameController.text.length < 2) {
+        _nameError = 'Tên cần ít nhất 2 ký tự';
+        isValid = false;
+      } else {
+        _nameError = null;
+      }
+      
       // Validate email
       if (!AuthValidators.isValidEmail(_emailController.text.trim())) {
         _emailError = 'Vui lòng nhập email hợp lệ';
@@ -72,9 +82,12 @@ class SignUpPageState extends State<SignUpPage> {
     });
     
     try {
+      final name = _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null;
+      
       await _authService.signUpWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text,
+        name: name, // Pass name if provided
       );
       
       if (!mounted) return;
@@ -82,6 +95,7 @@ class SignUpPageState extends State<SignUpPage> {
       final email = _emailController.text.trim();
       
       // Clear form data for security
+      _nameController.clear();
       _emailController.clear();
       _passwordController.clear();
       _confirmPasswordController.clear();
@@ -108,7 +122,6 @@ class SignUpPageState extends State<SignUpPage> {
             ),
             actions: [
               TextButton(
-                child: const Text('Đăng nhập'),
                 onPressed: () {
                   Navigator.pop(context);
                   Navigator.pushReplacement(
@@ -116,9 +129,9 @@ class SignUpPageState extends State<SignUpPage> {
                     MaterialPageRoute(builder: (context) => const LoginPage()),
                   );
                 },
+                child: const Text('Đăng nhập'),
               ),
               ElevatedButton(
-                child: const Text('Đi đến trang xác minh'),
                 onPressed: () {
                   Navigator.pop(context);
                   Navigator.pushReplacement(
@@ -126,6 +139,7 @@ class SignUpPageState extends State<SignUpPage> {
                     MaterialPageRoute(builder: (context) => EmailVerificationPage(email: email)),
                   );
                 },
+                child: const Text('Đi đến trang xác minh'),
               ),
             ],
           );
@@ -257,6 +271,22 @@ class SignUpPageState extends State<SignUpPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
+                    
+                    // Add name field
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: InputDecoration(
+                        labelText: 'Họ tên (không bắt buộc)',
+                        hintText: 'Nhập tên của bạn',
+                        errorText: _nameError,
+                        prefixIcon: const Icon(Icons.person),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
                     EmailField(
                       controller: _emailController,
                       errorText: _emailError,
@@ -362,6 +392,7 @@ class SignUpPageState extends State<SignUpPage> {
   @override
   void dispose() {
     // Clear sensitive data
+    _nameController.dispose(); // Dispose the new controller
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();

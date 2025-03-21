@@ -68,9 +68,9 @@ class WindowsAuthService implements AuthProviderInterface {
     }
   }
 
-  // Sign up with email and password
+  // Sign up with email and password - updated to match new interface
   @override
-  Future<void> signUpWithEmailAndPassword(String email, String password) async {
+  Future<void> signUpWithEmailAndPassword(String email, String password, {String? name}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final users = await getUsers();
@@ -84,6 +84,8 @@ class WindowsAuthService implements AuthProviderInterface {
         'email': email,
         'password': password,
         'isVerified': true, // Auto-verify on Windows
+        'name': name ?? '',
+        'createdAt': DateTime.now().toIso8601String(),
       });
       
       await prefs.setString('users', jsonEncode(users));
