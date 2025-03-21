@@ -15,8 +15,14 @@ class AuthService {
       _auth = WindowsAuthService();
       _logger.i('Using Windows Auth Service');
     } else {
-      _auth = FirebaseAuth.instance;
-      _logger.i('Using Firebase Auth Service');
+      try {
+        _auth = FirebaseAuth.instance;
+        _logger.i('Using Firebase Auth Service');
+      } catch (e) {
+        _logger.e('Failed to initialize Firebase Auth: $e');
+        _auth = WindowsAuthService();
+        _logger.i('Falling back to Windows Auth Service');
+      }
     }
   }
 
@@ -108,7 +114,7 @@ class AuthService {
     }
     
     User? user = _auth.currentUser;
-    return user != null && user.emailVerified;
+    return user?.emailVerified ?? false;  // Add null check for user
   }
 
   // Reload user to check if email has been verified
@@ -158,6 +164,16 @@ class AuthService {
     } catch (e) {
       _logger.e('Error resending verification email: $e');
       throw e.toString();
+    }
+  }
+
+  // Add this method to check if Firebase is initialized properly
+  bool isFirebaseInitialized() {
+    if (_useWindowsAuth) return false;
+    try {
+      return FirebaseAuth.instance != null;
+    } catch (e) {
+      return false;
     }
   }
 }

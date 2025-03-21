@@ -12,6 +12,13 @@ class ChatSession {
     List<Message>? messages,
     DateTime? createdAt,
   }) : 
-      this.messages = messages ?? [],
-      this.createdAt = createdAt ?? DateTime.now();
+      messages = messages ?? [],
+      createdAt = createdAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+    };
+  }
 }

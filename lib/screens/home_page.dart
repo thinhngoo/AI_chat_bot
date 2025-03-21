@@ -21,7 +21,7 @@ class HomePageState extends State<HomePage> {
   final ApiService _apiService = ApiService();
   
   // Chat session management
-  List<ChatSession> _chatSessions = [];
+  final List<ChatSession> _chatSessions = [];
   ChatSession? _currentSession;
   bool _isTyping = false;
   final _uuid = Uuid();
@@ -300,7 +300,7 @@ class HomePageState extends State<HomePage> {
                       ),
                       leading: const Icon(Icons.chat_bubble_outline, color: Colors.white),
                       selected: isSelected,
-                      selectedTileColor: Colors.blue.withOpacity(0.3),
+                      selectedTileColor: Colors.blue.withValues(alpha: 77), // 0.3 * 255 ≈ 77
                       onTap: () => _selectChat(session),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete, color: Colors.red),

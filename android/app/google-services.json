@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "784300763720",
+    "project_id": "vinh-aff13",
+    "storage_bucket": "vinh-aff13.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:784300763720:android:db9bbff664f9acd5fe067d",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfaKsurA5ZDawvgcuOGO8qc7TOJIAOegM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -2,12 +2,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
-import 'home_page.dart';
 import 'login_page.dart';
 
 class EmailVerificationPage extends StatefulWidget {
   final String email;
-  const EmailVerificationPage({Key? key, required this.email}) : super(key: key);
+  
+  const EmailVerificationPage({
+    super.key,
+    required this.email,
+  });
 
   @override
   EmailVerificationPageState createState() => EmailVerificationPageState();
@@ -120,8 +123,6 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
     if (!_canResendEmail) return;
     
     try {
-      // First sign out and sign back in to refresh the token
-      final email = widget.email;
       await _authService.resendVerificationEmail();
       
       if (!mounted) return;

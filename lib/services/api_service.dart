@@ -24,7 +24,7 @@ class ApiService {
   ];
   
   Future<String> getDeepSeekResponse(String userMessage) async {
-    // Add user message to conversation history in Gemini format
+    // Add user message to conversation history
     _addUserMessage(userMessage);
     
     // If already in fallback mode, return a mock response
@@ -41,16 +41,22 @@ class ApiService {
         return _getFallbackResponse();
       }
       
-      // Create request body for Gemini API
+      // Create request body matching the exact Gemini API format
       final requestBody = {
-        "contents": _formatMessagesForGemini(),
+        "contents": [
+          {
+            "parts": [
+              {"text": userMessage}
+            ]
+          }
+        ],
         "generationConfig": {
           "temperature": 0.7,
           "maxOutputTokens": 1024,
         }
       };
       
-      // Make API call (with API key as query parameter for Gemini)
+      // Make API call with API key as query parameter
       _logger.i('Sending request to Gemini API...');
       final response = await http.post(
         Uri.parse('$_baseUrl?key=$apiKey'),
@@ -64,15 +70,12 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // Gemini response format is different from DeepSeek
+        // Extract text from Gemini response format
         final assistantResponse = data['candidates']?[0]?['content']?['parts']?[0]?['text'] ?? 
             "Không thể trích xuất phản hồi từ API.";
         
         // Add assistant response to conversation history
         _addAssistantResponse(assistantResponse);
-        
-        // Keep conversation history manageable
-        _pruneConversationHistory();
         
         return assistantResponse;
       } else {
@@ -120,20 +123,6 @@ class ApiService {
       "role": "model",
       "parts": [{"text": message}]
     });
-  }
-  
-  // Helper method to format messages for Gemini API
-  List<Map<String, dynamic>> _formatMessagesForGemini() {
-    // For Gemini, we need to ensure the conversation follows the right format
-    return _conversationHistory;
-  }
-  
-  // Keep conversation history at a reasonable size
-  void _pruneConversationHistory() {
-    // Keep last 10 messages (5 exchanges)
-    if (_conversationHistory.length > 10) {
-      _conversationHistory.removeRange(0, 2);
-    }
   }
   
   String _getFallbackResponse() {

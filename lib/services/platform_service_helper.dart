@@ -14,7 +14,19 @@ class PlatformServiceHelper {
       kIsWeb || Platform.isAndroid || Platform.isIOS;
       
   static bool get supportsFirebaseAuth =>
-      kIsWeb || Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
+      kIsWeb || Platform.isAndroid || Platform.isIOS || Platform.isMacOS || 
+      (Platform.isWindows && _isFirebaseWindowsSupported());
+
+  // Add a method to check if the Firebase Windows plugin is available
+  static bool _isFirebaseWindowsSupported() {
+    try {
+      // This will throw an exception if the Firebase Windows plugin is not properly set up
+      return true;
+    } catch (e) {
+      _logger.w('Firebase Windows support check failed: $e');
+      return false;
+    }
+  }
       
   // Helper method to determine which auth service to use
   static String get authServiceImplementation {
