@@ -3,11 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logger/logger.dart';
 import 'dart:async';
-import 'firebase_options.dart';
-import 'services/auth_service.dart';
-import 'services/platform_service_helper.dart';
-import 'screens/login_page.dart';
-import 'screens/home_page.dart';
+import 'config/firebase_options.dart';
+import 'core/services/auth/auth_service.dart';
+import 'core/services/platform/platform_service_helper.dart';
+import 'features/auth/presentation/login_page.dart';
+import 'features/chat/presentation/home_page.dart';
 
 final Logger _logger = Logger();
 
