@@ -3,11 +3,13 @@ import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../auth_provider_interface.dart';
+import 'windows_google_auth_service.dart';
 
 // Windows-specific implementation that doesn't rely on Firebase Auth
 class WindowsAuthService implements AuthProviderInterface {
   final Logger _logger = Logger();
   String? _currentUserEmail;
+  final WindowsGoogleAuthService _googleAuthService = WindowsGoogleAuthService();
   
   // Stream controller for auth state changes
   final StreamController<String?> _authStateController = StreamController<String?>.broadcast();
@@ -153,12 +155,56 @@ class WindowsAuthService implements AuthProviderInterface {
     }
   }
 
-  // Mock Google sign in with clear unsupported message for Windows
+  // Update Google sign in to use WindowsGoogleAuthService
   @override
   Future<void> signInWithGoogle() async {
     try {
-      _logger.w('Google Sign-In is not supported on Windows platform');
-      throw 'Google Sign-In không được hỗ trợ trên Windows';
+      _logger.i('Attempting Google sign in on Windows platform');
+      
+      // Get the global navigation key or BuildContext somehow
+      // This is tricky without a global context - we'll need to use a workaround
+      
+      // Store the authentication state temporarily in shared preferences
+      final authState = await _googleAuthService.startGoogleAuth();
+      
+      if (authState != null && authState.containsKey('email')) {
+        final email = authState['email'] as String;
+        final name = authState['name'] as String?;
+        
+        // Create or update user in local storage
+        final prefs = await SharedPreferences.getInstance();
+        final users = await getUsers();
+        
+        // Check if user already exists
+        if (users.any((user) => user['email'] == email)) {
+          // User exists, just log them in
+          await prefs.setBool('isLoggedIn', true);
+          await prefs.setString('currentUserEmail', email);
+          _currentUserEmail = email;
+          _authStateController.add(email);
+        } else {
+          // Create new user
+          users.add({
+            'email': email,
+            'password': '', // Google users don't have passwords
+            'isVerified': true,
+            'name': name ?? '',
+            'loginType': 'google',
+            'createdAt': DateTime.now().toIso8601String(),
+          });
+          await prefs.setString('users', jsonEncode(users));
+          
+          // Log them in
+          await prefs.setBool('isLoggedIn', true);
+          await prefs.setString('currentUserEmail', email);
+          _currentUserEmail = email;
+          _authStateController.add(email);
+        }
+        
+        _logger.i('Google sign in successful for: $email');
+      } else {
+        throw 'Google Sign-In was cancelled or failed';
+      }
     } catch (e) {
       _logger.e('Google sign-in error: $e');
       throw e.toString();

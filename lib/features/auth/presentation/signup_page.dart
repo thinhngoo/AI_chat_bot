@@ -84,6 +84,7 @@ class SignUpPageState extends State<SignUpPage> {
     try {
       final name = _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null;
       
+      // Call sign up without storing the return value since we're not using it
       await _authService.signUpWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text,
@@ -100,7 +101,10 @@ class SignUpPageState extends State<SignUpPage> {
       _passwordController.clear();
       _confirmPasswordController.clear();
       
-      // Show success dialog with more information
+      // Show different dialog content based on whether email verification is needed
+      final bool needsVerification = !_authService.isUsingWindowsAuth();
+      
+      // Show success dialog with appropriate information
       await showDialog(
         context: context,
         barrierDismissible: false,
@@ -111,13 +115,19 @@ class SignUpPageState extends State<SignUpPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Fix the string interpolation issue by rewriting it
-                Text("Email xác minh đã được gửi đến ${_maskEmail(email)}"),
-                const SizedBox(height: 12),
-                const Text('Lưu ý:', style: TextStyle(fontWeight: FontWeight.bold)),
-                const Text('• Vui lòng kiểm tra cả thư mục SPAM hoặc Junk Mail'),
-                const Text('• Email có thể mất vài phút để đến'),
-                const Text('• Liên kết xác minh có hiệu lực trong 24 giờ'),
+                // Use proper conditional widgets to avoid type errors
+                if (needsVerification) ...[
+                  Text("Email xác minh đã được gửi đến ${_maskEmail(email)}"),
+                  const SizedBox(height: 12),
+                  const Text('Lưu ý:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('• Vui lòng kiểm tra cả thư mục SPAM hoặc Junk Mail'),
+                  const Text('• Email có thể mất vài phút để đến'),
+                  const Text('• Liên kết xác minh có hiệu lực trong 24 giờ'),
+                ] else ...[
+                  Text("Tài khoản ${_maskEmail(email)} đã được tạo thành công"),
+                  const SizedBox(height: 12),
+                  const Text('Bạn có thể đăng nhập ngay bây giờ'),
+                ],
               ],
             ),
             actions: [
@@ -131,16 +141,17 @@ class SignUpPageState extends State<SignUpPage> {
                 },
                 child: const Text('Đăng nhập'),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => EmailVerificationPage(email: email)),
-                  );
-                },
-                child: const Text('Đi đến trang xác minh'),
-              ),
+              if (needsVerification)
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => EmailVerificationPage(email: email)),
+                    );
+                  },
+                  child: const Text('Đi đến trang xác minh'),
+                ),
             ],
           );
         },

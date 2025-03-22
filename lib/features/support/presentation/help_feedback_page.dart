@@ -30,6 +30,32 @@ class HelpFeedbackPageState extends State<HelpFeedbackPage> {
               children: [Text('Vào phần quản lý tài khoản để đổi.')],
             ),
             ExpansionTile(
+              title: const Text('Tại sao không đăng nhập được bằng Google?'),
+              initiallyExpanded: false,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Để sử dụng đăng nhập bằng Google trên tất cả nền tảng (bao gồm cả Windows):'),
+                      SizedBox(height: 8),
+                      Text('1. Đảm bảo rằng tài khoản Firebase của bạn đã bật chức năng đăng nhập bằng Google'),
+                      Text('2. Thêm OAuth Client ID vào file .env:'),
+                      Text('   GOOGLE_CLIENT_ID=your_client_id_here'),
+                      SizedBox(height: 8),
+                      Text('3. Để lấy Client ID:'),
+                      Text('   - Truy cập https://console.cloud.google.com'),
+                      Text('   - Tạo dự án mới hoặc chọn dự án hiện có'),
+                      Text('   - Vào "APIs & Services > Credentials"'),
+                      Text('   - Tạo OAuth Client ID (Web application)'),
+                      Text('   - Thêm URI chuyển hướng: "http://localhost"'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            ExpansionTile(
               title: const Text('Tại sao chatbot không phản hồi chính xác?'),
               initiallyExpanded: true,
               children: [

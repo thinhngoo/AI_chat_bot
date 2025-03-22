@@ -1,13 +1,11 @@
 import 'package:logger/logger.dart';
-import '../platform/platform_service_helper.dart';
-import 'platform/desktop/windows_auth_service.dart';
+import 'platform/desktop/windows_auth_service.dart';  // Add this import back
 import 'providers/firebase_auth_provider.dart';
 import 'auth_provider_interface.dart';
 
 class AuthService {
   final Logger _logger = Logger();
   late final AuthProviderInterface _auth;
-  final bool _useWindowsAuth = PlatformServiceHelper.isDesktopWindows;
   bool _firebaseInitialized = false;
   
   // Singleton pattern
@@ -18,24 +16,16 @@ class AuthService {
     _initializeAuth();
   }
   
-  // Initialize auth provider with fast path for known platforms
+  // Modified to prioritize Firebase Auth for all platforms
   void _initializeAuth() {
     try {
-      if (_useWindowsAuth) {
-        _auth = WindowsAuthService();
-      } else {
-        try {
-          // Use lightweight check before creating Firebase provider
-          _auth = FirebaseAuthProvider();
-        } catch (e) {
-          _logger.w('Firebase provider creation failed, using fallback');
-          _auth = WindowsAuthService();
-        }
-      }
+      // Always try Firebase first, regardless of platform
+      _auth = FirebaseAuthProvider();
+      _logger.i('Using Firebase authentication provider');
     } catch (e) {
-      // Emergency fallback
-      _logger.e('Auth initialization error: $e');
-      _auth = WindowsAuthService(); 
+      // Only use WindowsAuthService as fallback if Firebase fails
+      _logger.w('Firebase provider creation failed, using fallback: $e');
+      _auth = WindowsAuthService();
     }
   }
 
@@ -44,9 +34,15 @@ class AuthService {
     _firebaseInitialized = status;
     
     // Only switch to fallback if we're using Firebase but it failed
-    if (!_useWindowsAuth && !status && _auth is FirebaseAuthProvider) {
-      _auth = WindowsAuthService();
-      _logger.w('Firebase not initialized. Using fallback authentication.');
+    if (!status && _auth is FirebaseAuthProvider) {
+      _logger.w('Firebase not initialized properly. Switching to fallback authentication.');
+      try {
+        _auth = WindowsAuthService();
+      } catch (e) {
+        _logger.e('Failed to initialize Windows auth service: $e');
+      }
+    } else if (status) {
+      _logger.i('Firebase initialized successfully');
     }
   }
 
@@ -74,11 +70,19 @@ class AuthService {
     }
   }
 
-  // Sign up with email and password - updated to support name
-  Future<void> signUpWithEmailAndPassword(String email, String password, {String? name}) async {
+  // Sign up with email and password - updated to support name and provide correct message
+  Future<String> signUpWithEmailAndPassword(String email, String password, {String? name}) async {
     try {
       await _auth.signUpWithEmailAndPassword(email, password, name: name);
-      _logger.i('Đăng ký thành công, email xác minh đã được gửi');
+      
+      // Provide different success messages based on authentication provider
+      if (_auth is WindowsAuthService) {
+        _logger.i('Đăng ký thành công trên Windows (không cần xác minh email)');
+        return 'Đăng ký thành công';
+      } else {
+        _logger.i('Đăng ký thành công, email xác minh đã được gửi');
+        return 'Đăng ký thành công, email xác minh đã được gửi';
+      }
     } catch (e) {
       _logger.e('Lỗi đăng ký: $e');
       if (e.toString().contains('email-already-in-use') || 
@@ -120,11 +124,7 @@ class AuthService {
   // Sign in with Google
   Future<void> signInWithGoogle() async {
     try {
-      if (_useWindowsAuth) {
-        throw 'Google Sign-In không được hỗ trợ trên Windows';
-      } else {
-        await _auth.signInWithGoogle();
-      }
+      await _auth.signInWithGoogle();
     } catch (e) {
       _logger.e('Lỗi đăng nhập Google: $e');
       throw e.toString();
@@ -156,7 +156,17 @@ class AuthService {
   }
 
   // Add this method to check if Firebase is initialized properly
+  bool isUsingFirebaseAuth() {
+    return _auth is FirebaseAuthProvider;
+  }
+
+  // Add a method to check if we're using Windows auth
+  bool isUsingWindowsAuth() {
+    return _auth is WindowsAuthService;
+  }
+
+  // Add this method to check Firebase initialization status
   bool isFirebaseInitialized() {
-    return _firebaseInitialized && _auth is FirebaseAuthProvider;
+    return _firebaseInitialized;
   }
 }

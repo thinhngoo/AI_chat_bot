@@ -6,7 +6,9 @@ import 'signup_page.dart';
 import 'email_verification_page.dart';
 import 'package:logger/logger.dart';
 import '../../../core/utils/errors/error_utils.dart';
-
+import '../../../core/services/platform/platform_service_helper.dart';
+import '../../../core/services/auth/platform/desktop/windows_google_auth_service.dart';
+import 'google_auth_handler_page.dart';
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -220,13 +222,37 @@ class LoginPageState extends State<LoginPage> {
     });
     
     try {
-      await _authService.signInWithGoogle();
-      
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
-      );
+      // On Windows, we need special handling for Google Sign-In
+      if (PlatformServiceHelper.isDesktopWindows) {
+        // Display instructions before launching browser
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Launching automatic Google Sign-In...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        
+        // For Windows, we'll use our automated OAuth handler
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const GoogleAuthHandlerPage(
+              initialAuthUrl: "Automatic authentication will begin shortly...",
+              autoStartAuth: true,
+            ),
+          ),
+        );
+        
+      } else {
+        // For non-Windows platforms, use the regular flow
+        await _authService.signInWithGoogle();
+        
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       

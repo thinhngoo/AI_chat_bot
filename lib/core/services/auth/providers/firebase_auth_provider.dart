@@ -1,5 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
+import 'package:google_sign_in/google_sign_in.dart';  // Add this import
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../models/user_model.dart';
 import '../auth_provider_interface.dart';
 import '../../firestore/firestore_service.dart';
@@ -155,9 +158,86 @@ class FirebaseAuthProvider implements AuthProviderInterface {
 
   @override
   Future<void> signInWithGoogle() async {
-    // Firebase doesn't have this implementation yet
-    _logger.w('Google sign-in not fully implemented for Firebase');
-    throw 'Đăng nhập với Google chưa được hỗ trợ đầy đủ';
+    try {
+      // Different approach based on platform
+      late final UserCredential result;
+      
+      if (kIsWeb) {
+        // Web implementation
+        _logger.i('Attempting Google sign in (Web)');
+        
+        // Configure GoogleAuthProvider for web
+        GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        googleProvider.addScope('email');
+        googleProvider.addScope('profile');
+        
+        result = await _firebaseAuth.signInWithPopup(googleProvider);
+      } else {
+        // Native platforms (mobile and desktop)
+        _logger.i('Attempting Google sign in (Native platforms including Windows)');
+        
+        // Configure GoogleSignIn with clientId for desktop platforms
+        final String? clientId = dotenv.env['GOOGLE_CLIENT_ID'];
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          // For Windows, we need to provide a clientId from .env file
+          clientId: !kIsWeb ? clientId : null,
+          scopes: ['email', 'profile'],
+        );
+        
+        // Trigger the authentication flow
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+        // If user canceled the sign-in flow
+        if (googleUser == null) {
+          throw 'Đăng nhập với Google đã bị hủy bởi người dùng';
+        }
+
+        // Obtain the auth details from the request
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        
+        // Create a new credential for Firebase
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        // Sign in with the credential
+        result = await _firebaseAuth.signInWithCredential(credential);
+      }
+      
+      // Save user data to Firestore if needed
+      if (result.user != null) {
+        UserModel userModel = UserModel(
+          uid: result.user!.uid,
+          email: result.user!.email ?? '',
+          name: result.user!.displayName,
+          createdAt: DateTime.now(),
+          isEmailVerified: true, // Google accounts are already verified
+        );
+        
+        await _firestoreService.saveUserData(userModel);
+      }
+      
+      _logger.i('Đăng nhập với Google thành công');
+    } on FirebaseAuthException catch (e) {
+      _logger.e('Firebase Auth error during Google sign-in: ${e.code} - ${e.message}');
+      
+      switch (e.code) {
+        case 'account-exists-with-different-credential':
+          throw 'Tài khoản này đã tồn tại với một phương thức đăng nhập khác.';
+        case 'invalid-credential':
+          throw 'Thông tin đăng nhập không hợp lệ.';
+        case 'operation-not-allowed':
+          throw 'Đăng nhập với Google chưa được bật trong Firebase Console.';
+        case 'user-disabled':
+          throw 'Tài khoản người dùng đã bị vô hiệu hóa.';
+        default:
+          throw 'Lỗi đăng nhập với Google: ${e.message}';
+      }
+    } catch (e) {
+      _logger.e('Error during Google sign-in: $e');
+      throw 'Đã xảy ra lỗi khi đăng nhập với Google.';
+    }
   }
 
   @override
