@@ -14,30 +14,41 @@ class OAuthRedirectHandler {
 
   Future<String> listenForRedirect({Duration timeout = const Duration(minutes: 5)}) async {
     try {
+      // Try to find an available port from our fallback list
+      bool serverStarted = false;
+      
       for (final port in _fallbackPorts) {
         try {
           _actualRedirectUri = 'http://localhost:$port';
           _logger.i('Attempting to listen on $_actualRedirectUri');
           
-          // Thử bind với địa chỉ và port
+          // Try binding with the address and port
           _server = await HttpServer.bind(InternetAddress.loopbackIPv4, port, shared: true)
               .timeout(const Duration(seconds: 2));
           
           _logger.i('Successfully listening on $_actualRedirectUri');
-          
-          // Log success instead of using print
-          _logger.i('✓ Port $port opened successfully');
-          _logger.i('Server listening on $_actualRedirectUri');
-          _logger.i('Desktop Client ID automatically accepts redirects to any localhost port');
+          serverStarted = true;
           break;
         } catch (e) {
           _logger.w('Failed to bind to port $port: $e');
+          
+          // Check if the error is related to port already in use
+          if (e.toString().contains('already in use')) {
+            _logger.w('Port $port is already in use. This might indicate another application '
+                'is using this port or another instance of this app is running.');
+          }
+          
           if (port == _fallbackPorts.last) {
             _logger.e('All ports failed, cannot start local server');
             throw 'Cannot open any ports (tried: ${_fallbackPorts.join(", ")}). '
-                'Please close applications using these ports or use manual code entry.';
+                'Please close applications using these ports or check your firewall settings.';
           }
         }
+      }
+      
+      if (!serverStarted) {
+        throw 'Failed to start local OAuth server on any port. Please check firewall settings '
+            'and make sure no other application is using ports ${_fallbackPorts.join(", ")}.';
       }
 
       // Set a timeout to automatically close the server if no code is received
@@ -51,9 +62,9 @@ class OAuthRedirectHandler {
         closeServer();
       });
 
-      // Log status information instead of using print
-      _logger.i('Server is listening on $_actualRedirectUri');
-      _logger.i('If browser shows connection error, enter auth code manually');
+      // Log port actually used
+      _logger.i('OAuth server listening on port: ${_server?.port}. '
+          'If browser shows connection error, enter auth code manually');
 
       // Xử lý các request đến
       _server!.listen(
@@ -145,7 +156,10 @@ class OAuthRedirectHandler {
       _logger.e('Error setting up redirect handler: $e');
       // Clean up any resources before throwing
       await closeServer();
-      throw 'Failed to listen for OAuth redirect: $e';
+      // Return a more descriptive error
+      throw 'Failed to start OAuth redirect listener: $e. '
+          'This might be caused by firewall restrictions or port conflicts. '
+          'Try using manual code entry instead.';
     }
   }
   

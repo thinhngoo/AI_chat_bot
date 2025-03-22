@@ -4,10 +4,19 @@ import 'package:logger/logger.dart';
 class FirebaseChecker {
   static final Logger _logger = Logger();
   static bool _isInitialized = false;
+  static DateTime _lastCheckTime = DateTime.now();
   
   static Future<bool> checkFirebaseInitialization() async {
     // If we already know Firebase is initialized, return immediately
     if (_isInitialized) return true;
+    
+    // Avoid checking too frequently
+    final now = DateTime.now();
+    if (now.difference(_lastCheckTime).inMilliseconds < 200) {
+      return _isInitialized;
+    }
+    
+    _lastCheckTime = now;
     
     try {
       // Fast check - just see if apps list is populated
@@ -24,5 +33,15 @@ class FirebaseChecker {
       _logger.w('Firebase check failed');
       return false;
     }
+  }
+  
+  // Force reset initialization state - useful for testing
+  static void resetInitializationState() {
+    _isInitialized = false;
+  }
+  
+  // Set initialization state explicitly
+  static void setInitialized(bool initialized) {
+    _isInitialized = initialized;
   }
 }

@@ -1,8 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
-import 'package:google_sign_in/google_sign_in.dart';  // Add this import
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/services.dart'; // For PlatformException
+import 'dart:math'; // Add this import for min function
+import 'dart:io' if (dart.library.html) 'dart:html'; // Conditional import
 import '../../../models/user_model.dart';
 import '../auth_provider_interface.dart';
 import '../../firestore/firestore_service.dart';
@@ -160,83 +163,144 @@ class FirebaseAuthProvider implements AuthProviderInterface {
   Future<void> signInWithGoogle() async {
     try {
       // Different approach based on platform
-      late final UserCredential result;
+      late final UserCredential? result;
       
       if (kIsWeb) {
-        // Web implementation
         _logger.i('Attempting Google sign in (Web)');
         
-        // Configure GoogleAuthProvider for web
+        // Web implementation uses Firebase Auth directly
         GoogleAuthProvider googleProvider = GoogleAuthProvider();
         googleProvider.addScope('email');
         googleProvider.addScope('profile');
         
+        // Use signInWithPopup for better UX on web
         result = await _firebaseAuth.signInWithPopup(googleProvider);
       } else {
-        // Native platforms (mobile and desktop)
-        _logger.i('Attempting Google sign in (Native platforms including Windows)');
+        _logger.i('Attempting Google sign in (Native platforms)');
         
-        // Configure GoogleSignIn with clientId for desktop platforms
-        final String? clientId = dotenv.env['GOOGLE_CLIENT_ID'];
-        final GoogleSignIn googleSignIn = GoogleSignIn(
-          // For Windows, we need to provide a clientId from .env file
-          clientId: !kIsWeb ? clientId : null,
-          scopes: ['email', 'profile'],
-        );
-        
-        // Trigger the authentication flow
-        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-
-        // If user canceled the sign-in flow
-        if (googleUser == null) {
-          throw 'Đăng nhập với Google đã bị hủy bởi người dùng';
+        try {
+          // Check for MissingPluginException early to avoid deeper errors
+          try {
+            // First, check if GoogleSignIn class can be instantiated at all
+            // This will throw MissingPluginException if the plugin is completely missing
+            final testInstance = GoogleSignIn();
+            await testInstance.isSignedIn().timeout(const Duration(seconds: 1));
+            _logger.i('GoogleSignIn plugin is available and initialized');
+          } catch (e) {
+            if (e is MissingPluginException || e.toString().contains('MissingPluginException')) {
+              _logger.w('GoogleSignIn plugin is completely missing: $e');
+              throw 'plugin_not_supported';
+            }
+            // Other errors are ok at this point, might just be initialization errors
+            _logger.w('Non-critical Google Sign-In initialization error: $e');
+          }
+          
+          // Select appropriate client ID based on platform
+          final String? clientId;
+          if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+            clientId = dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'] ?? 
+                      dotenv.env['GOOGLE_CLIENT_ID'];
+            _logger.i('Using Desktop OAuth client ID for desktop platform');
+          } else {
+            clientId = dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? 
+                      dotenv.env['GOOGLE_CLIENT_ID'];
+            _logger.i('Using Web OAuth client ID for mobile platform');
+          }
+          
+          _logger.i('Using Google client ID: ${clientId != null ? 
+              "${clientId.substring(0, min(10, clientId.length))}..." : "not found"}');
+          
+          // Initialize GoogleSignIn with the appropriate client ID
+          // Fix: Remove redundant null check for kIsWeb (it can't be null)
+          final GoogleSignIn googleSignIn = GoogleSignIn(
+            clientId: kIsWeb ? null : clientId,
+            scopes: ['email', 'profile'],
+          );
+          
+          _logger.i('Starting Google Sign-In flow');
+          final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+          
+          if (googleUser == null) {
+            _logger.w('Google Sign-In was canceled by user');
+            throw 'Đăng nhập đã bị hủy';
+          }
+          
+          _logger.i('Getting auth credentials');
+          final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+          
+          if (googleAuth.idToken == null) {
+            _logger.e('Failed to get ID token from Google');
+            throw 'Không thể xác thực với Firebase';
+          }
+          
+          _logger.i('Creating Firebase credential');
+          final credential = GoogleAuthProvider.credential(
+            accessToken: googleAuth.accessToken,
+            idToken: googleAuth.idToken,
+          );
+          
+          _logger.i('Signing in to Firebase with credential');
+          result = await _firebaseAuth.signInWithCredential(credential);
+          _logger.i('Firebase sign in complete');
+        } catch (e) {
+          if (e == 'plugin_not_supported' || 
+              e is MissingPluginException || 
+              e.toString().contains('MissingPluginException') ||
+              (e is PlatformException && e.code == 'sign_in_failed')) {
+            _logger.w('Using fallback for Google Sign-In: $e');
+            throw 'plugin_not_supported';
+          } else {
+            _logger.e('Error during Google Sign-In: $e');
+            rethrow;
+          }
         }
-
-        // Obtain the auth details from the request
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        
-        // Create a new credential for Firebase
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-
-        // Sign in with the credential
-        result = await _firebaseAuth.signInWithCredential(credential);
       }
       
-      // Save user data to Firestore if needed
-      if (result.user != null) {
+      // Save user data to Firestore - fix the result null check
+      if (result != null && result.user != null) {
+        _logger.i('Saving user data to Firestore for: ${result.user!.email}');
+        
         UserModel userModel = UserModel(
           uid: result.user!.uid,
           email: result.user!.email ?? '',
           name: result.user!.displayName,
           createdAt: DateTime.now(),
-          isEmailVerified: true, // Google accounts are already verified
+          isEmailVerified: true, // Google accounts are verified
         );
         
         await _firestoreService.saveUserData(userModel);
-      }
-      
-      _logger.i('Đăng nhập với Google thành công');
-    } on FirebaseAuthException catch (e) {
-      _logger.e('Firebase Auth error during Google sign-in: ${e.code} - ${e.message}');
-      
-      switch (e.code) {
-        case 'account-exists-with-different-credential':
-          throw 'Tài khoản này đã tồn tại với một phương thức đăng nhập khác.';
-        case 'invalid-credential':
-          throw 'Thông tin đăng nhập không hợp lệ.';
-        case 'operation-not-allowed':
-          throw 'Đăng nhập với Google chưa được bật trong Firebase Console.';
-        case 'user-disabled':
-          throw 'Tài khoản người dùng đã bị vô hiệu hóa.';
-        default:
-          throw 'Lỗi đăng nhập với Google: ${e.message}';
+        _logger.i('User data saved successfully');
+      } else {
+        _logger.w('No user data received from Firebase');
+        throw 'Không nhận được thông tin người dùng';
       }
     } catch (e) {
-      _logger.e('Error during Google sign-in: $e');
-      throw 'Đã xảy ra lỗi khi đăng nhập với Google.';
+      // Handle specific Firebase Auth exceptions
+      if (e is FirebaseAuthException) {
+        _logger.e('Firebase Auth error during Google sign-in: ${e.code}');
+        
+        switch (e.code) {
+          case 'account-exists-with-different-credential':
+            throw 'Tài khoản này đã tồn tại với phương thức đăng nhập khác';
+          case 'invalid-credential':
+            throw 'Thông tin đăng nhập không hợp lệ';
+          case 'operation-not-allowed':
+            throw 'Đăng nhập bằng Google chưa được bật trong Firebase Console';
+          case 'user-disabled':
+            throw 'Tài khoản đã bị vô hiệu hóa';
+          default:
+            throw e.message ?? 'Lỗi đăng nhập không xác định';
+        }
+      } 
+      // Special case for our custom error
+      else if (e.toString() == 'plugin_not_supported') {
+        throw 'plugin_not_supported';
+      }
+      // Generic error handling
+      else {
+        _logger.e('Error during Google sign-in: $e');
+        throw 'Đã xảy ra lỗi khi đăng nhập với Google';
+      }
     }
   }
 

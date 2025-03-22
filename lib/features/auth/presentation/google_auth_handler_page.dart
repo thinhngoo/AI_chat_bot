@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:logger/logger.dart'; // Add the logger import
 import '../../../core/services/auth/platform/desktop/windows_google_auth_service.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../chat/presentation/home_page.dart';
@@ -23,6 +24,7 @@ class GoogleAuthHandlerPageState extends State<GoogleAuthHandlerPage> {
   final TextEditingController _codeController = TextEditingController();
   final WindowsGoogleAuthService _googleAuthService = WindowsGoogleAuthService();
   final AuthService _authService = AuthService();
+  final Logger _logger = Logger(); // Initialize the logger
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -350,6 +352,10 @@ class GoogleAuthHandlerPageState extends State<GoogleAuthHandlerPage> {
     });
 
     try {
+      // Add additional logging for troubleshooting
+      _logger.i('Starting Google authentication on Windows platform');
+      _logger.i('Using redirect URI from WindowsGoogleAuthService');
+      
       setState(() {
         _statusMessage = "Opening browser window. Please sign in with your Google account.";
       });
@@ -377,11 +383,24 @@ class GoogleAuthHandlerPageState extends State<GoogleAuthHandlerPage> {
     } catch (e) {
       if (!mounted) return;
       
+      _logger.e('Error during Google authentication: $e');
+      
       // Show error and fall back to manual mode
       setState(() {
         _isLoading = false;
         _manualEntryMode = true;
-        _errorMessage = 'Error during automatic authentication: ${e.toString()}';
+        
+        // Provide a more user-friendly error message based on the error
+        if (e.toString().contains('Cannot open any ports')) {
+          _errorMessage = 'Could not start authentication server. '
+              'This may be due to firewall settings or another application using required ports. '
+              'Please enter the code manually.';
+        } else if (e.toString().contains('Authentication timed out')) {
+          _errorMessage = 'Authentication request timed out. '
+              'Please try again or enter the code manually.';
+        } else {
+          _errorMessage = 'Error during automatic authentication: ${e.toString()}';
+        }
       });
     }
   }

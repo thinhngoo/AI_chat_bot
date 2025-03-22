@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Add import for dotenv
 import '../../../core/services/auth/auth_service.dart';
 import '../../../widgets/auth/auth_widgets.dart';
 import '../../../features/chat/presentation/home_page.dart';
@@ -7,8 +8,8 @@ import 'email_verification_page.dart';
 import 'package:logger/logger.dart';
 import '../../../core/utils/errors/error_utils.dart';
 import '../../../core/services/platform/platform_service_helper.dart';
-import '../../../core/services/auth/platform/desktop/windows_google_auth_service.dart';
 import 'google_auth_handler_page.dart';
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -39,6 +40,32 @@ class LoginPageState extends State<LoginPage> {
         });
       }
     });
+    
+    // Log that login page was reached
+    _logger.i('LoginPage initialized');
+    
+    // Check if Firebase is properly initialized
+    Future.delayed(Duration.zero, () {
+      _checkFirebaseStatus();
+    });
+  }
+  
+  void _checkFirebaseStatus() async {
+    final firebaseInitialized = _authService.isFirebaseInitialized();
+    
+    if (!firebaseInitialized) {
+      _logger.w('Firebase is not properly initialized. Some features may not work.');
+      
+      // Only show warning on Windows platform since that's where we expect Firebase
+      if (PlatformServiceHelper.isDesktopWindows) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Firebase không được khởi tạo đúng cách. Một số tính năng có thể không hoạt động.'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   bool _validateForm() {
@@ -222,6 +249,9 @@ class LoginPageState extends State<LoginPage> {
     });
     
     try {
+      // First check if we're on Windows and log the platform information
+      _logger.i('Current platform info: ${PlatformServiceHelper.getPlatformInfo()}');
+      
       // On Windows, we need special handling for Google Sign-In
       if (PlatformServiceHelper.isDesktopWindows) {
         // Display instructions before launching browser
@@ -232,7 +262,11 @@ class LoginPageState extends State<LoginPage> {
           ),
         );
         
+        // Check if Firebase is properly configured
+        _validateFirebaseConfig();
+        
         // For Windows, we'll use our automated OAuth handler
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -242,9 +276,11 @@ class LoginPageState extends State<LoginPage> {
             ),
           ),
         );
-        
-      } else {
-        // For non-Windows platforms, use the regular flow
+        return;
+      } 
+      
+      // For non-Windows platforms, use the regular flow
+      try {
         await _authService.signInWithGoogle();
         
         if (!mounted) return;
@@ -252,6 +288,30 @@ class LoginPageState extends State<LoginPage> {
           context,
           MaterialPageRoute(builder: (context) => const HomePage()),
         );
+      } catch (e) {
+        _logger.i('Caught error in Google Sign-In: ${e.toString()}');
+        
+        // Important: Check for plugin_not_supported with exact string comparison
+        if (e.toString() == 'plugin_not_supported') {
+          _logger.i('Google Sign-In plugin not available, using fallback auth flow');
+          
+          // Use our custom authentication flow
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const GoogleAuthHandlerPage(
+                  initialAuthUrl: "Automatic authentication will begin shortly...",
+                  autoStartAuth: true,
+                ),
+              ),
+            );
+          }
+          return; // Add explicit return to prevent executing error handling code
+        }
+        
+        // Re-throw for other errors to be handled by the outer catch block
+        rethrow;
       }
     } catch (e) {
       if (!mounted) return;
@@ -266,6 +326,29 @@ class LoginPageState extends State<LoginPage> {
         errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet';
       } else if (e.toString().contains('sign_in_canceled')) {
         errorMessage = 'Đăng nhập đã bị hủy';
+      } else if (e.toString().contains('MissingPluginException')) {
+        errorMessage = 'Google Sign-In không được hỗ trợ trên thiết bị này. Đang chuyển sang phương thức thay thế...';
+        
+        // Store context before async gap
+        if (mounted) {
+          final BuildContext currentContext = context;
+          
+          // Schedule navigation after current build is complete
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.push(
+                currentContext,
+                MaterialPageRoute(
+                  builder: (context) => const GoogleAuthHandlerPage(
+                    initialAuthUrl: "Automatic authentication will begin shortly...",
+                    autoStartAuth: true,
+                  ),
+                ),
+              );
+            }
+          });
+        }
+        return;
       }
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -278,6 +361,26 @@ class LoginPageState extends State<LoginPage> {
         });
       }
     }
+  }
+  
+  // Add method to validate Firebase configuration
+  void _validateFirebaseConfig() {
+    // Check for required environment variables
+    final desktopClientId = dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'];
+    if (desktopClientId == null || desktopClientId.isEmpty) {
+      _logger.w('GOOGLE_DESKTOP_CLIENT_ID is missing in .env file. '
+          'Google Sign-In might not work correctly on Windows.');
+    }
+    
+    final clientSecret = dotenv.env['GOOGLE_CLIENT_SECRET']; 
+    if (clientSecret == null || clientSecret.isEmpty) {
+      _logger.w('GOOGLE_CLIENT_SECRET is missing in .env file. '
+          'Google Sign-In might not work correctly on Windows.');
+    }
+    
+    _logger.i('Reminder: For Firebase to accept the Google Sign-In credential, '
+        'the desktop client ID must be added to Firebase Console > Authentication > '
+        'Sign-in method > Google > Web SDK configuration');
   }
   
   void _onEmailChanged(String value) {

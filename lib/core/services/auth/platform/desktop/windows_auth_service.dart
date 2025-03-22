@@ -4,22 +4,43 @@ import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../auth_provider_interface.dart';
 import 'windows_google_auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Add Firebase Auth import
+import '../../../firestore/firestore_service.dart'; // Add Firestore service for user data
+import '../../../../models/user_model.dart'; // Add User model
 
-// Windows-specific implementation that doesn't rely on Firebase Auth
 class WindowsAuthService implements AuthProviderInterface {
   final Logger _logger = Logger();
   String? _currentUserEmail;
   final WindowsGoogleAuthService _googleAuthService = WindowsGoogleAuthService();
+  final FirestoreService _firestoreService = FirestoreService(); // Add Firestore service
   
   // Stream controller for auth state changes
   final StreamController<String?> _authStateController = StreamController<String?>.broadcast();
+  bool _isInitialized = false;
   
   WindowsAuthService() {
-    // Initialize current user
-    getCurrentUserEmail().then((email) {
+    _logger.i('WindowsAuthService constructor called');
+    _initAuthState();
+  }
+  
+  // Initialize auth state
+  Future<void> _initAuthState() async {
+    try {
+      _logger.i('WindowsAuthService initializing auth state');
+      // Get current user email
+      final email = await getCurrentUserEmail();
       _currentUserEmail = email;
+      
+      // Add the current state to the stream controller immediately
       _authStateController.add(email);
-    });
+      _isInitialized = true;
+      _logger.i('WindowsAuthService initialized with current user: ${email ?? "null"}');
+    } catch (e) {
+      _logger.e('Error initializing auth state: $e');
+      // Even on error, we should emit a value (null) to prevent StreamBuilder from hanging
+      _authStateController.add(null);
+      _isInitialized = true;
+    }
   }
   
   @override
@@ -27,20 +48,82 @@ class WindowsAuthService implements AuthProviderInterface {
   
   @override
   Stream<String?> authStateChanges() {
+    _logger.i('authStateChanges() called, isInitialized: $_isInitialized');
+    
+    if (!_isInitialized) {
+      // If not initialized yet, create a stream that first waits for initialization
+      return _createSafeAuthStream();
+    }
+    
+    _logger.i('Returning auth state stream, current user: ${_currentUserEmail ?? "null"}');
     return _authStateController.stream;
+  }
+  
+  // Create a safe auth stream that ensures a value is always emitted
+  Stream<String?> _createSafeAuthStream() {
+    _logger.i('Creating safe auth stream');
+    
+    // Create a controller for the safe stream
+    final controller = StreamController<String?>();
+    
+    // Add the current value immediately if we have it
+    if (_isInitialized) {
+      _logger.i('Adding current user to safe stream: ${_currentUserEmail ?? "null"}');
+      controller.add(_currentUserEmail);
+    }
+    
+    // Wait for initialization if necessary
+    Future.delayed(const Duration(milliseconds: 500), () async {
+      if (!_isInitialized) {
+        _logger.i('Waiting for initialization to complete...');
+        // Wait up to 3 seconds for initialization
+        for (int i = 0; i < 6; i++) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (_isInitialized) break;
+        }
+      }
+      
+      // At this point, either initialized or timed out, emit current state
+      if (!controller.isClosed) {
+        _logger.i('Emitting current state after delay: ${_currentUserEmail ?? "null"}');
+        controller.add(_currentUserEmail);
+        
+        // Forward future events from the main controller
+        _authStateController.stream.listen(
+          (user) {
+            if (!controller.isClosed) {
+              _logger.i('Forwarding auth state change: ${user ?? "null"}');
+              controller.add(user);
+            }
+          },
+          onError: (e) {
+            if (!controller.isClosed) {
+              _logger.e('Error in auth stream: $e');
+              controller.addError(e);
+            }
+          }
+        );
+      }
+    });
+    
+    return controller.stream;
   }
   
   // Check if user is logged in
   @override
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('isLoggedIn') ?? false;
+    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    _logger.i('isLoggedIn check returned: $isLoggedIn');
+    return isLoggedIn;
   }
 
   // Get current user email
   Future<String?> getCurrentUserEmail() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('currentUserEmail');
+    final email = prefs.getString('currentUserEmail');
+    _logger.i('getCurrentUserEmail returned: ${email ?? "null"}');
+    return email;
   }
 
   // Sign in with email and password
@@ -62,8 +145,10 @@ class WindowsAuthService implements AuthProviderInterface {
       await prefs.setBool('isLoggedIn', true);
       await prefs.setString('currentUserEmail', email);
       _currentUserEmail = email;
-      _authStateController.add(email); // Notify listeners
       _logger.i('Sign in successful for: $email');
+      
+      // Update auth state
+      _authStateController.add(email);
     } catch (e) {
       _logger.e('Sign in error: $e');
       throw e.toString();
@@ -105,8 +190,10 @@ class WindowsAuthService implements AuthProviderInterface {
     await prefs.setBool('isLoggedIn', false);
     await prefs.remove('currentUserEmail');
     _currentUserEmail = null;
-    _authStateController.add(null); // Notify listeners
     _logger.i('Sign out successful');
+    
+    // Update auth state
+    _authStateController.add(null);
   }
 
   // Password reset (simulation)
@@ -171,7 +258,38 @@ class WindowsAuthService implements AuthProviderInterface {
         final email = authState['email'] as String;
         final name = authState['name'] as String?;
         
-        // Create or update user in local storage
+        // Check if Firebase authentication was successful
+        if (authState.containsKey('firebaseUid')) {
+          final firebaseUid = authState['firebaseUid'] as String;
+          _logger.i('Firebase authentication successful with UID: $firebaseUid');
+          
+          // The user is already signed in to Firebase at this point
+          // Get current Firebase user for additional verification
+          final currentUser = FirebaseAuth.instance.currentUser;
+          
+          if (currentUser != null) {
+            // We have a valid Firebase user, save additional data to Firestore
+            UserModel userModel = UserModel(
+              uid: currentUser.uid,
+              email: email,
+              name: name,
+              createdAt: DateTime.now(),
+              isEmailVerified: true, // Google accounts are already verified
+            );
+            
+            try {
+              await _firestoreService.saveUserData(userModel);
+              _logger.i('User data saved to Firestore: $email');
+            } catch (e) {
+              _logger.e('Error saving user data to Firestore: $e');
+              // Continue with the login process even if Firestore save fails
+            }
+          }
+        } else {
+          _logger.w('Firebase authentication failed or was not attempted. Using local authentication.');
+        }
+        
+        // Create or update user in local storage as fallback
         final prefs = await SharedPreferences.getInstance();
         final users = await getUsers();
         
@@ -219,6 +337,7 @@ class WindowsAuthService implements AuthProviderInterface {
   
   // Clean up resources
   void dispose() {
+    _logger.i('Disposing WindowsAuthService');
     _authStateController.close();
   }
 }

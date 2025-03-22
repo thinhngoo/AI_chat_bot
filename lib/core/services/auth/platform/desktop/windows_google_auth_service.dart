@@ -1,18 +1,35 @@
 import 'dart:convert';
 import 'dart:math';
-import 'dart:async'; // Add this import for TimeoutException
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'oauth_redirect_handler.dart';
 
+/// Service that handles Google authentication on Windows using OAuth flow
+/// 
+/// IMPORTANT CONFIGURATION STEPS:
+/// 1. In Google Cloud Console (https://console.cloud.google.com/):
+///    - Create OAuth 2.0 Client ID of type "Desktop application"
+///    - Copy the Client ID and Client Secret
+///    - No need to add redirect URIs for desktop apps (they use localhost)
+/// 
+/// 2. In Firebase Console (https://console.firebase.google.com/):
+///    - Go to Authentication > Sign-in method > Google
+///    - Enable Google sign-in
+///    - Add the SAME Client ID from step 1 to "Web SDK configuration"
+///    - Even though it's a Desktop client ID, Firebase needs it in Web config
+/// 
+/// 3. In your .env file:
+///    - Add GOOGLE_DESKTOP_CLIENT_ID=your_desktop_client_id
+///    - Add GOOGLE_CLIENT_SECRET=your_client_secret
 class WindowsGoogleAuthService {
   final Logger _logger = Logger();
   
   // Constants for OAuth
-  // Updated to use port 8080 instead of just localhost
   static const String _redirectUri = 'http://localhost:8080';
   static const String _scope = 'email profile';
   
@@ -26,12 +43,19 @@ class WindowsGoogleAuthService {
   // Launch browser for Google sign in without requiring BuildContext
   Future<Map<String, dynamic>?> startGoogleAuth() async {
     try {
-      // Get client ID from environment variables
-      final clientId = dotenv.env['GOOGLE_CLIENT_ID'];
+      // Check if configuration exists
+      _validateConfiguration();
+      
+      // Get client ID from environment variables - prefer desktop client ID for Windows
+      final clientId = dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'] ?? 
+                     dotenv.env['GOOGLE_CLIENT_ID'];
+                     
       if (clientId == null || clientId.isEmpty) {
         _logger.e('Google client ID not found in environment variables');
-        throw 'Google Client ID is missing. Please add GOOGLE_CLIENT_ID to your .env file.';
+        throw 'Google Client ID is missing. Please add GOOGLE_DESKTOP_CLIENT_ID to your .env file.';
       }
+      
+      _logger.i('Using Desktop client ID for Windows OAuth flow: ${_maskSecret(clientId)}');
       
       // Generate random state and store it for validation
       final state = _generateRandomState();
@@ -42,7 +66,7 @@ class WindowsGoogleAuthService {
       final redirectHandler = OAuthRedirectHandler();
       final Future<String> codePromise = redirectHandler.listenForRedirect();
       
-      // Sử dụng redirectUri từ OAuthRedirectHandler để đảm bảo cùng port
+      // Use redirectUri from OAuthRedirectHandler to ensure same port
       final redirectUri = redirectHandler.redirectUri;
       
       // Create OAuth URL with dynamic redirect URI
@@ -56,12 +80,13 @@ class WindowsGoogleAuthService {
         'prompt': 'select_account',
       });
       
-      // Log chi tiết thêm để debug
-      _logger.i('Sử dụng Desktop Client ID: ${clientId.substring(0, 10)}...');
-      _logger.i('Lưu ý: Desktop Client ID tự động chấp nhận redirect tới bất kỳ port localhost');
+      // Log details for debugging
+      _logger.i('Using Desktop Client ID: ${_maskSecret(clientId)}');
+      _logger.i('Note: Desktop Client ID must be added to Firebase Web SDK configuration');
+      _logger.i('Redirect URI: $redirectUri');
       
       // Launch browser
-      _logger.i('Launching browser for OAuth: ${url.toString()}');
+      _logger.i('Launching browser for OAuth...');
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
         
@@ -88,6 +113,25 @@ class WindowsGoogleAuthService {
     }
   }
   
+  // Verify environment variables are properly configured
+  void _validateConfiguration() {
+    final clientId = dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'] ?? dotenv.env['GOOGLE_CLIENT_ID'];
+    final clientSecret = dotenv.env['GOOGLE_CLIENT_SECRET'];
+    
+    if (clientId == null || clientId.isEmpty) {
+      _logger.e('GOOGLE_DESKTOP_CLIENT_ID is missing in .env file');
+      throw 'Configuration Error: GOOGLE_DESKTOP_CLIENT_ID is required for Windows auth. Please add it to your .env file.';
+    }
+    
+    if (clientSecret == null || clientSecret.isEmpty) {  // Fix missing .isEmpty
+      _logger.e('GOOGLE_CLIENT_SECRET is missing in .env file');
+      throw 'Configuration Error: GOOGLE_CLIENT_SECRET is required for Windows auth. Please add it to your .env file.';
+    }
+    
+    _logger.i('Google OAuth configuration validated');
+    _logger.i('FIREBASE SETUP REMINDER: The client ID must also be added to Firebase Console > Authentication > Sign-in method > Google > Web SDK configuration');
+  }
+  
   // Update to accept the redirectUri parameter
   Future<Map<String, dynamic>> completeGoogleAuth(String authCode, [String? redirectUri]) async {
     try {
@@ -100,9 +144,18 @@ class WindowsGoogleAuthService {
       // Exchange code for tokens using the same redirectUri that was used to get the code
       final tokens = await _exchangeCodeForTokens(cleanedCode, redirectUri ?? _redirectUri);
       final accessToken = tokens['access_token'];
+      final idToken = tokens['id_token'];
+      
+      _logger.i('Tokens received - ID token length: ${idToken?.length ?? 0}, Access token length: ${accessToken?.length ?? 0}');
+      
+      if (idToken == null || accessToken == null) {
+        _logger.e('Failed to get valid tokens from Google OAuth');
+        throw 'Authentication failed: Could not get valid tokens from Google';
+      }
       
       // Get user info
       final userInfo = await _getUserInfo(accessToken);
+      _logger.i('User info received: ${userInfo['email']}');
       
       // Store tokens securely
       final prefs = await SharedPreferences.getInstance();
@@ -113,6 +166,42 @@ class WindowsGoogleAuthService {
       
       // Clear auth pending flag
       await prefs.setBool('google_auth_pending', false);
+      
+      // IMPORTANT: Add Firebase Authentication integration
+      if (idToken != null) {
+        try {
+          // Create AuthCredential with the obtained idToken
+          final AuthCredential credential = GoogleAuthProvider.credential(
+            idToken: idToken,
+            accessToken: accessToken,
+          );
+          
+          _logger.i('Attempting Firebase sign in with Google credential');
+          
+          // Remove redundant null check - just proceed with sign-in
+          _logger.i('Firebase is initialized, proceeding with sign-in');
+          
+          // Sign in to Firebase with this credential
+          final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+          
+          _logger.i('Successfully signed in to Firebase with Google: ${userCredential.user?.uid}');
+          
+          // Add Firebase UID to user info for reference
+          userInfo['firebaseUid'] = userCredential.user?.uid;
+        } catch (e) {
+          _logger.e('Error signing in to Firebase with Google credential: $e');
+          
+          // If the error is "invalid-credential", provide more helpful message
+          if (e.toString().contains('invalid-credential')) {
+            _logger.e('CONFIGURATION ERROR: Please ensure the Desktop Client ID is added to Firebase Console > Authentication > Sign-in method > Google > Web SDK configuration');
+          }
+          
+          // Still return user info even if Firebase sign-in fails
+          // This allows the app to continue working with local authentication
+        }
+      } else {
+        _logger.w('No ID token received from Google. Cannot authenticate with Firebase.');
+      }
       
       return userInfo;
     } catch (e) {
@@ -158,7 +247,9 @@ class WindowsGoogleAuthService {
   // Exchange authorization code for tokens
   Future<Map<String, dynamic>> _exchangeCodeForTokens(String code, String redirectUri) async {
     try {
-      final clientId = dotenv.env['GOOGLE_CLIENT_ID'];
+      final clientId = dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'] ?? 
+                      dotenv.env['GOOGLE_CLIENT_ID'];
+                      
       final clientSecret = dotenv.env['GOOGLE_CLIENT_SECRET'];
       
       if (clientId == null || clientSecret == null) {
@@ -166,7 +257,7 @@ class WindowsGoogleAuthService {
       }
       
       _logger.i('Exchanging code for tokens (code length: ${code.length})');
-      _logger.i('Using client ID: ${clientId.substring(0, 8)}...');
+      _logger.i('Using client ID: ${_maskSecret(clientId)}');
       _logger.i('Using redirect URI: $redirectUri');
       
       // Make sure we're using the exact same redirect URI that was used to get the code
@@ -178,8 +269,6 @@ class WindowsGoogleAuthService {
         'grant_type': 'authorization_code',
       };
       
-      _logger.d('Token request body: $requestBody');
-      
       final response = await http.post(
         Uri.parse('https://oauth2.googleapis.com/token'),
         body: requestBody,
@@ -190,15 +279,37 @@ class WindowsGoogleAuthService {
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body) as Map<String, dynamic>;
         _logger.i('Successfully obtained tokens');
+        
+        // Verify tokens exist
+        if (!responseData.containsKey('access_token') || !responseData.containsKey('id_token')) {
+          _logger.e('Missing required tokens in response: ${responseData.keys.toList()}');
+          throw 'Invalid token response: missing required tokens';
+        }
+        
         return responseData;
       } else {
         _logger.e('Failed to exchange code: ${response.statusCode} - ${response.body}');
-        throw 'Failed to exchange authorization code for tokens (HTTP ${response.statusCode}): ${response.body}';
+        
+        // Attempt to parse error response for better error message
+        try {
+          final errorData = jsonDecode(response.body) as Map<String, dynamic>;
+          final errorMessage = errorData['error_description'] ?? errorData['error'] ?? 'Unknown error';
+          throw 'OAuth error: $errorMessage';
+        } catch (e) {
+          // If we can't parse the error, use the generic message
+          throw 'Failed to exchange authorization code for tokens (HTTP ${response.statusCode})';
+        }
       }
     } catch (e) {
       _logger.e('Error exchanging code for tokens: $e');
       throw 'Failed to exchange authorization code for tokens: $e';
     }
+  }
+  
+  // Mask sensitive information for logging
+  String _maskSecret(String value) {
+    if (value.length <= 8) return '****';
+    return '${value.substring(0, 4)}...${value.substring(value.length - 4)}';
   }
   
   // Get user info using access token

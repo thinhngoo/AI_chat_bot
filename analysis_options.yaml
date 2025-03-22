@@ -21,8 +21,26 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    - avoid_print
+    - prefer_single_quotes
+    - sort_child_properties_last
+    - use_key_in_widget_constructors
+    - use_build_context_synchronously
+
+analyzer:
+  exclude:
+    - dataconnect-generated/**
+    - build/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+  errors:
+    # Allow using dynamic explicitly
+    avoid_dynamic_calls: warning
+    unnecessary_null_comparison: warning
+    
+    # Turn off some checks to reduce noise
+    deprecated_member_use: warning
+    library_private_types_in_public_api: warning
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

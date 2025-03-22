@@ -106,7 +106,7 @@ class PasswordFieldState extends State<PasswordField> {
         errorText: widget.errorText,
         prefixIcon: const Icon(Icons.lock),
         suffixIcon: IconButton(
-          icon: Icon(_obscureText ? Icons.visibility : Icons.visibility_off),
+          icon: Icon(_obscureText ? Icons.visibility_off : Icons.visibility),
           onPressed: () {
             setState(() {
               _obscureText = !_obscureText;
@@ -147,6 +147,8 @@ class SubmitButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
+          foregroundColor: Colors.white,
+          minimumSize: const Size(double.infinity, 50),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -200,6 +202,9 @@ class GoogleSignInButton extends StatelessWidget {
         label: const Text('Đăng nhập với Google'),
         onPressed: isLoading ? null : onPressed,
         style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.black87,
+          backgroundColor: Colors.white,
+          side: const BorderSide(color: Colors.grey),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),

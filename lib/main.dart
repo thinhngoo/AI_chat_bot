@@ -6,6 +6,7 @@ import 'dart:async';
 import 'config/firebase_options.dart';
 import 'core/services/auth/auth_service.dart';
 import 'core/services/platform/platform_service_helper.dart';
+import 'core/utils/firebase/firebase_checker.dart';
 import 'features/auth/presentation/login_page.dart';
 import 'features/chat/presentation/home_page.dart';
 
@@ -14,111 +15,56 @@ final Logger _logger = Logger();
 // Global state to track initialization
 bool _isFirebaseInitialized = false;
 
-void main() {
+// Changed to async to wait for initialization
+void main() async {
   // This ensures Flutter is initialized before we do anything else
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Start app immediately without waiting for initialization
+  // Wait for core initialization to complete before running the app
+  await _initializeCore();
+  
+  // Run app after initialization is complete
   runApp(const MyApp());
-  
-  // Run initialization in background
-  _initializeAppInBackground();
 }
 
-// Run all initialization in background to avoid UI freezing
-Future<void> _initializeAppInBackground() async {
+/// Initialize core app services: environment variables, Firebase, AuthService
+Future<void> _initializeCore() async {
   try {
-    // Get platform info (should be fast with new optimizations)
+    // First load environment variables
+    _logger.i('Loading environment variables...');
+    await dotenv.load();
+    
+    // Check if we're on a platform that supports Firebase
     final platformInfo = PlatformServiceHelper.getPlatformInfo();
-    _logger.i('Platform detected: ${platformInfo['platform']}');
+    _logger.i('Platform detected: ${platformInfo['platform']} (Firebase support: ${platformInfo['supportsFirebase']})');
     
-    // Start loading environment variables and Firebase in parallel
-    final envFuture = _loadEnvironmentVariables();
-    final firebaseFuture = _initializeFirebaseIfSupported(platformInfo);
-    
-    // Wait for both to complete
-    await Future.wait([
-      envFuture.timeout(const Duration(seconds: 3), onTimeout: () {
-        _logger.w('Environment loading timed out, continuing with defaults');
-        return;
-      }),
-      firebaseFuture.timeout(const Duration(seconds: 5), onTimeout: () {
-        _logger.w('Firebase initialization timed out');
+    // Initialize Firebase if supported on this platform
+    if (platformInfo['supportsFirebase']) {
+      _logger.i('Initializing Firebase...');
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        _isFirebaseInitialized = true;
+        _logger.i('Firebase initialization successful');
+      } catch (e) {
+        _logger.e('Firebase initialization error: $e');
         _isFirebaseInitialized = false;
-        return false;
-      })
-    ]);
-    
-  } catch (e) {
-    _logger.e('Error during background initialization: $e');
-  }
-}
-
-Future<void> _loadEnvironmentVariables() async {
-  try {
-    await dotenv.load(fileName: ".env");
-    _logger.i('Environment variables loaded successfully');
-    
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty || apiKey == 'your_gemini_api_key_here') {
-      _logger.w('GEMINI_API_KEY is missing or invalid');
-      dotenv.env['GEMINI_API_KEY'] = 'demo_api_key_please_configure';
+        // Continue execution even if Firebase fails - we'll use fallback auth
+      }
     } else {
-      _logger.i('GEMINI_API_KEY found and appears valid');
-    }
-  } catch (e) {
-    _logger.w('Failed to load .env file: $e');
-    dotenv.env['GEMINI_API_KEY'] = 'demo_api_key_please_configure';
-  }
-}
-
-Future<bool> _initializeFirebaseIfSupported(Map<String, dynamic> platformInfo) async {
-  // Skip Firebase initialization if platform doesn't support it
-  if (!platformInfo['supportsFirebase']) {
-    _logger.i('Firebase not supported on this platform. Using fallback.');
-    AuthService().setFirebaseInitialized(false);
-    return false;
-  }
-  
-  _logger.i('Initializing Firebase for ${platformInfo['platform']}');
-  
-  try {
-    // Quick validation of Firebase options
-    if (!_validateFirebaseOptions()) {
-      _logger.w('Firebase configuration appears invalid');
-      AuthService().setFirebaseInitialized(false);
-      return false;
+      _logger.w('Firebase not supported on this platform, using fallback services');
     }
     
-    // Initialize Firebase with a timeout
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    // Initialize auth service after Firebase is ready
+    final authService = AuthService();
+    authService.setFirebaseInitialized(_isFirebaseInitialized);
+    await authService.initializeService();
     
-    // Quick check if Firebase is initialized
-    _isFirebaseInitialized = Firebase.apps.isNotEmpty;
-    
-    _logger.i('Firebase initialized: $_isFirebaseInitialized');
-    
-    // Update AuthService with initialization status
-    AuthService().setFirebaseInitialized(_isFirebaseInitialized);
-    
-    // Skip detailed validation to prevent freezing
-    return _isFirebaseInitialized;
+    _logger.i('Core initialization complete');
   } catch (e) {
-    _logger.e('Firebase initialization error: $e');
-    AuthService().setFirebaseInitialized(false);
-    return false;
-  }
-}
-
-bool _validateFirebaseOptions() {
-  try {
-    // Minimal validation to avoid heavy processing
-    final options = DefaultFirebaseOptions.currentPlatform;
-    return options.apiKey.isNotEmpty;
-  } catch (e) {
-    return false;
+    _logger.e('Error during core initialization: $e');
+    // Allow app to continue with reduced functionality
   }
 }
 
@@ -130,62 +76,74 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  // Use a timer to periodically update the UI when initialization completes
-  Timer? _checkInitTimer;
+  final AuthService _authService = AuthService();
+  bool _isAuthReady = false;
+  bool _isLoggedIn = false;
 
   @override
   void initState() {
     super.initState();
-    // Start a timer that periodically checks if initialization is complete
-    _checkInitTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-      if (mounted) setState(() {});
-    });
+    _checkAuthState();
   }
 
-  @override
-  void dispose() {
-    _checkInitTimer?.cancel();
-    super.dispose();
+  Future<void> _checkAuthState() async {
+    try {
+      // Check if Firebase is initialized to avoid freezing
+      if (await FirebaseChecker.checkFirebaseInitialization()) {
+        _logger.i('Firebase is initialized, checking auth state');
+        final isLoggedIn = await _authService.isLoggedIn();
+        
+        if (mounted) {
+          setState(() {
+            _isLoggedIn = isLoggedIn;
+            _isAuthReady = true;
+          });
+        }
+      } else {
+        _logger.w('Firebase not initialized, using local auth check');
+        final isLoggedIn = await _authService.isLoggedIn();
+        
+        if (mounted) {
+          setState(() {
+            _isLoggedIn = isLoggedIn;
+            _isAuthReady = true;
+          });
+        }
+      }
+    } catch (e) {
+      _logger.e('Error checking auth state: $e');
+      if (mounted) {
+        setState(() {
+          _isLoggedIn = false;
+          _isAuthReady = true; // Still mark as ready to show login screen
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AI của Vinh',
+      title: 'AI Chat Bot',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        // Optimize theme for performance
-        useMaterial3: false, // Using Material 2 for better performance
+        brightness: Brightness.light,
+        useMaterial3: true,
       ),
-      home: StreamBuilder<dynamic>(
-        stream: AuthService().authStateChanges(),
-        builder: (context, snapshot) {
-          // Cancel timer once auth state is available (not waiting)
-          if (snapshot.connectionState != ConnectionState.waiting) {
-            _checkInitTimer?.cancel();
-          }
-          
-          // Show loading only briefly, then show login anyway
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
+      darkTheme: ThemeData(
+        primarySwatch: Colors.blue,
+        brightness: Brightness.dark,
+        useMaterial3: true,
+      ),
+      themeMode: ThemeMode.dark,
+      debugShowCheckedModeBanner: false,
+      home: _isAuthReady
+          ? (_isLoggedIn ? const HomePage() : const LoginPage())
+          : const Scaffold(
               body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text("Đang khởi động...")
-                  ],
-                ),
+                child: CircularProgressIndicator(),
               ),
-            );
-          } else if (snapshot.hasData && snapshot.data != null) {
-            return const HomePage();
-          } else {
-            return const LoginPage();
-          }
-        },
-      ),
+            ),
     );
   }
 }
