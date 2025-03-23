@@ -347,7 +347,7 @@ class GoogleAuthHandlerPageState extends State<GoogleAuthHandlerPage> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _statusMessage = "Preparing authentication server...";
+      _statusMessage = 'Preparing authentication server...';
       _autoAuthStarted = true;
     });
 
@@ -357,7 +357,7 @@ class GoogleAuthHandlerPageState extends State<GoogleAuthHandlerPage> {
       _logger.i('Using redirect URI from WindowsGoogleAuthService');
       
       setState(() {
-        _statusMessage = "Opening browser window. Please sign in with your Google account.";
+        _statusMessage = 'Opening browser window. Please sign in with your Google account.';
       });
       
       // This will open browser and wait for redirect
@@ -365,15 +365,20 @@ class GoogleAuthHandlerPageState extends State<GoogleAuthHandlerPage> {
       
       if (!mounted) return;
       
+      _logger.i('Auth result received: ${authResult != null ? 'Success' : 'Failed'}');
+      
       if (authResult != null && authResult.containsKey('email')) {
         setState(() {
-          _statusMessage = "Authentication successful! Completing sign-in...";
+          _statusMessage = 'Authentication successful! Completing sign-in...';
         });
+        
+        _logger.i('Successfully authenticated Google user: ${authResult['email']}');
         
         // Authentication succeeded automatically
         await _completeSignIn(authResult);
       } else {
         // Fall back to manual entry
+        _logger.w('Authentication flow did not return user data. Switching to manual mode.');
         setState(() {
           _isLoading = false;
           _manualEntryMode = true;
@@ -391,18 +396,79 @@ class GoogleAuthHandlerPageState extends State<GoogleAuthHandlerPage> {
         _manualEntryMode = true;
         
         // Provide a more user-friendly error message based on the error
-        if (e.toString().contains('Cannot open any ports')) {
+        if (e.toString().contains('redirect_uri_mismatch')) {
+          // Get the redirect URI from the error message if possible
+          String redirectUri = 'unknown';
+          final uriMatch = RegExp(r'http://localhost:\d+').firstMatch(e.toString());
+          if (uriMatch != null) {
+            redirectUri = uriMatch.group(0) ?? 'unknown';
+          }
+          
+          _errorMessage = 'Lỗi xác thực: Redirect URI không khớp. Bạn cần thêm URI sau vào Google Cloud Console:\n\n'
+              '$redirectUri\n\n'
+              'Đi tới: Google Cloud Console > APIs & Services > Credentials > OAuth Client ID';
+          
+          // Show more detailed help dialog automatically
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showRedirectUriMismatchHelpDialog(redirectUri);
+          });
+        } else if (e.toString().contains('Cannot open any ports')) {
           _errorMessage = 'Could not start authentication server. '
               'This may be due to firewall settings or another application using required ports. '
               'Please enter the code manually.';
         } else if (e.toString().contains('Authentication timed out')) {
           _errorMessage = 'Authentication request timed out. '
               'Please try again or enter the code manually.';
+        } else if (e.toString().contains('invalid_client')) {
+          _errorMessage = 'Client authentication failed. Please verify your OAuth client ID and secret in the .env file.';
         } else {
           _errorMessage = 'Error during automatic authentication: ${e.toString()}';
         }
       });
     }
+  }
+
+  // Add a new method to show a specific help dialog for redirect URI mismatch
+  void _showRedirectUriMismatchHelpDialog(String redirectUri) {
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Redirect URI Mismatch Error'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('To fix this error, follow these steps:'),
+              const SizedBox(height: 16),
+              const Text('1. Go to Google Cloud Console:'),
+              const SelectableText('https://console.cloud.google.com/apis/credentials'),
+              const SizedBox(height: 10),
+              const Text('2. Find and edit your OAuth 2.0 Client ID'),
+              const SizedBox(height: 10),
+              const Text('3. Add this redirect URI to Authorized Redirect URIs:'),
+              SelectableText(redirectUri, style: const TextStyle(
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              )),
+              const SizedBox(height: 10),
+              const Text('4. Save changes and try again'),
+              const SizedBox(height: 16),
+              const Text('Note: Your Client ID may have only http://localhost:8080 registered, but the app is using a different port.'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
   }
 
   // Manual code submission
@@ -425,8 +491,22 @@ class GoogleAuthHandlerPageState extends State<GoogleAuthHandlerPage> {
       final userInfo = await _googleAuthService.completeGoogleAuth(code);
       
       if (userInfo.containsKey('email')) {
+        // If Firebase authentication failed but we got user info, show a warning but continue
+        if (!userInfo.containsKey('firebaseUid') && _authService.isUsingFirebaseAuth()) {
+          _logger.w('Firebase authentication failed or was skipped, but we have user info');
+          setState(() {
+            _statusMessage = 'Firebase authentication may have failed, but login will continue...';
+          });
+          await Future.delayed(const Duration(seconds: 2));
+        }
+        
         // Now trigger the login in AuthService
-        await _authService.signInWithGoogle();
+        try {
+          await _authService.signInWithGoogle();
+        } catch (e) {
+          _logger.e('Error during AuthService.signInWithGoogle: $e');
+          // Continue anyway since we have the user info
+        }
         
         if (mounted) {
           Navigator.of(context).pushReplacement(
@@ -446,6 +526,13 @@ class GoogleAuthHandlerPageState extends State<GoogleAuthHandlerPage> {
             _errorMessage = 'The authorization code is invalid or expired. Please try again.';
           } else if (errorMsg.contains('redirect_uri_mismatch')) {
             _errorMessage = 'There\'s a mismatch in the redirect URI. Please contact the app developer.';
+          } else if (errorMsg.contains('Configuration Error')) {
+            _errorMessage = e.toString();
+            
+            // Show configuration help dialog
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _showConfigHelpDialog();
+            });
           } else {
             _errorMessage = 'Authentication failed: $errorMsg';
           }
@@ -453,6 +540,39 @@ class GoogleAuthHandlerPageState extends State<GoogleAuthHandlerPage> {
         });
       }
     }
+  }
+  
+  // Add a method to show a help dialog for configuration issues
+  void _showConfigHelpDialog() {
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Configuration Error'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('To fix this issue:'),
+            SizedBox(height: 10),
+            Text('1. Create a .env file at the project root'),
+            Text('2. Add the following to your .env file:'),
+            SizedBox(height: 5),
+            Text('GOOGLE_DESKTOP_CLIENT_ID=your_client_id', style: TextStyle(fontFamily: 'monospace')),
+            Text('GOOGLE_CLIENT_SECRET=your_client_secret', style: TextStyle(fontFamily: 'monospace')),
+            SizedBox(height: 10),
+            Text('3. Ensure the same client ID is added in Firebase Console > Authentication > Sign-in method > Google > Web SDK configuration'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
   }
 
   // Complete the sign-in process

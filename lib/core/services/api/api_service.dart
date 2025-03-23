@@ -16,11 +16,11 @@ class ApiService {
   
   // Mock responses for fallback mode
   final List<String> _fallbackResponses = [
-    "Xin chào, tôi là trợ lý ảo. Tôi đang chạy ở chế độ ngoại tuyến do lỗi xác thực API.",
-    "Tôi không thể kết nối với API Gemini, nhưng tôi có thể giúp bạn với một số câu trả lời cơ bản.",
-    "Rất tiếc, API đang gặp sự cố. Vui lòng kiểm tra kết nối mạng và API key trong file .env của bạn.",
-    "Đây là phản hồi ngoại tuyến. Để sử dụng API thật, hãy đảm bảo bạn đã cài đặt GEMINI_API_KEY hợp lệ trong file .env.",
-    "Tôi đang hoạt động ở chế độ hạn chế do không thể kết nối tới API Gemini. Vui lòng thử lại sau.",
+    'Xin chào, tôi là trợ lý ảo. Tôi đang chạy ở chế độ ngoại tuyến do lỗi xác thực API.',
+    'Tôi không thể kết nối với API Gemini, nhưng tôi có thể giúp bạn với một số câu trả lời cơ bản.',
+    'Rất tiếc, API đang gặp sự cố. Vui lòng kiểm tra kết nối mạng và API key trong file .env của bạn.',
+    'Đây là phản hồi ngoại tuyến. Để sử dụng API thật, hãy đảm bảo bạn đã cài đặt GEMINI_API_KEY hợp lệ trong file .env.',
+    'Tôi đang hoạt động ở chế độ hạn chế do không thể kết nối tới API Gemini. Vui lòng thử lại sau.',
   ];
   
   Future<String> getDeepSeekResponse(String userMessage) async {
@@ -44,16 +44,16 @@ class ApiService {
       
       // Create request body matching the exact Gemini API format
       final requestBody = {
-        "contents": [
+        'contents': [
           {
-            "parts": [
-              {"text": userMessage}
+            'parts': [
+              {'text': userMessage}
             ]
           }
         ],
-        "generationConfig": {
-          "temperature": 0.7,
-          "maxOutputTokens": 1024,
+        'generationConfig': {
+          'temperature': 0.7,
+          'maxOutputTokens': 1024,
         }
       };
       
@@ -73,7 +73,7 @@ class ApiService {
         
         // Extract text from Gemini response format
         final assistantResponse = data['candidates']?[0]?['content']?['parts']?[0]?['text'] ?? 
-            "Không thể trích xuất phản hồi từ API.";
+            'Không thể trích xuất phản hồi từ API.';
         
         // Add assistant response to conversation history
         _addAssistantResponse(assistantResponse);
@@ -85,8 +85,8 @@ class ApiService {
         // Switch to fallback mode for authentication errors
         if (response.statusCode == 401 || response.statusCode == 403) {
           _useFallbackResponses = true;
-          return "Lỗi xác thực API Gemini (${response.statusCode}). Chuyển sang chế độ ngoại tuyến. "
-              "Vui lòng kiểm tra API key của bạn trong file .env và khởi động lại ứng dụng.";
+          return 'Lỗi xác thực API Gemini (${response.statusCode}). Chuyển sang chế độ ngoại tuyến. '
+              'Vui lòng kiểm tra API key của bạn trong file .env và khởi động lại ứng dụng.';
         }
         
         throw Exception('Failed to load response: ${response.statusCode}, ${response.body}');
@@ -95,11 +95,11 @@ class ApiService {
       _logger.e('Error calling Gemini API: $e');
       
       // Add a more helpful error message to conversation history
-      final errorResponse = "Đã xảy ra lỗi khi gọi API: ${e.toString()}\n\n"
-          "Hướng dẫn khắc phục:\n"
-          "1. Kiểm tra kết nối mạng\n"
-          "2. Đảm bảo đã thêm API key hợp lệ vào file .env\n"
-          "3. Định dạng file .env: GEMINI_API_KEY=your_actual_api_key";
+      final errorResponse = 'Đã xảy ra lỗi khi gọi API: ${e.toString()}\n\n'
+          'Hướng dẫn khắc phục:\n'
+          '1. Kiểm tra kết nối mạng\n'
+          '2. Đảm bảo đã thêm API key hợp lệ vào file .env\n'
+          '3. Định dạng file .env: GEMINI_API_KEY=your_actual_api_key';
       
       _addAssistantResponse(errorResponse);
       
@@ -113,16 +113,16 @@ class ApiService {
   // Helper method to add user message to conversation history in Gemini format
   void _addUserMessage(String message) {
     _conversationHistory.add({
-      "role": "user",
-      "parts": [{"text": message}]
+      'role': 'user',
+      'parts': [{'text': message}]
     });
   }
   
   // Helper method to add assistant response to conversation history in Gemini format
   void _addAssistantResponse(String message) {
     _conversationHistory.add({
-      "role": "model",
-      "parts": [{"text": message}]
+      'role': 'model',
+      'parts': [{'text': message}]
     });
   }
   

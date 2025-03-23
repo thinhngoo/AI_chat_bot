@@ -4,6 +4,7 @@ import '../../../core/models/chat/message.dart';
 import '../../../core/models/chat/chat_session.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/services/api/api_service.dart';
+import '../../../core/services/firestore/firestore_data_service.dart'; // Add this import
 import '../../auth/presentation/login_page.dart';
 import '../../account/presentation/account_management_page.dart';
 import '../../support/presentation/help_feedback_page.dart';
@@ -19,18 +20,74 @@ class HomePageState extends State<HomePage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ApiService _apiService = ApiService();
+  final FirestoreDataService _firestoreService = FirestoreDataService(); // Add Firestore service
+  final AuthService _authService = AuthService();
   
   // Chat session management
   final List<ChatSession> _chatSessions = [];
   ChatSession? _currentSession;
   bool _isTyping = false;
+  bool _isLoading = false; // This field is now properly used in _loadChatSessions
   final _uuid = Uuid();
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
-    // Create a default chat session
-    _createNewChat();
+    // Get current user ID
+    _getCurrentUserId();
+    // Load chat sessions from Firestore
+    _loadChatSessions();
+  }
+
+  // Get current user ID
+  Future<void> _getCurrentUserId() async {
+    final currentUser = _authService.currentUser;
+    
+    if (currentUser != null) {
+      _currentUserId = currentUser is String ? currentUser : currentUser.uid;
+    }
+  }
+
+  // Load chat sessions from Firestore
+  Future<void> _loadChatSessions() async {
+    if (_currentUserId == null) {
+      await _getCurrentUserId();
+      if (_currentUserId == null) {
+        // Still no user ID, create a new chat
+        _createNewChat();
+        return;
+      }
+    }
+    
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      final sessions = await _firestoreService.getUserChatSessions(_currentUserId!);
+      
+      setState(() {
+        _chatSessions.clear();
+        _chatSessions.addAll(sessions);
+        
+        if (_chatSessions.isNotEmpty) {
+          _currentSession = _chatSessions.first;
+        } else {
+          // No saved sessions, create a new one
+          _createNewChat();
+        }
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        // Create a new chat even if loading fails
+        if (_chatSessions.isEmpty) {
+          _createNewChat();
+        }
+      });
+    }
   }
 
   void _createNewChat() {
@@ -39,7 +96,7 @@ class HomePageState extends State<HomePage> {
       title: 'New Chat',
       messages: [
         Message(
-          text: "Xin chào! Tôi là AI của Vinh. Bạn khỏe không?",
+          text: 'Xin chào! Tôi là AI của Vinh. Bạn khỏe không?',
           isUser: false,
           timestamp: DateTime.now(),
         ),
@@ -51,6 +108,11 @@ class HomePageState extends State<HomePage> {
       _currentSession = newSession;
       _apiService.clearConversationHistory(); // Reset API conversation context
     });
+    
+    // Save the new session to Firestore
+    if (_currentUserId != null) {
+      _firestoreService.saveChatSession(newSession, _currentUserId!);
+    }
   }
 
   void _selectChat(ChatSession session) {
@@ -153,11 +215,20 @@ class HomePageState extends State<HomePage> {
     
     _scrollToBottom();
     
+    // Save user message to Firestore if we have a user ID
+    if (_currentUserId != null) {
+      _firestoreService.addMessageToSession(
+        _currentSession!.id, 
+        _currentSession!.messages.last, 
+        _currentUserId!
+      );
+    }
+    
     try {
       // Show typing indicator
       setState(() {
         _currentSession!.messages.add(Message(
-          text: "...",
+          text: '...',
           isUser: false,
           timestamp: DateTime.now(),
           isTyping: true,
@@ -181,17 +252,38 @@ class HomePageState extends State<HomePage> {
         ));
         _isTyping = false;
       });
+      
+      // Save bot response to Firestore
+      if (_currentUserId != null) {
+        _firestoreService.addMessageToSession(
+          _currentSession!.id, 
+          _currentSession!.messages.last, 
+          _currentUserId!
+        );
+        
+        // Update session in Firestore to ensure title and other metadata are saved
+        _firestoreService.saveChatSession(_currentSession!, _currentUserId!);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _currentSession!.messages.removeWhere((message) => message.isTyping == true);
         _currentSession!.messages.add(Message(
-          text: "Xin lỗi, tôi không thể trả lời lúc này. Lỗi: ${e.toString()}",
+          text: 'Xin lỗi, tôi không thể trả lời lúc này. Lỗi: ${e.toString()}',
           isUser: false,
           timestamp: DateTime.now(),
         ));
         _isTyping = false;
       });
+      
+      // Save error message to Firestore
+      if (_currentUserId != null) {
+        _firestoreService.addMessageToSession(
+          _currentSession!.id, 
+          _currentSession!.messages.last, 
+          _currentUserId!
+        );
+      }
     }
     
     _scrollToBottom();
@@ -216,7 +308,7 @@ class HomePageState extends State<HomePage> {
               setState(() {
                 _currentSession!.messages.clear();
                 _currentSession!.messages.add(Message(
-                  text: "Xin chào! Tôi là AI của Vinh. Bạn khỏe không?",
+                  text: 'Xin chào! Tôi là AI của Vinh. Bạn khỏe không?',
                   isUser: false,
                   timestamp: DateTime.now(),
                 ));
@@ -342,9 +434,11 @@ class HomePageState extends State<HomePage> {
         ),
       ),
       backgroundColor: Colors.grey[850],
-      body: _currentSession == null
-          ? const Center(child: Text('Không có cuộc trò chuyện'))
-          : Column(
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator()) // Use _isLoading in the build method
+          : _currentSession == null
+              ? const Center(child: Text('Không có cuộc trò chuyện'))
+              : Column(
               children: [
                 // Chat history area
                 Expanded(
@@ -380,7 +474,7 @@ class HomePageState extends State<HomePage> {
                               ),
                               const SizedBox(height: 5),
                               Text(
-                                "${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}",
+                                '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.white70,

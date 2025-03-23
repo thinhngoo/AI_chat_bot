@@ -7,6 +7,7 @@ import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart'; // Add this import for Firebase
 import 'oauth_redirect_handler.dart';
 
 /// Service that handles Google authentication on Windows using OAuth flow
@@ -69,6 +70,10 @@ class WindowsGoogleAuthService {
       // Use redirectUri from OAuthRedirectHandler to ensure same port
       final redirectUri = redirectHandler.redirectUri;
       
+      // Log and store redirect URI for troubleshooting
+      _logger.i('Using redirect URI: $redirectUri - This must be registered in Google Cloud Console');
+      await prefs.setString('lastUsedRedirectUri', redirectUri);
+      
       // Create OAuth URL with dynamic redirect URI
       final url = Uri.https('accounts.google.com', '/o/oauth2/v2/auth', {
         'client_id': clientId,
@@ -79,11 +84,6 @@ class WindowsGoogleAuthService {
         'access_type': 'offline',
         'prompt': 'select_account',
       });
-      
-      // Log details for debugging
-      _logger.i('Using Desktop Client ID: ${_maskSecret(clientId)}');
-      _logger.i('Note: Desktop Client ID must be added to Firebase Web SDK configuration');
-      _logger.i('Redirect URI: $redirectUri');
       
       // Launch browser
       _logger.i('Launching browser for OAuth...');
@@ -98,14 +98,21 @@ class WindowsGoogleAuthService {
           // Complete the OAuth flow with the received code
           _logger.i('Code received, completing authentication...');
           return await completeGoogleAuth(code, redirectUri);
+        } on TimeoutException {
+          _logger.e('Authentication timed out waiting for code');
+          throw 'Authentication timed out. Please try again or use manual code entry.';
         } catch (e) {
-          if (e is TimeoutException) {
-            throw 'Authentication timed out. Please try again.';
+          _logger.e('Error during code exchange: $e');
+          if (e.toString().contains('redirect_uri_mismatch')) {
+            // Special handling for redirect URI mismatch
+            throw 'Redirect URI mismatch error: The URI $redirectUri is not registered in Google Cloud Console.\n\n'
+                'Please add this URI to your OAuth client in Google Cloud Console > APIs & Services > Credentials.';
           }
           rethrow;
         }
       } else {
-        throw 'Could not launch browser for authentication';
+        _logger.e('Could not launch browser for authentication');
+        throw 'Could not launch browser for authentication. Please check your system settings.';
       }
     } catch (e) {
       _logger.e('Error during Google sign-in: $e');
@@ -118,20 +125,32 @@ class WindowsGoogleAuthService {
     final clientId = dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'] ?? dotenv.env['GOOGLE_CLIENT_ID'];
     final clientSecret = dotenv.env['GOOGLE_CLIENT_SECRET'];
     
+    _logger.i('Validating Google OAuth configuration...');
+    
     if (clientId == null || clientId.isEmpty) {
       _logger.e('GOOGLE_DESKTOP_CLIENT_ID is missing in .env file');
       throw 'Configuration Error: GOOGLE_DESKTOP_CLIENT_ID is required for Windows auth. Please add it to your .env file.';
     }
     
-    if (clientSecret == null || clientSecret.isEmpty) {  // Fix missing .isEmpty
+    if (clientId == 'your_desktop_client_id_here' || clientId == 'your_client_id_here') {
+      _logger.e('GOOGLE_DESKTOP_CLIENT_ID contains placeholder value');
+      throw 'Configuration Error: GOOGLE_DESKTOP_CLIENT_ID contains a placeholder value. Please update it with your actual client ID.';
+    }
+    
+    if (clientSecret == null || clientSecret.isEmpty) {
       _logger.e('GOOGLE_CLIENT_SECRET is missing in .env file');
       throw 'Configuration Error: GOOGLE_CLIENT_SECRET is required for Windows auth. Please add it to your .env file.';
     }
     
-    _logger.i('Google OAuth configuration validated');
+    if (clientSecret == 'your_client_secret_here') {
+      _logger.e('GOOGLE_CLIENT_SECRET contains placeholder value');
+      throw 'Configuration Error: GOOGLE_CLIENT_SECRET contains a placeholder value. Please update it with your actual client secret.';
+    }
+    
+    _logger.i('Google OAuth configuration validated successfully');
     _logger.i('FIREBASE SETUP REMINDER: The client ID must also be added to Firebase Console > Authentication > Sign-in method > Google > Web SDK configuration');
   }
-  
+
   // Update to accept the redirectUri parameter
   Future<Map<String, dynamic>> completeGoogleAuth(String authCode, [String? redirectUri]) async {
     try {
@@ -167,9 +186,26 @@ class WindowsGoogleAuthService {
       // Clear auth pending flag
       await prefs.setBool('google_auth_pending', false);
       
-      // IMPORTANT: Add Firebase Authentication integration
+      // Add Firebase Authentication integration with better error handling
       if (idToken != null) {
         try {
+          // First check if Firebase is initialized before attempting sign-in
+          final isFirebaseAvailable = await _isFirebaseAvailable();
+          if (!isFirebaseAvailable) {
+            _logger.w('Firebase is not available or not initialized - skipping Firebase authentication');
+            return userInfo;
+          }
+          
+          // Check if the client ID is configured in Firebase Console
+          // This is a simple check to avoid the invalid-credential error
+          final fbClientId = dotenv.env['FIREBASE_WEB_CLIENT_ID'] ?? 
+                           dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'];
+          
+          if (fbClientId == null || fbClientId.isEmpty) {
+            _logger.w('No client ID configured for Firebase - skipping Firebase authentication');
+            return userInfo;
+          }
+          
           // Create AuthCredential with the obtained idToken
           final AuthCredential credential = GoogleAuthProvider.credential(
             idToken: idToken,
@@ -178,29 +214,26 @@ class WindowsGoogleAuthService {
           
           _logger.i('Attempting Firebase sign in with Google credential');
           
-          // Remove redundant null check - just proceed with sign-in
-          _logger.i('Firebase is initialized, proceeding with sign-in');
-          
           // Sign in to Firebase with this credential
-          final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-          
-          _logger.i('Successfully signed in to Firebase with Google: ${userCredential.user?.uid}');
-          
-          // Add Firebase UID to user info for reference
-          userInfo['firebaseUid'] = userCredential.user?.uid;
-        } catch (e) {
-          _logger.e('Error signing in to Firebase with Google credential: $e');
-          
-          // If the error is "invalid-credential", provide more helpful message
-          if (e.toString().contains('invalid-credential')) {
-            _logger.e('CONFIGURATION ERROR: Please ensure the Desktop Client ID is added to Firebase Console > Authentication > Sign-in method > Google > Web SDK configuration');
+          try {
+            final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+            _logger.i('Successfully signed in to Firebase with Google: ${userCredential.user?.uid}');
+            
+            // Add Firebase UID to user info for reference
+            userInfo['firebaseUid'] = userCredential.user?.uid;
+          } catch (e) {
+            // If we get invalid-credential, it's likely a configuration issue
+            if (e.toString().contains('invalid-credential')) {
+              _logger.e('CONFIGURATION ERROR: Please ensure the Desktop Client ID is added to Firebase Console > Authentication > Sign-in method > Google > Web SDK configuration');
+              // Don't rethrow, just continue with local auth
+            } else {
+              _logger.e('Error signing in to Firebase with Google credential: $e');
+            }
           }
-          
-          // Still return user info even if Firebase sign-in fails
-          // This allows the app to continue working with local authentication
+        } catch (e) {
+          _logger.e('Error during Firebase authentication: $e');
+          // Continue without Firebase auth - don't fail the whole sign-in process
         }
-      } else {
-        _logger.w('No ID token received from Google. Cannot authenticate with Firebase.');
       }
       
       return userInfo;
@@ -332,6 +365,30 @@ class WindowsGoogleAuthService {
     }
   }
   
+  // Helper method to check if Firebase is available and initialized
+  Future<bool> _isFirebaseAvailable() async {
+    try {
+      // Check if Firebase is available by accessing Firebase.apps
+      if (Firebase.apps.isEmpty) {
+        _logger.w('Firebase apps list is empty');
+        return false;
+      }
+      
+      // Also verify we can access FirebaseAuth
+      try {
+        // Just access the instance to see if it throws
+        FirebaseAuth.instance;
+        return true;
+      } catch (e) {
+        _logger.w('FirebaseAuth not available: $e');
+        return false;
+      }
+    } catch (e) {
+      _logger.w('Error checking Firebase availability: $e');
+      return false;
+    }
+  }
+
   // Check if Google authentication is pending
   Future<bool> isAuthPending() async {
     final prefs = await SharedPreferences.getInstance();

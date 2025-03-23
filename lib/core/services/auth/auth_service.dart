@@ -7,6 +7,7 @@ import 'platform/desktop/windows_auth_service.dart';
 import 'providers/firebase_auth_provider.dart';
 import 'auth_provider_interface.dart';
 import 'package:firebase_core/firebase_core.dart';
+import '../firestore/firestore_data_service.dart'; // Add import for Firestore
 
 class AuthService {
   final Logger _logger = Logger();
@@ -15,6 +16,9 @@ class AuthService {
   bool _firebaseInitialized = false;
   bool _isInitialized = false;
   bool _isInitializing = false;
+  
+  // Add Firestore service
+  final FirestoreDataService _firestoreService = FirestoreDataService();
   
   // Singleton pattern
   static final AuthService _instance = AuthService._internal();
@@ -215,6 +219,13 @@ class AuthService {
     try {
       await _auth.signInWithEmailAndPassword(email, password);
       _logger.i('Đăng nhập thành công');
+      
+      // Record login event in Firestore
+      final user = currentUser;
+      if (user != null) {
+        String userId = user is User ? user.uid : email;
+        await _firestoreService.recordAuthEvent(userId, email, 'login');
+      }
     } catch (e) {
       _logger.e('Lỗi đăng nhập: $e');
       throw e.toString();
@@ -225,6 +236,13 @@ class AuthService {
   Future<String> signUpWithEmailAndPassword(String email, String password, {String? name}) async {
     try {
       await _auth.signUpWithEmailAndPassword(email, password, name: name);
+      
+      // Record registration in Firestore
+      final user = currentUser;
+      if (user != null) {
+        String userId = user is User ? user.uid : email;
+        await _firestoreService.recordAuthEvent(userId, email, 'register');
+      }
       
       // Provide different success messages based on authentication provider
       if (_auth is WindowsAuthService) {
@@ -247,6 +265,18 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
+    // Record logout event in Firestore
+    final user = currentUser;
+    if (user != null) {
+      try {
+        String userId = user is User ? user.uid : user.toString();
+        String email = user is User ? (user.email ?? 'unknown') : user.toString();
+        await _firestoreService.recordAuthEvent(userId, email, 'logout');
+      } catch (e) {
+        _logger.e('Error recording logout event: $e');
+      }
+    }
+    
     await _auth.signOut();
     _logger.i('Đăng xuất thành công');
   }

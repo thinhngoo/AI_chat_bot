@@ -9,6 +9,9 @@ import 'core/services/platform/platform_service_helper.dart';
 import 'core/utils/firebase/firebase_checker.dart';
 import 'features/auth/presentation/login_page.dart';
 import 'features/chat/presentation/home_page.dart';
+import 'core/services/firestore/firestore_data_service.dart'; // Add import for FirestoreDataService
+import 'core/models/user_model.dart'; // Add import for UserModel
+import 'package:firebase_auth/firebase_auth.dart'; // Add import for User
 
 final Logger _logger = Logger();
 
@@ -79,6 +82,7 @@ class _MyAppState extends State<MyApp> {
   final AuthService _authService = AuthService();
   bool _isAuthReady = false;
   bool _isLoggedIn = false;
+  final Logger _logger = Logger(); // Add Logger instance
 
   @override
   void initState() {
@@ -99,24 +103,75 @@ class _MyAppState extends State<MyApp> {
         _logger.i('Firebase not initialized (using local auth check instead)');
       }
       
-      // Use the same code path regardless of Firebase status
-      // AuthService will handle the appropriate authentication method internally
-      final isLoggedIn = await _authService.isLoggedIn();
+      // Check authentication state directly
+      final isUserLoggedIn = await _authService.isLoggedIn();
+      
+      if (isUserLoggedIn) {
+        _logger.i('User is logged in');
+        
+        // If using Firebase, try to load user profile data from Firestore
+        if (firebaseInitialized) {
+          await _loadUserProfileData();
+        }
+      } else {
+        _logger.i('No user is currently logged in');
+      }
       
       if (mounted) {
         setState(() {
-          _isLoggedIn = isLoggedIn;
           _isAuthReady = true;
+          _isLoggedIn = isUserLoggedIn;
         });
       }
     } catch (e) {
       _logger.e('Error checking auth state: $e');
       if (mounted) {
         setState(() {
+          _isAuthReady = true;
           _isLoggedIn = false;
-          _isAuthReady = true; // Still mark as ready to show login screen
         });
       }
+    }
+  }
+  
+  // Helper method to load user profile data from Firestore
+  Future<void> _loadUserProfileData() async {
+    try {
+      final user = _authService.currentUser;
+      if (user == null) return;
+      
+      final FirestoreDataService firestoreService = FirestoreDataService();
+      
+      // Get user ID based on auth provider type
+      final userId = user is String ? user : user.uid;
+      
+      // Attempt to load user data from Firestore
+      final userData = await firestoreService.getUserById(userId);
+      
+      if (userData != null) {
+        _logger.i('User data loaded successfully from Firestore');
+      } else {
+        _logger.w('User exists in Authentication but not in Firestore');
+        
+        // Create basic user record if it doesn't exist
+        if (!_authService.isUsingWindowsAuth()) {
+          final String email = user is String ? user : (user.email ?? 'unknown');
+          final String? name = user is User ? user.displayName : null;
+          
+          final userModel = UserModel(
+            uid: userId,
+            email: email,
+            name: name,
+            createdAt: DateTime.now(),
+            isEmailVerified: _authService.isEmailVerified(),
+          );
+          
+          await firestoreService.createOrUpdateUser(userModel);
+          _logger.i('Created new user profile in Firestore');
+        }
+      }
+    } catch (e) {
+      _logger.e('Error loading user profile data: $e');
     }
   }
 

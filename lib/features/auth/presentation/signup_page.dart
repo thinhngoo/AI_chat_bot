@@ -4,6 +4,8 @@ import '../../../widgets/auth/auth_widgets.dart';
 import 'login_page.dart';
 import 'email_verification_page.dart';
 import 'package:logger/logger.dart';
+import '../../../core/services/firestore/firestore_data_service.dart';
+import '../../../core/models/user_model.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -20,6 +22,7 @@ class SignUpPageState extends State<SignUpPage> {
   final _confirmPasswordController = TextEditingController();
   final AuthService _authService = AuthService();
   final Logger _logger = Logger();
+  final FirestoreDataService _firestoreService = FirestoreDataService();
   
   bool _isLoading = false;
   String _passwordStrength = '';
@@ -84,12 +87,31 @@ class SignUpPageState extends State<SignUpPage> {
     try {
       final name = _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null;
       
-      // Call sign up without storing the return value since we're not using it
+      // Call sign up without storing the return value
       await _authService.signUpWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text,
         name: name, // Pass name if provided
       );
+      
+      // Save additional user data to Firestore
+      final currentUser = _authService.currentUser;
+      if (currentUser != null) {
+        final userId = currentUser is String ? currentUser : currentUser.uid;
+        final userEmail = _emailController.text.trim();
+        
+        // Create user model
+        final userModel = UserModel(
+          uid: userId,
+          email: userEmail,
+          name: name,
+          createdAt: DateTime.now(),
+          isEmailVerified: _authService.isEmailVerified(),
+        );
+        
+        // Save to Firestore
+        await _firestoreService.createOrUpdateUser(userModel);
+      }
       
       if (!mounted) return;
       
@@ -115,16 +137,15 @@ class SignUpPageState extends State<SignUpPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Use proper conditional widgets to avoid type errors
                 if (needsVerification) ...[
-                  Text("Email xác minh đã được gửi đến ${_maskEmail(email)}"),
+                  Text('Email xác minh đã được gửi đến ${_maskEmail(email)}'),
                   const SizedBox(height: 12),
                   const Text('Lưu ý:', style: TextStyle(fontWeight: FontWeight.bold)),
                   const Text('• Vui lòng kiểm tra cả thư mục SPAM hoặc Junk Mail'),
                   const Text('• Email có thể mất vài phút để đến'),
                   const Text('• Liên kết xác minh có hiệu lực trong 24 giờ'),
                 ] else ...[
-                  Text("Tài khoản ${_maskEmail(email)} đã được tạo thành công"),
+                  Text('Tài khoản ${_maskEmail(email)} đã được tạo thành công'),
                   const SizedBox(height: 12),
                   const Text('Bạn có thể đăng nhập ngay bây giờ'),
                 ],
@@ -174,7 +195,7 @@ class SignUpPageState extends State<SignUpPage> {
         // Show retry button for network errors
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage),
+            content: Text('Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet của bạn.'),
             action: SnackBarAction(
               label: 'Thử lại',
               onPressed: _signUp,
@@ -264,111 +285,143 @@ class SignUpPageState extends State<SignUpPage> {
       appBar: AppBar(title: const Text('Đăng ký')),
       body: AbsorbPointer(
         absorbing: _isLoading,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: _isLoading 
-            ? const Center(child: CircularProgressIndicator()) 
-            : Form(
+        child: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
                 key: _formKey,
-                child: ListView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const SizedBox(height: 40),
+                    const Icon(
+                      Icons.account_circle_outlined,
+                      size: 80,
+                      color: Colors.blue,
+                    ),
                     const SizedBox(height: 20),
                     const Text(
-                      'Tạo Tài Khoản Mới',
+                      'Tạo tài khoản mới',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 30),
                     
-                    // Add name field
+                    // Name field (optional)
                     TextFormField(
                       controller: _nameController,
                       decoration: InputDecoration(
-                        labelText: 'Họ tên (không bắt buộc)',
-                        hintText: 'Nhập tên của bạn',
-                        errorText: _nameError,
+                        labelText: 'Tên (tùy chọn)',
                         prefixIcon: const Icon(Icons.person),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        errorText: _nameError,
+                        border: const OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 16),
                     
-                    EmailField(
+                    // Email field
+                    TextFormField(
                       controller: _emailController,
-                      errorText: _emailError,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: const Icon(Icons.email),
+                        errorText: _emailError,
+                        border: const OutlineInputBorder(),
+                      ),
                       onChanged: _onEmailChanged,
                     ),
                     const SizedBox(height: 16),
-                    PasswordField(
+                    
+                    // Password field
+                    TextFormField(
                       controller: _passwordController,
-                      errorText: _passwordError,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: 'Mật khẩu',
+                        prefixIcon: const Icon(Icons.lock),
+                        errorText: _passwordError,
+                        border: const OutlineInputBorder(),
+                      ),
                       onChanged: _onPasswordChanged,
                     ),
+                    const SizedBox(height: 8),
                     
                     // Password strength indicator
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    if (_passwordStrength.isNotEmpty)
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              const Text(
-                                'Độ mạnh mật khẩu: ',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              Text(
-                                _passwordStrength,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: AuthValidators.getPasswordStrengthColor(_passwordStrength),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          LinearProgressIndicator(
-                            value: AuthValidators.getPasswordStrengthRatio(_passwordStrength),
-                            color: AuthValidators.getPasswordStrengthColor(_passwordStrength),
-                          ),
-                          // Password tips
-                          if (_passwordStrength != 'Mạnh' && _passwordStrength != 'Trống') ...[
-                            const SizedBox(height: 5),
-                            Text(
-                              _getPasswordTip(_passwordStrength),
-                              style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: AuthValidators.getPasswordStrengthColor(_passwordStrength),
+                              shape: BoxShape.circle,
                             ),
-                          ]
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Độ mạnh: $_passwordStrength',
+                            style: TextStyle(
+                              color: AuthValidators.getPasswordStrengthColor(_passwordStrength),
+                            ),
+                          ),
                         ],
+                      ),
+                    
+                    if (_passwordStrength.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          _getPasswordTip(_passwordStrength),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Confirm password field
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: 'Xác nhận mật khẩu',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        errorText: _confirmPasswordError,
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: _onConfirmPasswordChanged,
+                    ),
+                    const SizedBox(height: 30),
+                    
+                    // Sign up button
+                    ElevatedButton(
+                      onPressed: _signUp,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text(
+                        'Đăng ký',
+                        style: TextStyle(fontSize: 16),
                       ),
                     ),
                     
                     const SizedBox(height: 16),
-                    PasswordField(
-                      controller: _confirmPasswordController,
-                      labelText: 'Xác nhận mật khẩu',
-                      errorText: _confirmPasswordError,
-                      onChanged: _onConfirmPasswordChanged,
-                    ),
-                    const SizedBox(height: 24),
-                    // Fix the callback type issue by using a synchronous function
-                    SubmitButton(
-                      label: 'Đăng ký',
-                      onPressed: () => _signUp(),
-                      isLoading: _isLoading,
-                    ),
-                    const SizedBox(height: 16),
+                    
+                    // Already have account button
                     TextButton(
                       onPressed: () {
+                        Navigator.pop(context);
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (context) => const LoginPage())
+                          MaterialPageRoute(builder: (context) => const LoginPage()),
                         );
                       },
                       child: const Text('Đã có tài khoản? Đăng nhập ngay'),
@@ -376,7 +429,7 @@ class SignUpPageState extends State<SignUpPage> {
                   ],
                 ),
               ),
-        ),
+            ),
       ),
     );
   }
@@ -396,7 +449,7 @@ class SignUpPageState extends State<SignUpPage> {
       case 'Khá (thêm ký tự đặc biệt)':
         return r'Thêm ít nhất một ký tự đặc biệt (!@#$%^&*...)';
       default:
-        return '';
+        return 'Mật khẩu mạnh, đáp ứng các yêu cầu bảo mật';
     }
   }
   

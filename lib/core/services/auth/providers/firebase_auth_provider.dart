@@ -256,8 +256,8 @@ class FirebaseAuthProvider implements AuthProviderInterface {
         }
       }
       
-      // Save user data to Firestore - fix the result null check
-      if (result != null && result.user != null) {
+      // Save user data to Firestore
+      if (result.user != null) {
         _logger.i('Saving user data to Firestore for: ${result.user!.email}');
         
         UserModel userModel = UserModel(
