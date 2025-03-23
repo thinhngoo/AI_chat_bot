@@ -5,6 +5,7 @@ class FirebaseChecker {
   static final Logger _logger = Logger();
   static bool _isInitialized = false;
   static DateTime _lastCheckTime = DateTime.now();
+  static String _lastError = "";
   
   static Future<bool> checkFirebaseInitialization() async {
     // If we already know Firebase is initialized, return immediately
@@ -24,13 +25,18 @@ class FirebaseChecker {
       
       if (isInitialized) {
         _isInitialized = true;
+        _lastError = ""; // Clear any previous errors
         return true;
       }
       
+      _lastError = "Firebase.apps is empty";
       return false;
     } catch (e) {
+      // Store the error for reference
+      _lastError = e.toString();
+      
       // Don't log detailed error to avoid freezing
-      _logger.w('Firebase check failed');
+      _logger.d('Firebase check failed: ${e.toString().split("\n").first}');
       return false;
     }
   }
@@ -43,5 +49,10 @@ class FirebaseChecker {
   // Set initialization state explicitly
   static void setInitialized(bool initialized) {
     _isInitialized = initialized;
+  }
+  
+  // Get the last error encountered during initialization check
+  static String getLastError() {
+    return _lastError;
   }
 }

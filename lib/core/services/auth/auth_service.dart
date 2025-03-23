@@ -44,7 +44,13 @@ class AuthService {
       await _initializeAuth();
       _isInitialized = true;
       _isInitializing = false;
-      _logger.i('AuthService initialized successfully with provider: ${_auth.runtimeType}');
+      
+      // Provide more detailed logging about the selected provider
+      if (_auth is WindowsAuthService) {
+        _logger.i('AuthService initialized with WindowsAuthService (local authentication)');
+      } else {
+        _logger.i('AuthService initialized with FirebaseAuthProvider (Firebase authentication)');
+      }
     } catch (e) {
       _isInitializing = false;
       _logger.e('Error initializing AuthService: $e');

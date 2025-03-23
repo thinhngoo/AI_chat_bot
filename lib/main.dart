@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logger/logger.dart';
 import 'dart:async';
-import 'config/firebase_options.dart';
+import 'firebase_options.dart';
 import 'core/services/auth/auth_service.dart';
 import 'core/services/platform/platform_service_helper.dart';
 import 'core/utils/firebase/firebase_checker.dart';
@@ -88,27 +88,26 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _checkAuthState() async {
     try {
-      // Check if Firebase is initialized to avoid freezing
-      if (await FirebaseChecker.checkFirebaseInitialization()) {
+      // Check Firebase status first to determine which path to take
+      final firebaseInitialized = await FirebaseChecker.checkFirebaseInitialization();
+      
+      if (firebaseInitialized) {
         _logger.i('Firebase is initialized, checking auth state');
-        final isLoggedIn = await _authService.isLoggedIn();
-        
-        if (mounted) {
-          setState(() {
-            _isLoggedIn = isLoggedIn;
-            _isAuthReady = true;
-          });
-        }
       } else {
-        _logger.w('Firebase not initialized, using local auth check');
-        final isLoggedIn = await _authService.isLoggedIn();
-        
-        if (mounted) {
-          setState(() {
-            _isLoggedIn = isLoggedIn;
-            _isAuthReady = true;
-          });
-        }
+        // This is normal for platforms without Firebase support or when Firebase fails to initialize
+        // Change the log level from warning to info since this is expected in some scenarios
+        _logger.i('Firebase not initialized (using local auth check instead)');
+      }
+      
+      // Use the same code path regardless of Firebase status
+      // AuthService will handle the appropriate authentication method internally
+      final isLoggedIn = await _authService.isLoggedIn();
+      
+      if (mounted) {
+        setState(() {
+          _isLoggedIn = isLoggedIn;
+          _isAuthReady = true;
+        });
       }
     } catch (e) {
       _logger.e('Error checking auth state: $e');

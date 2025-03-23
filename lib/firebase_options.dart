@@ -42,12 +42,12 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyBssJsq45UfWALFmi5R_HYWv7-mnVPy2jw',
-    appId: '1:784300763720:web:aa49c2f1b3bb1a59fe067d',
+    appId: '1:784300763720:web:1f46d71b30037faafe067d',
     messagingSenderId: '784300763720',
     projectId: 'vinh-aff13',
     authDomain: 'vinh-aff13.firebaseapp.com',
     storageBucket: 'vinh-aff13.firebasestorage.app',
-    measurementId: 'G-SNY2CZ3SGQ',
+    measurementId: 'G-4ZT6NC3STN',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -64,7 +64,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '784300763720',
     projectId: 'vinh-aff13',
     storageBucket: 'vinh-aff13.firebasestorage.app',
-    iosClientId: '784300763720-brbm86j2cjjo9tr8sc2jv4s3d1943thd.apps.googleusercontent.com',
     iosBundleId: 'com.example.flutterApplication1',
   );
 
@@ -74,18 +73,16 @@ class DefaultFirebaseOptions {
     messagingSenderId: '784300763720',
     projectId: 'vinh-aff13',
     storageBucket: 'vinh-aff13.firebasestorage.app',
-    iosClientId: '784300763720-brbm86j2cjjo9tr8sc2jv4s3d1943thd.apps.googleusercontent.com',
     iosBundleId: 'com.example.flutterApplication1',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyBssJsq45UfWALFmi5R_HYWv7-mnVPy2jw',
-    appId: '1:784300763720:web:1f46d71b30037faafe067d',
+    appId: '1:784300763720:web:ef5e09848323fb71fe067d',
     messagingSenderId: '784300763720',
     projectId: 'vinh-aff13',
     authDomain: 'vinh-aff13.firebaseapp.com',
     storageBucket: 'vinh-aff13.firebasestorage.app',
-    measurementId: 'G-4ZT6NC3STN',
+    measurementId: 'G-42WRR6CNNF',
   );
-
 }
