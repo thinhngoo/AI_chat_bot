@@ -5,6 +5,7 @@ import '../../../widgets/auth/auth_widgets.dart';
 import '../../../features/chat/presentation/home_page.dart';
 import 'signup_page.dart';
 import 'email_verification_page.dart';
+import 'forgot_password_page.dart'; // Add this import
 import 'package:logger/logger.dart';
 import '../../../core/utils/errors/error_utils.dart';
 import '../../../core/services/platform/platform_service_helper.dart';
@@ -673,18 +674,29 @@ class LoginPageState extends State<LoginPage> {
                       errorText: _passwordError,
                       onChanged: _onPasswordChanged,
                     ),
-                    const SizedBox(height: 20),
+                    
+                    // Add Forgot Password link aligned to the right
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const ForgotPasswordPage(),
+                            ),
+                          );
+                        },
+                        child: const Text('Quên mật khẩu?'),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 10),
                     SubmitButton(
                       label: 'Đăng nhập',
                       onPressed: _signIn,
                       isLoading: _isLoading,
                     ),
-                    const SizedBox(height: 10),
-                    TextButton(
-                      onPressed: _resetPassword,
-                      child: const Text('Quên mật khẩu?'),
-                    ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 20),
                     const Text(
                       'Hoặc',
                       textAlign: TextAlign.center,
@@ -694,7 +706,7 @@ class LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 10),
                     GoogleSignInButton(onPressed: _signInWithGoogle),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 20),
                     TextButton(
                       onPressed: () {
                         Navigator.push(
