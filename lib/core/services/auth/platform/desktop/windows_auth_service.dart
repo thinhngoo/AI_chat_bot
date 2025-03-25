@@ -335,6 +335,41 @@ class WindowsAuthService implements AuthProviderInterface {
     _logger.i('Simulating resend verification email on Windows platform');
   }
   
+  @override
+  Future<void> confirmPasswordReset(String code, String newPassword) async {
+    try {
+      _logger.i('Password reset confirmation - Windows simulated implementation');
+      
+      // For Windows service, we'll simulate the password reset
+      // In a real app, you might use a different approach for desktop
+      
+      // Extract email from code (this is just a simulation)
+      // In a real implementation, the code might contain the email or user identifier
+      final userEmail = code.split('_').lastOrNull ?? '';
+      
+      final users = await getUsers();
+      final userIndex = users.indexWhere((user) => 
+          user['email'] == userEmail || user['resetCode'] == code);
+      
+      if (userIndex == -1) {
+        throw 'Mã đặt lại mật khẩu không hợp lệ hoặc đã hết hạn';
+      }
+      
+      // Update the user's password
+      users[userIndex]['password'] = newPassword;
+      users[userIndex]['resetCode'] = null; // Clear the reset code
+      
+      // Save updated users list
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('users', jsonEncode(users));
+      
+      _logger.i('Password reset confirmed for simulation');
+    } catch (e) {
+      _logger.e('Error confirming password reset: $e');
+      throw e.toString();
+    }
+  }
+
   // Clean up resources
   void dispose() {
     _logger.i('Disposing WindowsAuthService');

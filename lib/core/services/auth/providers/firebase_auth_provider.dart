@@ -330,4 +330,33 @@ class FirebaseAuthProvider implements AuthProviderInterface {
       return false;
     }
   }
+
+  @override
+  Future<void> confirmPasswordReset(String code, String newPassword) async {
+    try {
+      await _firebaseAuth.confirmPasswordReset(
+        code: code,
+        newPassword: newPassword,
+      );
+    } on FirebaseAuthException catch (e) {
+      _logger.e('Error confirming password reset: ${e.code} - ${e.message}');
+      switch (e.code) {
+        case 'expired-action-code':
+          throw 'Mã đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu mã mới.';
+        case 'invalid-action-code':
+          throw 'Mã đặt lại mật khẩu không hợp lệ. Vui lòng thử lại.';
+        case 'user-disabled':
+          throw 'Tài khoản người dùng đã bị vô hiệu hóa.';
+        case 'user-not-found':
+          throw 'Không tìm thấy tài khoản người dùng.';
+        case 'weak-password':
+          throw 'Mật khẩu mới quá yếu. Vui lòng chọn mật khẩu mạnh hơn.';
+        default:
+          throw e.message ?? 'Không thể đặt lại mật khẩu.';
+      }
+    } catch (e) {
+      _logger.e('Error during password reset confirmation: $e');
+      throw 'Lỗi xác nhận đặt lại mật khẩu';
+    }
+  }
 }

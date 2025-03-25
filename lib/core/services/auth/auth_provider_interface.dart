@@ -21,4 +21,7 @@ abstract class AuthProviderInterface {
   Future<void> signInWithGoogle();
   
   Future<void> resendVerificationEmail();
+  
+  // Add method for confirming password reset
+  Future<void> confirmPasswordReset(String code, String newPassword);
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/utils/errors/error_utils.dart';
-import '../../../widgets/auth/auth_widgets.dart';
+import '../../../widgets/auth/password_requirement_widget.dart';
 import 'login_page.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -206,6 +206,11 @@ class ForgotPasswordPageState extends State<ForgotPasswordPage> {
           textAlign: TextAlign.center,
           style: TextStyle(fontStyle: FontStyle.italic),
         ),
+        
+        // Use the standardized requirements widget
+        const SizedBox(height: 24),
+        _buildPasswordRequirements(),
+        
         const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
@@ -220,6 +225,39 @@ class ForgotPasswordPageState extends State<ForgotPasswordPage> {
           ),
         ),
       ],
+    );
+  }
+
+  // For displaying static password requirements:
+  Widget _buildPasswordRequirements() {
+    return PasswordRequirements.static();
+  }
+}
+
+/// Widget to display a single password requirement item
+class PasswordRequirementItem extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const PasswordRequirementItem({
+    super.key,
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.green),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -7,7 +7,6 @@ import 'firebase_options.dart';
 import 'core/services/auth/auth_service.dart';
 import 'core/utils/firebase/firebase_checker.dart';
 import 'features/auth/presentation/login_page.dart';
-import 'features/chat/presentation/home_page.dart';
 import 'core/services/firestore/firestore_data_service.dart';
 import 'core/models/user_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,7 +23,7 @@ void main() async {
   
   // Load .env file with better error handling
   try {
-    await dotenv.load(fileName: ".env");
+    await dotenv.load(fileName: '.env');
     _logger.i('.env file loaded successfully');
   } catch (e) {
     _logger.e('Failed to load .env file: $e');
@@ -77,8 +76,6 @@ class MyApp extends StatefulWidget {
 
 class MyAppState extends State<MyApp> {
   final AuthService _authService = AuthService();
-  bool _isAuthReady = false;
-  bool _isLoggedIn = false;
   final Logger _logger = Logger(); 
 
   @override
@@ -116,18 +113,12 @@ class MyAppState extends State<MyApp> {
       }
       
       if (mounted) {
-        setState(() {
-          _isAuthReady = true;
-          _isLoggedIn = isUserLoggedIn;
-        });
+        setState(() {});
       }
     } catch (e) {
       _logger.e('Error checking auth state: $e');
       if (mounted) {
-        setState(() {
-          _isAuthReady = true;
-          _isLoggedIn = false;
-        });
+        setState(() {});
       }
     }
   }

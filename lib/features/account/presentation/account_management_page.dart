@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../widgets/auth/auth_widgets.dart';
+import '../../../core/utils/validators/password_validator.dart';
 
 class AccountManagementPage extends StatefulWidget {
   const AccountManagementPage({super.key});
@@ -25,7 +26,7 @@ class AccountManagementPageState extends State<AccountManagementPage> {
   void initState() {
     super.initState();
     _loadUserInfo();
-    _passwordStrength = AuthValidators.getPasswordStrength('');
+    _passwordStrength = PasswordValidator.getPasswordStrength('');
   }
 
   Future<void> _loadUserInfo() async {
@@ -52,7 +53,7 @@ class AccountManagementPageState extends State<AccountManagementPage> {
       return;
     }
 
-    if (!AuthValidators.isValidPassword(_newPasswordController.text)) {
+    if (!PasswordValidator.isValidPassword(_newPasswordController.text)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(
           'Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, '
@@ -243,14 +244,14 @@ class AccountManagementPageState extends State<AccountManagementPage> {
                   labelText: 'Mật khẩu mới',
                   onChanged: (value) {
                     setState(() {
-                      _passwordStrength = AuthValidators.getPasswordStrength(value);
+                      _passwordStrength = PasswordValidator.getPasswordStrength(value);
                     });
                   },
                 ),
                 Text(
                   'Độ mạnh: $_passwordStrength',
                   style: TextStyle(
-                    color: AuthValidators.getPasswordStrengthColor(_passwordStrength),
+                    color: PasswordValidator.getPasswordStrengthColor(_passwordStrength),
                   ),
                 ),
                 const SizedBox(height: 16),

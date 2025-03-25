@@ -1,12 +1,14 @@
 # AI Chat Bot Guide
 
-## Google Authentication Setup
+## Authentication Setup
 
-### "redirect_uri_mismatch" Error
+### Google Authentication Issues
+
+#### "redirect_uri_mismatch" Error
 
 This error occurs when the application is using a redirect URI that isn't registered in the Google Cloud Console.
 
-#### Solution
+##### Solution
 
 1. Go to [Google Cloud Console > APIs & Services > Credentials](https://console.cloud.google.com/apis/credentials)
 1. Find and edit your OAuth 2.0 Client ID
@@ -24,11 +26,9 @@ http://localhost:8000
 
 The application tries these ports in order if the previous one is unavailable. To ensure it works in all cases, add all of them to your Google Cloud Console settings.
 
-### "invalid_client" Error
+#### "invalid_client" Error
 
 This error typically means that the OAuth client ID or client secret is incorrect.
-
-#### Solution
 
 1. Double-check your `.env` file to ensure you have these variables set:
 
@@ -40,7 +40,7 @@ GOOGLE_CLIENT_SECRET=your_client_secret
 1. Make sure the client ID matches the one in Google Cloud Console
 1. For Windows users, ensure you're using a Desktop client, not a Web client
 
-## Setting up Firebase Authentication with Google Sign-in
+### Firebase Authentication Setup
 
 For Firebase Authentication to work with Google Sign-in on Windows:
 
@@ -49,13 +49,25 @@ For Firebase Authentication to work with Google Sign-in on Windows:
 1. In the "Web SDK configuration" section, add the same OAuth Client ID that you're using for Windows authentication
 1. Ensure this OAuth Client ID is also registered in the Google Cloud Console with all the redirect URIs listed above
 
-## Firebase Firestore Security Rules
+## Security Considerations
 
-### Important Security Rules Configuration
+### Password Requirements
+
+When users reset their password via email link, the following requirements are enforced:
+
+- At least 8 characters long
+- Contains at least one uppercase letter (A-Z)
+- Contains at least one lowercase letter (a-z)
+- Contains at least one number (0-9)
+- Contains at least one special character (!@#$%^&*(),.?":{}|<>)
+
+These requirements help ensure account security and are applied consistently throughout the application.
+
+### Firebase Firestore Security Rules
 
 If you're seeing **"permission-denied"** errors when using the app, you need to configure your Firestore security rules correctly.
 
-### How to Configure Security Rules
+#### How to Configure Security Rules
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 1. Select your project

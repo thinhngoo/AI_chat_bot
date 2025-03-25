@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // Add import for dotenv
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../widgets/auth/auth_widgets.dart';
 import '../../../features/chat/presentation/home_page.dart';
 import 'signup_page.dart';
 import 'email_verification_page.dart';
-import 'forgot_password_page.dart'; // Add this import
+import 'forgot_password_page.dart';
 import 'package:logger/logger.dart';
 import '../../../core/utils/errors/error_utils.dart';
 import '../../../core/services/platform/platform_service_helper.dart';
-import '../../../core/utils/firebase/firebase_checker.dart';  // Add this import
+import '../../../core/utils/firebase/firebase_checker.dart';
 import 'google_auth_handler_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -191,69 +191,6 @@ class LoginPageState extends State<LoginPage> {
           _passwordError = errorInfo.message;
         }
       });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _resetPassword() async {
-    final email = _emailController.text.trim();
-    
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập email để đặt lại mật khẩu')),
-      );
-      return;
-    }
-    
-    if (!AuthValidators.isValidEmail(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email không hợp lệ')),
-      );
-      return;
-    }
-    
-    setState(() {
-      _isLoading = true;
-    });
-    
-    try {
-      await _authService.sendPasswordResetEmail(email);
-      if (!mounted) return;
-      
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Đặt lại mật khẩu'),
-          content: Text('Link đặt lại mật khẩu đã được gửi đến $email'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Đóng'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      
-      _logger.e('Password reset error: $e');
-      
-      String errorMessage = 'Không thể gửi email đặt lại mật khẩu';
-      
-      if (e.toString().contains('user-not-found')) {
-        errorMessage = 'Không tìm thấy tài khoản với email này';
-      } else if (e.toString().contains('network-request-failed')) {
-        errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet';
-      }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-      );
     } finally {
       if (mounted) {
         setState(() {

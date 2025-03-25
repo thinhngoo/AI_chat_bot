@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/auth/auth_service.dart';
-import '../../../widgets/auth/auth_widgets.dart';
+import '../../../core/utils/validators/password_validator.dart';
+import '../../../widgets/auth/password_requirement_widget.dart';
 import 'login_page.dart';
 import 'email_verification_page.dart';
 import 'package:logger/logger.dart';
@@ -31,10 +32,20 @@ class SignUpPageState extends State<SignUpPage> {
   String? _passwordError;
   String? _confirmPasswordError;
 
+  // Add fields to track password requirements
+  double _passwordStrengthValue = 0.0;
+  Map<String, bool> _passwordCriteria = {
+    'length': false,
+    'uppercase': false,
+    'lowercase': false,
+    'number': false,
+    'special': false,
+  };
+
   @override
   void initState() {
     super.initState();
-    _passwordStrength = AuthValidators.getPasswordStrength('');
+    _passwordStrength = PasswordValidator.getPasswordStrength('');
   }
 
   bool _validateForm() {
@@ -50,7 +61,7 @@ class SignUpPageState extends State<SignUpPage> {
       }
       
       // Validate email
-      if (!AuthValidators.isValidEmail(_emailController.text.trim())) {
+      if (!PasswordValidator.isValidEmail(_emailController.text.trim())) {
         _emailError = 'Vui lòng nhập email hợp lệ';
         isValid = false;
       } else {
@@ -58,11 +69,20 @@ class SignUpPageState extends State<SignUpPage> {
       }
       
       // Validate password
-      if (!AuthValidators.isValidPassword(_passwordController.text)) {
-        _passwordError = 'Mật khẩu cần có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt';
+      if (_passwordController.text.isEmpty) {
+        _passwordError = 'Vui lòng nhập mật khẩu';
         isValid = false;
       } else {
-        _passwordError = null;
+        // Check password requirements
+        final List<String> unmetRequirements = 
+            PasswordValidator.getUnmetRequirements(_passwordController.text);
+        
+        if (unmetRequirements.isNotEmpty) {
+          _passwordError = unmetRequirements.first;
+          isValid = false;
+        } else {
+          _passwordError = null;
+        }
       }
       
       // Validate confirm password
@@ -226,7 +246,7 @@ class SignUpPageState extends State<SignUpPage> {
   void _onEmailChanged(String value) {
     if (_emailError != null) {
       setState(() {
-        if (AuthValidators.isValidEmail(value.trim())) {
+        if (PasswordValidator.isValidEmail(value.trim())) {
           _emailError = null;
         } else {
           _emailError = 'Vui lòng nhập email hợp lệ';
@@ -236,11 +256,13 @@ class SignUpPageState extends State<SignUpPage> {
   }
   
   void _onPasswordChanged(String value) {
+    _checkPasswordStrength(value);
+    _updatePasswordCriteria(value);
     setState(() {
-      _passwordStrength = AuthValidators.getPasswordStrength(value);
+      _passwordStrength = PasswordValidator.getPasswordStrength(value);
       
       if (_passwordError != null) {
-        if (AuthValidators.isValidPassword(value)) {
+        if (PasswordValidator.isValidPassword(value)) {
           _passwordError = null;
         } else {
           _passwordError = 'Mật khẩu cần có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt';
@@ -277,6 +299,34 @@ class SignUpPageState extends State<SignUpPage> {
     if (name.length <= 2) return email;
     
     return '${name.substring(0, 2)}${'*' * (name.length - 2)}$domain';
+  }
+
+  // Add new method to check password strength
+  void _checkPasswordStrength(String password) {
+    setState(() {
+      _passwordStrengthValue = PasswordValidator.calculateStrength(password);
+    });
+  }
+
+  // Add this missing method
+  Color _getStrengthColor() {
+    if (_passwordStrengthValue <= 0.25) return Colors.red;
+    if (_passwordStrengthValue <= 0.5) return Colors.orange;
+    if (_passwordStrengthValue <= 0.75) return Colors.yellow.shade700;
+    return Colors.green;
+  }
+
+  void _updatePasswordCriteria(String password) {
+    setState(() {
+      _passwordStrength = PasswordValidator.getPasswordStrength(password);
+      _passwordCriteria = {
+        'length': password.length >= 8,
+        'uppercase': password.contains(RegExp(r'[A-Z]')),
+        'lowercase': password.contains(RegExp(r'[a-z]')),
+        'number': password.contains(RegExp(r'[0-9]')),
+        'special': password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]')),
+      };
+    });
   }
 
   @override
@@ -359,7 +409,7 @@ class SignUpPageState extends State<SignUpPage> {
                             width: 16,
                             height: 16,
                             decoration: BoxDecoration(
-                              color: AuthValidators.getPasswordStrengthColor(_passwordStrength),
+                              color: PasswordValidator.getPasswordStrengthColor(_passwordStrength),
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -367,7 +417,7 @@ class SignUpPageState extends State<SignUpPage> {
                           Text(
                             'Độ mạnh: $_passwordStrength',
                             style: TextStyle(
-                              color: AuthValidators.getPasswordStrengthColor(_passwordStrength),
+                              color: PasswordValidator.getPasswordStrengthColor(_passwordStrength),
                             ),
                           ),
                         ],
@@ -384,6 +434,31 @@ class SignUpPageState extends State<SignUpPage> {
                           ),
                         ),
                       ),
+                    
+                    const SizedBox(height: 16),
+
+                    if (_passwordController.text.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      // Password strength indicator
+                      LinearProgressIndicator(
+                        value: _passwordStrengthValue,
+                        backgroundColor: Colors.grey.shade300,
+                        valueColor: AlwaysStoppedAnimation<Color>(_getStrengthColor()),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Độ mạnh: ${PasswordValidator.getStrengthText(_passwordStrengthValue)}',
+                        textAlign: TextAlign.end,
+                        style: TextStyle(color: _getStrengthColor()),
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      // Add password requirements
+                      PasswordRequirements(
+                        criteria: _passwordCriteria,
+                        showTitle: true,
+                      ),
+                    ],
                     
                     const SizedBox(height: 16),
                     

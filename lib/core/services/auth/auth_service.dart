@@ -298,6 +298,27 @@ class AuthService {
     }
   }
 
+  // Add method to handle password reset with code
+  Future<void> confirmPasswordReset(String code, String newPassword) async {
+    try {
+      await _auth.confirmPasswordReset(code, newPassword);
+      _logger.i('Password reset confirmed successfully');
+    } catch (e) {
+      _logger.e('Error confirming password reset: $e');
+      
+      // Convert general errors to user-friendly messages
+      if (e.toString().contains('expired-action-code')) {
+        throw 'Mã đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu mã mới.';
+      } else if (e.toString().contains('invalid-action-code')) {
+        throw 'Mã đặt lại mật khẩu không hợp lệ. Vui lòng kiểm tra lại hoặc yêu cầu mã mới.';
+      } else if (e.toString().contains('weak-password')) {
+        throw 'Mật khẩu quá yếu. Vui lòng chọn mật khẩu mạnh hơn.';
+      } else {
+        throw e.toString();
+      }
+    }
+  }
+
   // Check if email is verified
   bool isEmailVerified() {
     return _auth.isEmailVerified();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/validators/password_validator.dart';
 
 class AuthInputField extends StatelessWidget {
   final TextEditingController controller;
@@ -214,85 +215,30 @@ class GoogleSignInButton extends StatelessWidget {
   }
 }
 
-// Helper validators
+// Helper validators - simplified to delegate to PasswordValidator
 class AuthValidators {
-  // Email validation
+  // Email validation - delegate to PasswordValidator
   static bool isValidEmail(String email) {
-    // Kiểm tra chuỗi email rỗng
-    if (email.isEmpty) {
-      return false;
-    }
-    
-    try {
-      final RegExp emailRegExp = RegExp(
-        r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$",
-      );
-      return emailRegExp.hasMatch(email);
-    } catch (e) {
-      // Nếu có lỗi xảy ra, trả về false (hoặc ghi log lỗi nếu cần)
-      return false;
-    }
+    return PasswordValidator.isValidEmail(email);
   }
 
-  // Password validation
+  // Password validation - delegate to PasswordValidator
   static bool isValidPassword(String password) {
-    // Check for minimum length
-    if (password.length < 8) return false;
-    
-    // Check for uppercase letters
-    if (!RegExp(r'[A-Z]').hasMatch(password)) return false;
-    
-    // Check for lowercase letters
-    if (!RegExp(r'[a-z]').hasMatch(password)) return false;
-    
-    // Check for numbers
-    if (!RegExp(r'[0-9]').hasMatch(password)) return false;
-    
-    // Check for special characters - properly escaped
-    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) return false;
-    
-    return true;
+    return PasswordValidator.isValidPassword(password);
   }
 
-  // Password strength evaluation
+  // Password strength evaluation - delegate to PasswordValidator
   static String getPasswordStrength(String password) {
-    if (password.isEmpty) return 'Trống';
-    if (password.length < 6) return 'Rất yếu';
-    if (password.length < 8) return 'Yếu';
-    if (!RegExp(r'[A-Z]').hasMatch(password)) return 'Trung bình (thêm chữ hoa)';
-    if (!RegExp(r'[a-z]').hasMatch(password)) return 'Trung bình (thêm chữ thường)';
-    if (!RegExp(r'[0-9]').hasMatch(password)) return 'Trung bình (thêm số)';
-    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) return 'Khá (thêm ký tự đặc biệt)';
-    return 'Mạnh';
+    return PasswordValidator.getPasswordStrength(password);
   }
 
-  // Get color for password strength indicator
+  // Get color for password strength indicator - delegate to PasswordValidator
   static Color getPasswordStrengthColor(String strength) {
-    switch (strength) {
-      case 'Trống': return Colors.grey;
-      case 'Rất yếu': return Colors.red;
-      case 'Yếu': return Colors.orange;
-      case 'Trung bình (thêm chữ hoa)':
-      case 'Trung bình (thêm chữ thường)':
-      case 'Trung bình (thêm số)': return Colors.yellow;
-      case 'Khá (thêm ký tự đặc biệt)': return Colors.lightGreen;
-      case 'Mạnh': return Colors.green;
-      default: return Colors.grey;
-    }
+    return PasswordValidator.getPasswordStrengthColor(strength);
   }
 
-  // Get ratio for password strength progress indicator
+  // Get ratio for password strength progress indicator - delegate to PasswordValidator
   static double getPasswordStrengthRatio(String strength) {
-    switch (strength) {
-      case 'Trống': return 0.0;
-      case 'Rất yếu': return 0.2;
-      case 'Yếu': return 0.4;
-      case 'Trung bình (thêm chữ hoa)':
-      case 'Trung bình (thêm chữ thường)':
-      case 'Trung bình (thêm số)': return 0.6;
-      case 'Khá (thêm ký tự đặc biệt)': return 0.8;
-      case 'Mạnh': return 1.0;
-      default: return 0.0;
-    }
+    return PasswordValidator.getPasswordStrengthRatio(strength);
   }
 }
