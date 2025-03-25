@@ -46,8 +46,9 @@ class LoginPageState extends State<LoginPage> {
     _logger.i('LoginPage initialized');
     
     // Check if Firebase is properly initialized - use a slightly longer delay
-    // to ensure Firebase has a chance to initialize
-    Future.delayed(const Duration(milliseconds: 300), () {
+    // to ensure Firebase has a chance to initialize, but do it in a non-blocking way
+    Future.microtask(() async {
+      await Future.delayed(const Duration(milliseconds: 500));
       if (mounted) {
         _checkFirebaseStatus();
       }

@@ -45,7 +45,12 @@ class AuthService {
     _isInitializing = true;
     
     try {
-      await _initializeAuth();
+      // Move initialization to a compute function or at least use a microtask
+      // to avoid blocking the UI thread on Android
+      await Future.microtask(() async {
+        await _initializeAuth();
+      });
+      
       _isInitialized = true;
       _isInitializing = false;
       
@@ -59,7 +64,6 @@ class AuthService {
       _isInitializing = false;
       _logger.e('Error initializing AuthService: $e');
       
-      // Use is! instead of !(_auth is WindowsAuthService)
       if (_auth is! WindowsAuthService) {
         _logger.w('Failed to initialize with Firebase, using WindowsAuthService as fallback');
         _auth = WindowsAuthService();
@@ -69,7 +73,7 @@ class AuthService {
     }
   }
   
-  // Modified to properly detect Windows platform and handle Firebase initialization
+  // Modified to properly detect platform and handle Firebase initialization with timeout
   Future<void> _initializeAuth() async {
     try {
       // First check if we're on Windows
@@ -80,13 +84,13 @@ class AuthService {
         return;
       }
       
-      // For all other platforms, check if Firebase is initialized
+      // For all other platforms, check if Firebase is initialized with proper timeout
       bool isFirebaseReady = false;
       
       try {
         // Use a shorter timeout to avoid blocking
         isFirebaseReady = await Future.value(Firebase.apps.isNotEmpty)
-            .timeout(const Duration(milliseconds: 500), onTimeout: () => false);
+            .timeout(const Duration(milliseconds: 200), onTimeout: () => false);
         _logger.i('Firebase initialization check: ${isFirebaseReady ? 'Ready' : 'Not ready'}');
       } catch (e) {
         _logger.w('Error checking Firebase initialization: $e');
@@ -105,6 +109,8 @@ class AuthService {
       
       try {
         // Check if we can access FirebaseAuth before creating the provider
+        // Add timeout to prevent hanging
+        await Future.delayed(const Duration(milliseconds: 100));
         FirebaseAuth.instance;
         
         // Only create a new instance if this check passes

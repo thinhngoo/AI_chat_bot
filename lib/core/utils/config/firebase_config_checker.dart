@@ -13,6 +13,12 @@ class FirebaseConfigChecker {
       'webClientID': null,
     };
     
+    // Check if dotenv is loaded first
+    if (!dotenv.isInitialized) {
+      results['messages'].add('Environment variables not loaded (.env file missing)');
+      return results;
+    }
+    
     // Check .env file configuration
     final desktopClientId = dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'];
     final clientSecret = dotenv.env['GOOGLE_CLIENT_SECRET'];

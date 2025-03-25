@@ -6,14 +6,6 @@ import 'package:flutter/foundation.dart'
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
-/// Example:
-/// ```dart
-/// import 'firebase_options.dart';
-/// // ...
-/// await Firebase.initializeApp(
-///   options: DefaultFirebaseOptions.currentPlatform,
-/// );
-/// ```
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
@@ -27,7 +19,8 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         return macos;
       case TargetPlatform.windows:
-        return windows;
+        // Windows uses the web config with Desktop OAuth flow
+        return web;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -41,48 +34,37 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBssJsq45UfWALFmi5R_HYWv7-mnVPy2jw',
-    appId: '1:784300763720:web:1f46d71b30037faafe067d',
+    apiKey: 'AIzaSyClkVxfV1SMF7iORASUZGVPa2HoIIa5KEk',
+    appId: '1:784300763720:web:d8b6a3ab0a3d88bc318583',
     messagingSenderId: '784300763720',
-    projectId: 'vinh-aff13',
-    authDomain: 'vinh-aff13.firebaseapp.com',
-    storageBucket: 'vinh-aff13.firebasestorage.app',
-    measurementId: 'G-4ZT6NC3STN',
+    projectId: 'ai-chat-buddy-1',
+    authDomain: 'ai-chat-buddy-1.firebaseapp.com',
+    storageBucket: 'ai-chat-buddy-1.appspot.com',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAfaKsurA5ZDawvgcuOGO8qc7TOJIAOegM',
-    appId: '1:784300763720:android:db9bbff664f9acd5fe067d',
+    apiKey: 'AIzaSyA2tvt5XUX9OJtABKNmoUQMx3FS8MTihtw',
+    appId: '1:784300763720:android:85e47ef47f5bca2e318583',
     messagingSenderId: '784300763720',
-    projectId: 'vinh-aff13',
-    storageBucket: 'vinh-aff13.firebasestorage.app',
+    projectId: 'ai-chat-buddy-1',
+    storageBucket: 'ai-chat-buddy-1.appspot.com',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBuQ5WhajaiVj5GuacnSP5jdeJPk6uFmiw',
-    appId: '1:784300763720:ios:75937b646858bd78fe067d',
+    apiKey: 'AIzaSyDRTubsUAe46asLmQR6OGQR_QpMpfbiE0I',
+    appId: '1:784300763720:ios:5c354a0e9f65d6ec318583',
     messagingSenderId: '784300763720',
-    projectId: 'vinh-aff13',
-    storageBucket: 'vinh-aff13.firebasestorage.app',
-    iosBundleId: 'com.example.flutterApplication1',
+    projectId: 'ai-chat-buddy-1',
+    storageBucket: 'ai-chat-buddy-1.appspot.com',
+    iosBundleId: 'com.example.aiChatBuddy',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBuQ5WhajaiVj5GuacnSP5jdeJPk6uFmiw',
-    appId: '1:784300763720:ios:75937b646858bd78fe067d',
+    apiKey: 'AIzaSyDRTubsUAe46asLmQR6OGQR_QpMpfbiE0I',
+    appId: '1:784300763720:ios:5c354a0e9f65d6ec318583',
     messagingSenderId: '784300763720',
-    projectId: 'vinh-aff13',
-    storageBucket: 'vinh-aff13.firebasestorage.app',
-    iosBundleId: 'com.example.flutterApplication1',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBssJsq45UfWALFmi5R_HYWv7-mnVPy2jw',
-    appId: '1:784300763720:web:ef5e09848323fb71fe067d',
-    messagingSenderId: '784300763720',
-    projectId: 'vinh-aff13',
-    authDomain: 'vinh-aff13.firebaseapp.com',
-    storageBucket: 'vinh-aff13.firebasestorage.app',
-    measurementId: 'G-42WRR6CNNF',
+    projectId: 'ai-chat-buddy-1',
+    storageBucket: 'ai-chat-buddy-1.appspot.com',
+    iosBundleId: 'com.example.aiChatBuddy',
   );
 }

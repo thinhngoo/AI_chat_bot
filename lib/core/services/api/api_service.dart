@@ -27,16 +27,20 @@ class ApiService {
     // Add user message to conversation history
     _addUserMessage(userMessage);
     
-    // If already in fallback mode, return a mock response
+    // Check if we're already in fallback mode
     if (_useFallbackResponses) {
       return _getFallbackResponse();
     }
     
     try {
-      // Get API key from environment variables
-      final apiKey = dotenv.env['GEMINI_API_KEY'];
-      if (apiKey == null || apiKey == 'your_gemini_api_key_here' || 
-          apiKey == 'demo_api_key_please_configure' || apiKey == 'demo_api_key') {
+      // Get API key from environment variables with fallback
+      final apiKey = dotenv.env['GEMINI_API_KEY'] ?? 'demo_api_key';
+      
+      // If API key is missing or using placeholder, switch to fallback mode
+      if (apiKey == 'your_gemini_api_key_here' || 
+          apiKey == 'demo_api_key_please_configure' || 
+          apiKey == 'demo_api_key' ||
+          apiKey == 'placeholder_client_id') {
         _logger.w('Valid GEMINI_API_KEY not found in environment variables, using fallback mode');
         _useFallbackResponses = true;
         return _getFallbackResponse();

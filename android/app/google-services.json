@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "784300763720",
+    "firebase_url": "https://vinh-aff13-default-rtdb.firebaseio.com",
     "project_id": "vinh-aff13",
     "storage_bucket": "vinh-aff13.firebasestorage.app"
   },
@@ -14,7 +15,15 @@
       },
       "oauth_client": [
         {
-          "client_id": "784300763720-ii2er5tptdqdg3nn8984rakhh1auiiip.apps.googleusercontent.com",
+          "client_id": "784300763720-8c6g1oabd4ut00r1v0fup2atdmba90ov.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutter_application_1",
+            "certificate_hash": "f2572f56e4a13676f41be05eff618be2ed5edba7"
+          }
+        },
+        {
+          "client_id": "784300763720-lnif8478um05idt777i9ah354popin48.apps.googleusercontent.com",
           "client_type": 3
         }
       ],

@@ -6,14 +6,20 @@ class FirebaseChecker {
   static bool _isInitialized = false;
   static DateTime _lastCheckTime = DateTime.now();
   static String _lastError = '';
+  static bool _manuallySet = false;
   
   static Future<bool> checkFirebaseInitialization() async {
+    // If manually set, return that value immediately
+    if (_manuallySet) {
+      return _isInitialized;
+    }
+    
     // If we already know Firebase is initialized, return immediately
     if (_isInitialized) return true;
     
-    // Avoid checking too frequently
+    // Avoid checking too frequently to prevent UI freezing
     final now = DateTime.now();
-    if (now.difference(_lastCheckTime).inMilliseconds < 200) {
+    if (now.difference(_lastCheckTime).inMilliseconds < 500) {
       return _isInitialized;
     }
     
@@ -21,7 +27,9 @@ class FirebaseChecker {
     
     try {
       // Fast check - just see if apps list is populated
-      final isInitialized = Firebase.apps.isNotEmpty;
+      // Wrap in a timeout to avoid blocking
+      final isInitialized = await Future.value(Firebase.apps.isNotEmpty)
+          .timeout(const Duration(milliseconds: 200), onTimeout: () => false);
       
       if (isInitialized) {
         _isInitialized = true;
@@ -44,11 +52,13 @@ class FirebaseChecker {
   // Force reset initialization state - useful for testing
   static void resetInitializationState() {
     _isInitialized = false;
+    _manuallySet = false;
   }
   
   // Set initialization state explicitly
   static void setInitialized(bool initialized) {
     _isInitialized = initialized;
+    _manuallySet = true;
   }
   
   // Get the last error encountered during initialization check

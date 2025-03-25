@@ -10,70 +10,89 @@ class PlatformServiceHelper {
   // Pre-calculate platform info immediately at class load time
   static final Map<String, dynamic> _platformCache = _initPlatformCache();
   
-  // Initialize platform cache once at startup
+  // Initialize platform cache once at startup with a safer approach
   static Map<String, dynamic> _initPlatformCache() {
     final Map<String, dynamic> cache = {};
     
-    // Detect platform with minimal overhead
-    final bool isWeb = kIsWeb;
-    String platform;
-    bool supportsFirebase;
-    
-    if (isWeb) {
-      platform = 'web';
-      supportsFirebase = true;
-    } else {
-      try {
-        // Log platform details to help with debugging
-        Logger().i('Platform detection - OS: ${Platform.operatingSystem}, isWindows: ${Platform.isWindows}');
-        
-        if (Platform.isAndroid) {
-          platform = 'android';
-          supportsFirebase = true;
-        } else if (Platform.isIOS) {
-          platform = 'ios';
-          supportsFirebase = true;
-        } else if (Platform.isMacOS) {
-          platform = 'macos';
-          supportsFirebase = true;
-        } else if (Platform.isWindows) {
-          platform = 'windows';
-          supportsFirebase = true; // We can use Firebase on Windows, but not google_sign_in
-        } else if (Platform.isLinux) {
-          platform = 'linux';
-          supportsFirebase = false;
-        } else {
+    try {
+      // Detect platform with minimal overhead
+      final bool isWeb = kIsWeb;
+      String platform;
+      bool supportsFirebase;
+      
+      if (isWeb) {
+        platform = 'web';
+        supportsFirebase = true;
+      } else {
+        try {
+          // Log platform details to help with debugging
+          // Avoid excessive logging that might slow down startup
+          final String operatingSystem = Platform.operatingSystem;
+          
+          if (operatingSystem == 'android') {
+            platform = 'android';
+            supportsFirebase = true;
+          } else if (operatingSystem == 'ios') {
+            platform = 'ios';
+            supportsFirebase = true;
+          } else if (operatingSystem == 'macos') {
+            platform = 'macos';
+            supportsFirebase = true;
+          } else if (operatingSystem == 'windows') {
+            platform = 'windows';
+            supportsFirebase = true; // We can use Firebase on Windows, but not google_sign_in
+          } else if (operatingSystem == 'linux') {
+            platform = 'linux';
+            supportsFirebase = false;
+          } else {
+            platform = 'unknown';
+            supportsFirebase = false;
+          }
+          
+          Logger().i('Platform detection - OS: $operatingSystem');
+        } catch (e) {
+          // Fallback for any platform detection errors
+          Logger().e('Error detecting platform: $e');
           platform = 'unknown';
           supportsFirebase = false;
         }
-      } catch (e) {
-        // Fallback for any platform detection errors
-        Logger().e('Error detecting platform: $e');
-        platform = 'unknown';
-        supportsFirebase = false;
       }
+      
+      // Cache platform information
+      cache['platform'] = platform;
+      cache['supportsFirebase'] = supportsFirebase;
+      cache['isWeb'] = isWeb;
+      cache['isDesktopWindows'] = !isWeb && platform == 'windows';
+      cache['isMobileOrWeb'] = isWeb || platform == 'android' || platform == 'ios';
+      
+      // Create platform info result map
+      final Map<String, dynamic> platformInfo = {
+        'platform': platform,
+        'supportsFirebase': supportsFirebase,
+        'isDesktop': platform == 'windows' || platform == 'macos' || platform == 'linux',
+        'isMobile': platform == 'android' || platform == 'ios',
+        'isWeb': isWeb,
+      };
+      
+      cache['platformInfo'] = platformInfo;
+      
+    } catch (e) {
+      // Fallback in case of any error
+      Logger().e('Error in platform detection: $e');
+      cache['platform'] = 'unknown';
+      cache['supportsFirebase'] = false;
+      cache['isWeb'] = false;
+      cache['isDesktopWindows'] = false;
+      cache['isMobileOrWeb'] = false;
+      cache['platformInfo'] = {
+        'platform': 'unknown',
+        'supportsFirebase': false,
+        'isDesktop': false,
+        'isMobile': false,
+        'isWeb': false,
+        'error': true,
+      };
     }
-    
-    // Cache platform information
-    cache['platform'] = platform;
-    cache['supportsFirebase'] = supportsFirebase;
-    cache['isWeb'] = isWeb;
-    cache['isDesktopWindows'] = !isWeb && platform == 'windows';
-    cache['isMobileOrWeb'] = isWeb || platform == 'android' || platform == 'ios';
-    
-    // Log platform detection result to help with debugging
-    Logger().i('Platform detection - platform: $platform, isDesktopWindows: ${!isWeb && platform == 'windows'}');
-    
-    // Create platform info result map
-    final Map<String, dynamic> platformInfo = {
-      'platform': platform,
-      'supportsFirebase': supportsFirebase,
-      'isDesktop': platform == 'windows' || platform == 'macos' || platform == 'linux',
-      'isMobile': platform == 'android' || platform == 'ios',
-      'isWeb': isWeb,
-    };
-    
-    cache['platformInfo'] = platformInfo;
     
     return cache;
   }
