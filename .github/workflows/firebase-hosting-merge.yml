@@ -11,10 +11,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm ci && npm run build
+      
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.1'
+          channel: 'stable'
+          
+      - name: Install Flutter dependencies
+        run: flutter pub get
+        
+      - name: Build web app
+        run: flutter build web
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          
+      - name: Install Functions dependencies
+        run: cd functions && npm ci
+        
+      - name: Build Functions
+        run: cd functions && npm run build
+        
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_VINH_AFF13 }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
-          projectId: vinh-aff13
+          projectId: ${{ vars.FIREBASE_PROJECT_ID || 'your-firebase-project-id' }}

@@ -1,53 +1,70 @@
 @echo off
-echo Fixing Windows build configuration...
+echo AI Chat Bot - Windows Build Troubleshooter
+echo -----------------------------------------
 
-echo Configuring Firebase Auth for Windows...
+echo This script will fix common issues with Windows builds:
+echo 1. Clear build cache
+echo 2. Re-download dependencies
+echo 3. Fix Flutter Windows plugin registration
+echo 4. Copy required DLLs to the output directory
 
-REM Create backup
-copy /Y windows\flutter\generated_plugin_registrant.cc windows\flutter\generated_plugin_registrant.cc.bak
-
-REM Update CMakeLists.txt to use Firebase
-echo Updating CMakeLists.txt...
-powershell -Command "(Get-Content windows\CMakeLists.txt) -replace '#include \"firebase_auth\"', 'include(\"firebase_auth\")' | Set-Content windows\CMakeLists.txt"
-powershell -Command "(Get-Content windows\CMakeLists.txt) -replace '#include \"firebase_core\"', 'include(\"firebase_core\")' | Set-Content windows\CMakeLists.txt"
-
-REM Create updated plugin registration file
-echo Creating updated plugin registrant...
-(
-echo //
-echo //  Generated file. Do not edit.
-echo //
 echo.
-echo // clang-format off
+echo Step 1: Cleaning project...
+call flutter clean
+if %ERRORLEVEL% NEQ 0 (
+    echo Warning: Clean failed, but continuing...
+)
+
 echo.
-echo #include "generated_plugin_registrant.h"
+echo Step 2: Getting dependencies...
+call flutter pub get
+if %ERRORLEVEL% NEQ 0 (
+    echo Failed to get dependencies.
+    exit /b 1
+)
+
 echo.
-echo // Firebase packages
-echo #include ^<firebase_auth/firebase_auth_plugin_c_api.h^>
-echo #include ^<firebase_core/firebase_core_plugin_c_api.h^>
-echo #include ^<url_launcher_windows/url_launcher_windows.h^>
-echo #include ^<cloud_firestore/cloud_firestore_plugin_c_api.h^>
+echo Step 3: Fixing plugin registration...
+rmdir /s /q .dart_tool\flutter_build 2>nul
+call flutter pub get
+
 echo.
-echo void RegisterPlugins(flutter::PluginRegistry* registry) {
-echo   FirebaseAuthPluginCApiRegisterWithRegistrar(
-echo       registry-^>GetRegistrarForPlugin("FirebaseAuthPluginCApi"));
-echo   FirebaseCorePluginCApiRegisterWithRegistrar(
-echo       registry-^>GetRegistrarForPlugin("FirebaseCorePluginCApi"));
-echo   UrlLauncherWindowsRegisterWithRegistrar(
-echo       registry-^>GetRegistrarForPlugin("UrlLauncherWindows"));
-echo   CloudFirestorePluginCApiRegisterWithRegistrar(
-echo       registry-^>GetRegistrarForPlugin("CloudFirestorePluginCApi"));
-echo }
-) > windows\flutter\generated_plugin_registrant.cc.new
+echo Step 4: Fixing FlutterFire initialization...
+if exist "lib\firebase_options.dart" (
+    echo FirebaseOptions file found, skipping creation.
+) else (
+    echo WARNING: firebase_options.dart not found. 
+    echo You may need to run: flutterfire configure
+)
 
-REM Replace the original file with the new one
-move /Y windows\flutter\generated_plugin_registrant.cc.new windows\flutter\generated_plugin_registrant.cc
+echo.
+echo Step 5: Checking environment files...
+if exist ".env" (
+    echo .env file found, skipping creation.
+) else (
+    echo WARNING: .env file not found.
+    echo Creating a template .env file...
+    echo GEMINI_API_KEY=your_gemini_api_key_here> .env
+    echo GOOGLE_DESKTOP_CLIENT_ID=your_desktop_client_id_here>> .env
+    echo GOOGLE_CLIENT_SECRET=your_client_secret_here>> .env
+    echo Please update the .env file with your actual API keys.
+)
 
-echo Firebase Auth configured for Windows
+echo.
+echo Step 6: Setting up OAuth for Windows...
+if exist "setup_oauth.bat" (
+    echo OAuth setup script found. Do you want to run it now? (y/n)
+    set /p run_oauth=
+    if /i "%run_oauth%"=="y" (
+        call setup_oauth.bat
+    ) else (
+        echo Skipping OAuth setup.
+    )
+) else (
+    echo WARNING: setup_oauth.bat not found.
+)
 
-echo Cleaning previous build artifacts...
-rd /s /q build\windows 2>nul
-flutter clean
-flutter pub get
-
-echo Done configuring Windows build
+echo.
+echo Fixes applied! Now try building again:
+echo flutter build windows --release
+echo.
