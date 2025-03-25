@@ -31,6 +31,14 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
 
+# Add dependency overrides to address discontinued and outdated packages
+dependency_overrides:
+  # Override for discontinued js package
+  js: ^0.7.2
+  # Overrides for other key outdated transitive dependencies
+  archive: ^4.0.5
+  intl: ^0.20.2
+
 flutter:
   uses-material-design: true
   
