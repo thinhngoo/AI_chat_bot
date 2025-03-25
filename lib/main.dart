@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logger/logger.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Add import for SharedPreferences
 import 'dart:async';
 import 'firebase_options.dart';
 import 'core/services/auth/auth_service.dart';
@@ -9,9 +10,11 @@ import 'core/services/platform/platform_service_helper.dart';
 import 'core/utils/firebase/firebase_checker.dart';
 import 'features/auth/presentation/login_page.dart';
 import 'features/chat/presentation/home_page.dart';
-import 'core/services/firestore/firestore_data_service.dart'; // Add import for FirestoreDataService
-import 'core/models/user_model.dart'; // Add import for UserModel
-import 'package:firebase_auth/firebase_auth.dart'; // Add import for User
+import 'core/services/firestore/firestore_data_service.dart';
+import 'core/models/user_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'core/utils/diagnostics/platform_checker.dart';
+import 'core/utils/diagnostics/config_checker.dart';
 
 final Logger _logger = Logger();
 
@@ -23,11 +26,88 @@ void main() async {
   // This ensures Flutter is initialized before we do anything else
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Load environment variables
+  await dotenv.load(fileName: '.env');
+  
+  // Check platform compatibility
+  final platformDetails = PlatformChecker.getPlatformDetails();
+  _logger.i('Running on platform: ${platformDetails['operatingSystem'] ?? 'web'}');
+  
+  // Validate configuration (without printing details)
+  final configStatus = await ConfigChecker.validateGoogleAuthConfig();
+  
+  // Fix nullable expression errors with proper null checks
+  if (configStatus['configValid'] == false && platformDetails['isWindows'] == true) {
+    // Show configuration warning dialog for Windows users
+    Logger().w('Invalid configuration detected on Windows platform');
+    
+    // Load environment variables anyway to prevent crashes
+    await dotenv.load(fileName: '.env');
+    
+    // Initialize with fallback configuration
+    await initializeWithFallbackConfig();
+    
+    // Set flag to show configuration notice on startup
+    await SharedPreferences.getInstance().then((prefs) {
+      prefs.setBool('showConfigNotice', true);
+    });
+  } else {
+    // Normal initialization path
+    await dotenv.load(fileName: '.env');
+    await initializeApp();
+  }
+  
+  // Show configuration warning if needed (only in debug mode)
+  if (configStatus['configValid'] == false && platformDetails['isWindows'] == true) {
+    _logger.w('⚠️ Warning: Google authentication configuration is incomplete.');
+    _logger.w('Please check your .env file and ensure GOOGLE_DESKTOP_CLIENT_ID and GOOGLE_CLIENT_SECRET are set.');
+  }
+  
   // Wait for core initialization to complete before running the app
   await _initializeCore();
   
   // Run app after initialization is complete
   runApp(const MyApp());
+}
+
+// Define the missing functions
+Future<void> initializeWithFallbackConfig() async {
+  _logger.i('Initializing with fallback configuration');
+  try {
+    // Initialize Firebase with default options
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    _isFirebaseInitialized = true;
+    _logger.i('Firebase initialized with fallback config');
+  } catch (e) {
+    _logger.e('Error initializing Firebase with fallback config: $e');
+    _isFirebaseInitialized = false;
+  }
+  
+  // Initialize auth service with fallback settings
+  final authService = AuthService();
+  authService.setFirebaseInitialized(_isFirebaseInitialized);
+  await authService.initializeService();
+}
+
+Future<void> initializeApp() async {
+  _logger.i('Initializing app with standard configuration');
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    _isFirebaseInitialized = true;
+    _logger.i('Firebase initialized successfully');
+  } catch (e) {
+    _logger.e('Error initializing Firebase: $e');
+    _isFirebaseInitialized = false;
+  }
+  
+  // Initialize auth service
+  final authService = AuthService();
+  authService.setFirebaseInitialized(_isFirebaseInitialized);
+  await authService.initializeService();
 }
 
 /// Initialize core app services: environment variables, Firebase, AuthService
@@ -98,8 +178,6 @@ class _MyAppState extends State<MyApp> {
       if (firebaseInitialized) {
         _logger.i('Firebase is initialized, checking auth state');
       } else {
-        // This is normal for platforms without Firebase support or when Firebase fails to initialize
-        // Change the log level from warning to info since this is expected in some scenarios
         _logger.i('Firebase not initialized (using local auth check instead)');
       }
       
@@ -109,9 +187,13 @@ class _MyAppState extends State<MyApp> {
       if (isUserLoggedIn) {
         _logger.i('User is logged in');
         
-        // If using Firebase, try to load user profile data from Firestore
-        if (firebaseInitialized) {
-          await _loadUserProfileData();
+        // Fix for the nullable expression error:
+        final currentUser = _authService.currentUser;
+        if (currentUser != null) {  // Proper null check
+          // If using Firebase, try to load user profile data from Firestore
+          if (firebaseInitialized) {
+            await _loadUserProfileData();
+          }
         }
       } else {
         _logger.i('No user is currently logged in');
