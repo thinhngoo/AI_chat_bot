@@ -4,10 +4,13 @@ import '../../../core/models/chat/message.dart';
 import '../../../core/models/chat/chat_session.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/services/api/api_service.dart';
-import '../../../core/services/firestore/firestore_data_service.dart'; // Add this import
+import '../../../core/services/firestore/firestore_data_service.dart';
 import '../../auth/presentation/login_page.dart';
 import '../../account/presentation/account_management_page.dart';
 import '../../support/presentation/help_feedback_page.dart';
+import '../../settings/presentation/settings_page.dart'; // Add this import
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -30,6 +33,8 @@ class HomePageState extends State<HomePage> {
   bool _isLoading = false; // This field is now properly used in _loadChatSessions
   final _uuid = Uuid();
   String? _currentUserId;
+  bool _firestoreAvailable = true; // Track if Firestore is working properly
+  bool _showedFirestoreError = false; // Track if we've already shown the error
 
   @override
   void initState() {
@@ -70,6 +75,7 @@ class HomePageState extends State<HomePage> {
       setState(() {
         _chatSessions.clear();
         _chatSessions.addAll(sessions);
+        _firestoreAvailable = true; // Reset flag if successful
         
         if (_chatSessions.isNotEmpty) {
           _currentSession = _chatSessions.first;
@@ -86,8 +92,125 @@ class HomePageState extends State<HomePage> {
         if (_chatSessions.isEmpty) {
           _createNewChat();
         }
+        
+        // Check for Firestore permission errors
+        if (_isFirestorePermissionError(e) && !_showedFirestoreError) {
+          _firestoreAvailable = false;
+          // Show error dialog after frame is rendered
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showFirestorePermissionErrorDialog();
+            _showedFirestoreError = true;
+          });
+        }
       });
     }
+  }
+
+  // Method to check for Firestore errors
+  bool _isFirestorePermissionError(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+    
+    // Check for permission denied errors
+    final isPermissionError = errorString.contains('permission-denied') || 
+           errorString.contains('permission denied') ||
+           (error is FirebaseException && error.code == 'permission-denied');
+           
+    // Also check for index-related errors
+    final isIndexError = errorString.contains('failed-precondition') && 
+           errorString.contains('requires an index') ||
+           (error is FirebaseException && error.code == 'failed-precondition' && 
+            error.message?.contains('index') == true);
+    
+    return isPermissionError || isIndexError;
+  }
+
+  // Update dialog to include information about both errors
+  void _showFirestorePermissionErrorDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Firebase Configuration Issues'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Your app is experiencing Firebase configuration issues. '
+                'Your chats will work locally but won\'t be saved to the cloud until this is fixed.',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '1. Security Rules Issue:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const Text('• Go to Firebase Console'),
+              const Text('• Open Firestore Database'),
+              const Text('• Go to "Rules" tab'),
+              const Text('• Replace rules with:'),
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'rules_version = \'2\';\n'
+                  'service cloud.firestore {\n'
+                  '  match /databases/{database}/documents {\n'
+                  '    match /chatSessions/{sessionId} {\n'
+                  '      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;\n'
+                  '      \n'
+                  '      match /messages/{messageId} {\n'
+                  '        allow read, write: if request.auth != null;\n'
+                  '      }\n'
+                  '    }\n'
+                  '    match /users/{userId} {\n'
+                  '      allow read, write: if request.auth != null && request.auth.uid == userId;\n'
+                  '    }\n'
+                  '  }\n'
+                  '}'
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '2. Missing Index Issue:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const Text('• Go to Firebase Console'),
+              const Text('• Open Firestore Database'),
+              const Text('• Go to "Indexes" tab'),
+              const Text('• Create a composite index:'),
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'Collection: chatSessions\n'
+                  'Fields to index:\n'
+                  '- userId (Ascending)\n'
+                  '- lastUpdatedAt (Descending)'
+                ),
+              ),
+              const Text('• Click on the direct link in the error message console'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _createNewChat() {
@@ -110,8 +233,18 @@ class HomePageState extends State<HomePage> {
     });
     
     // Save the new session to Firestore
-    if (_currentUserId != null) {
-      _firestoreService.saveChatSession(newSession, _currentUserId!);
+    if (_currentUserId != null && _firestoreAvailable) {
+      _firestoreService.saveChatSession(newSession, _currentUserId!)
+          .catchError((e) {
+        if (_isFirestorePermissionError(e) && !_showedFirestoreError) {
+          setState(() {
+            _firestoreAvailable = false;
+          });
+          _showFirestorePermissionErrorDialog();
+          _showedFirestoreError = true;
+        }
+        return null; // Add return value for catchError
+      });
     }
   }
 
@@ -216,12 +349,21 @@ class HomePageState extends State<HomePage> {
     _scrollToBottom();
     
     // Save user message to Firestore if we have a user ID
-    if (_currentUserId != null) {
+    if (_currentUserId != null && _firestoreAvailable) {
       _firestoreService.addMessageToSession(
         _currentSession!.id, 
         _currentSession!.messages.last, 
         _currentUserId!
-      );
+      ).catchError((e) {
+        if (_isFirestorePermissionError(e) && !_showedFirestoreError) {
+          setState(() {
+            _firestoreAvailable = false;
+          });
+          _showFirestorePermissionErrorDialog();
+          _showedFirestoreError = true;
+        }
+        return false; // Add return value for catchError
+      });
     }
     
     try {
@@ -236,6 +378,15 @@ class HomePageState extends State<HomePage> {
       });
       
       _scrollToBottom();
+      
+      // If API was previously unavailable, try to check if it's back
+      final bool shouldCheckAvailability = 
+          _apiService.toString().contains('_useFallbackResponses: true');
+          
+      if (shouldCheckAvailability) {
+        // Try to check if API is now available
+        await _apiService.checkApiAvailability();
+      }
       
       // Call API
       final response = await _apiService.getDeepSeekResponse(userMessage);
@@ -254,15 +405,34 @@ class HomePageState extends State<HomePage> {
       });
       
       // Save bot response to Firestore
-      if (_currentUserId != null) {
+      if (_currentUserId != null && _firestoreAvailable) {
         _firestoreService.addMessageToSession(
           _currentSession!.id, 
           _currentSession!.messages.last, 
           _currentUserId!
-        );
+        ).catchError((e) {
+          if (_isFirestorePermissionError(e) && !_showedFirestoreError) {
+            setState(() {
+              _firestoreAvailable = false;
+            });
+            _showFirestorePermissionErrorDialog();
+            _showedFirestoreError = true;
+          }
+          return false; // Add return value for catchError
+        });
         
         // Update session in Firestore to ensure title and other metadata are saved
-        _firestoreService.saveChatSession(_currentSession!, _currentUserId!);
+        _firestoreService.saveChatSession(_currentSession!, _currentUserId!)
+          .catchError((e) {
+            if (_isFirestorePermissionError(e) && !_showedFirestoreError) {
+              setState(() {
+                _firestoreAvailable = false;
+              });
+              _showFirestorePermissionErrorDialog();
+              _showedFirestoreError = true;
+            }
+            return null; // Add return value for catchError
+          });
       }
     } catch (e) {
       if (!mounted) return;
@@ -277,45 +447,65 @@ class HomePageState extends State<HomePage> {
       });
       
       // Save error message to Firestore
-      if (_currentUserId != null) {
+      if (_currentUserId != null && _firestoreAvailable) {
         _firestoreService.addMessageToSession(
           _currentSession!.id, 
           _currentSession!.messages.last, 
           _currentUserId!
-        );
+        ).catchError((e) {
+          if (_isFirestorePermissionError(e) && !_showedFirestoreError) {
+            setState(() {
+              _firestoreAvailable = false;
+            });
+            _showFirestorePermissionErrorDialog();
+            _showedFirestoreError = true;
+          }
+          return false; // Add return value for catchError
+        });
       }
     }
     
     _scrollToBottom();
   }
 
-  void _clearCurrentChat() {
+  void _handleClearChat() {
     if (_currentSession == null) return;
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xóa cuộc trò chuyện'),
-        content: const Text('Bạn có chắc muốn xóa toàn bộ tin nhắn trong cuộc trò chuyện này?'),
+        title: const Text('Clear Chat'),
+        content: const Text('Are you sure you want to clear all messages in this chat?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               setState(() {
+                // Keep the first bot message as greeting
+                final initialMessage = _currentSession!.messages.isNotEmpty && !_currentSession!.messages.first.isUser 
+                    ? _currentSession!.messages.first 
+                    : Message(
+                        text: 'Xin chào! Tôi là AI của Vinh. Bạn khỏe không?',
+                        isUser: false,
+                        timestamp: DateTime.now(),
+                      );
+                      
                 _currentSession!.messages.clear();
-                _currentSession!.messages.add(Message(
-                  text: 'Xin chào! Tôi là AI của Vinh. Bạn khỏe không?',
-                  isUser: false,
-                  timestamp: DateTime.now(),
-                ));
+                _currentSession!.messages.add(initialMessage);
               });
+              
+              // Clear chat history in API service
               _apiService.clearConversationHistory();
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Chat cleared')),
+              );
             },
-            child: const Text('Xóa'),
+            child: const Text('Clear'),
           ),
         ],
       ),
@@ -326,14 +516,50 @@ class HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_currentSession != null ? _getChatTitle(_currentSession!) : 'AI của Vinh'),
-        backgroundColor: Colors.grey[900],
-        foregroundColor: Colors.white,
+        title: const Text('AI Chat Bot'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: _clearCurrentChat,
-            tooltip: 'Xóa tin nhắn',
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'reset_permissions') {
+                // Reset Firestore permission check
+                _firestoreService.resetPermissionCheck();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Firestore permissions check reset. Retrying operations...'))
+                );
+              } else if (value == 'clear') {
+                // Clear chat
+                _handleClearChat();
+              } else if (value == 'settings') {
+                // Navigate to settings
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SettingsPage()),
+                );
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'clear',
+                child: ListTile(
+                  leading: Icon(Icons.delete_outline),
+                  title: Text('Clear Chat'),
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'settings',
+                child: ListTile(
+                  leading: Icon(Icons.settings),
+                  title: Text('Settings'),
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'reset_permissions',
+                child: ListTile(
+                  leading: Icon(Icons.security_update_good),
+                  title: Text('Reset Firebase Permissions'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -489,8 +715,8 @@ class HomePageState extends State<HomePage> {
                 ),
                 // Message input area
                 Container(
-                  padding: const EdgeInsets.all(10),
                   color: Colors.grey[900],
+                  padding: const EdgeInsets.all(10),
                   child: Row(
                     children: [
                       Expanded(
@@ -512,8 +738,8 @@ class HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(width: 10),
                       IconButton(
-                        icon: Icon(Icons.send, color: Colors.blue[400]),
                         onPressed: _sendMessage,
+                        icon: Icon(Icons.send, color: Colors.blue[400]),
                       ),
                     ],
                   ),

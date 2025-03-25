@@ -14,7 +14,7 @@ class FirebaseChatService {
   CollectionReference get _chatSessionsCollection => 
       _firestore.collection('chatSessions');
   
-  // Get chat sessions for current user
+  // Get chat sessions for current user with improved message loading
   Future<List<ChatSession>> getUserChatSessions() async {
     try {
       // Get current user ID
@@ -27,50 +27,59 @@ class FirebaseChatService {
       // Get user ID based on auth provider type
       final userId = currentUser is String ? currentUser : currentUser.uid;
       
+      _logger.i('Fetching chat sessions for user: $userId');
+      
       // Query Firestore for this user's chat sessions
       final querySnapshot = await _chatSessionsCollection
           .where('userId', isEqualTo: userId)
           .orderBy('lastUpdatedAt', descending: true)
           .get();
       
+      _logger.i('Found ${querySnapshot.docs.length} chat sessions');
+      
       // Convert to local models
       List<ChatSession> chatSessions = [];
       for (var doc in querySnapshot.docs) {
         // Fix: Cast the data to Map<String, dynamic> explicitly
         final data = doc.data() as Map<String, dynamic>;
+        final sessionId = doc.id;
         
-        // Create chat session from data
-        final chatSession = ChatSession(
-          id: doc.id,
-          title: data['title'] ?? 'Untitled Chat',
-          createdAt: (data['createdAt'] as Timestamp).toDate(),
-          messages: [], // Will load messages separately
-        );
+        _logger.i('Loading messages for session: $sessionId');
         
         // Load messages for this session from subcollection
         final messagesSnapshot = await _chatSessionsCollection
-            .doc(doc.id)
+            .doc(sessionId)
             .collection('messages')
             .orderBy('timestamp')
             .get();
         
+        _logger.i('Found ${messagesSnapshot.docs.length} messages in session $sessionId');
+        
         // Create message list
-        final messages = messagesSnapshot.docs.map((msgDoc) => 
-          FirebaseMessage.fromMap(
-            msgDoc.data(), 
-            msgDoc.id
-          ).toMessage()
-        ).toList();
+        final messages = messagesSnapshot.docs.map((msgDoc) {
+          final msgData = msgDoc.data();
+          return Message(
+            text: msgData['text'] ?? '',
+            isUser: msgData['isUser'] ?? false,
+            timestamp: msgData['timestamp'] != null 
+                ? (msgData['timestamp'] as Timestamp).toDate() 
+                : DateTime.now(),
+            isTyping: msgData['isTyping'] ?? false,
+          );
+        }).toList();
         
         // Create complete chat session with messages
         chatSessions.add(ChatSession(
-          id: chatSession.id,
-          title: chatSession.title,
-          createdAt: chatSession.createdAt,
+          id: sessionId,
+          title: data['title'] ?? 'New Chat',
+          createdAt: data['createdAt'] != null 
+              ? (data['createdAt'] as Timestamp).toDate() 
+              : DateTime.now(),
           messages: messages,
         ));
       }
       
+      _logger.i('Successfully loaded ${chatSessions.length} chat sessions with messages');
       return chatSessions;
     } catch (e) {
       _logger.e('Error getting user chat sessions: $e');

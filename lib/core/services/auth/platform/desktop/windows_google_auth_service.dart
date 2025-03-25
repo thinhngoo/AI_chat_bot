@@ -127,6 +127,11 @@ class WindowsGoogleAuthService {
     
     _logger.i('Validating Google OAuth configuration...');
     
+    if (!dotenv.isInitialized) {
+      _logger.e('.env file was not loaded properly. Make sure it exists in the project root directory.');
+      throw 'Configuration Error: .env file not found or not loaded. Create a .env file in the project root directory.';
+    }
+    
     if (clientId == null || clientId.isEmpty) {
       _logger.e('GOOGLE_DESKTOP_CLIENT_ID is missing in .env file');
       throw 'Configuration Error: GOOGLE_DESKTOP_CLIENT_ID is required for Windows auth. Please add it to your .env file.';

@@ -51,12 +51,13 @@ service cloud.firestore {
     
     // Chat sessions - users can only access their own chats
     match /chatSessions/{sessionId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read, write, create: if request.auth != null && 
+                             (request.auth.uid == resource.data.userId || 
+                              request.resource.data.userId == request.auth.uid);
       
       // Messages in chat sessions
       match /messages/{messageId} {
-        allow read, write: if request.auth != null && 
-                           get(/databases/\$(database)/documents/chatSessions/\$(sessionId)).data.userId == request.auth.uid;
+        allow read, write, create: if request.auth != null;
       }
     }
     
@@ -67,6 +68,25 @@ service cloud.firestore {
     }
   }
 }
+''';
+  }
+  
+  /// Get message about required composite index
+  String getCompositeIndexInfo() {
+    return '''
+You need to create a composite index for your query. Follow these steps:
+
+1. Go to the Firebase Console: https://console.firebase.google.com/
+2. Select your project
+3. Navigate to Firestore Database > Indexes tab
+4. Click "Create index"
+5. Select "chatSessions" as the collection
+6. Add fields:
+   - Field path: userId, Order: Ascending
+   - Field path: lastUpdatedAt, Order: Descending
+7. Click "Create index"
+
+Or simply click the link in the error message which will take you directly to the index creation page.
 ''';
   }
   
@@ -117,5 +137,11 @@ service cloud.firestore {
     
     _logger.i('Firebase rules diagnostic report generated');
     return report;
+  }
+  
+  /// Extract index creation URL from an error message
+  static String? extractIndexCreationUrl(String errorMessage) {
+    final urlMatch = RegExp(r'https://console\.firebase\.google\.com[^\s]+').firstMatch(errorMessage);
+    return urlMatch?.group(0);
   }
 }

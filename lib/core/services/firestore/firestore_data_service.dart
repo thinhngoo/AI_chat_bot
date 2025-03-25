@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Add this import for FirebaseAuth
 import 'package:logger/logger.dart';
 import '../../models/user_model.dart';
 import '../../models/chat/chat_session.dart';
@@ -264,7 +265,7 @@ class FirestoreDataService {
     }
   }
   
-  // Get all chat sessions for a user
+  // Get all chat sessions for a user with proper message loading
   Future<List<ChatSession>> getUserChatSessions(String userId) async {
     if (_hasPermissionIssues) {
       _logger.w('Skipping Firestore operation due to previous permission issues');
@@ -272,22 +273,29 @@ class FirestoreDataService {
     }
     
     try {
+      _logger.i('Fetching chat sessions for user: $userId');
       final querySnapshot = await _chatSessionsCollection
           .where('userId', isEqualTo: userId)
           .orderBy('lastUpdatedAt', descending: true)
           .get();
           
+      _logger.i('Found ${querySnapshot.docs.length} chat sessions');
       List<ChatSession> chatSessions = [];
       
       for (var doc in querySnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
+        final sessionId = doc.id;
+        
+        _logger.i('Loading messages for session: $sessionId');
         
         // Get messages for this session
         final messagesSnapshot = await _chatSessionsCollection
-            .doc(doc.id)
+            .doc(sessionId)
             .collection('messages')
             .orderBy('timestamp')
             .get();
+            
+        _logger.i('Found ${messagesSnapshot.docs.length} messages for session $sessionId');
             
         // Convert messages
         List<Message> messages = messagesSnapshot.docs.map((msgDoc) {
@@ -304,7 +312,7 @@ class FirestoreDataService {
         
         // Create ChatSession object
         chatSessions.add(ChatSession(
-          id: doc.id,
+          id: sessionId,
           title: data['title'] ?? 'New Chat',
           messages: messages,
           createdAt: data['createdAt'] != null 
@@ -313,6 +321,7 @@ class FirestoreDataService {
         ));
       }
       
+      _logger.i('Successfully loaded ${chatSessions.length} chat sessions with messages');
       return chatSessions;
     } catch (e) {
       _handleFirestoreError(e, 'getting user chat sessions');
@@ -343,13 +352,32 @@ class FirestoreDataService {
   
   // Handle Firestore errors centrally
   void _handleFirestoreError(dynamic error, String operation) {
-    if (error is FirebaseException && error.code == 'permission-denied') {
-      _hasPermissionIssues = true;
-      _logger.e('⚠️ PERMISSION DENIED ERROR during $operation. This indicates your Firestore security rules are not correctly set.');
-      _logger.e('Please configure your security rules in Firebase Console or review the instructions in the README.');
-      
-      // Log the recommended rules for reference
-      _logger.i('Recommended security rules:\n${FirebaseRulesManager.instance.getRecommendedSecurityRules()}');
+    if (error is FirebaseException) {
+      if (error.code == 'permission-denied') {
+        _hasPermissionIssues = true;
+        _logger.e('⚠️ PERMISSION DENIED ERROR during $operation. This indicates your Firestore security rules are not correctly set.');
+        _logger.e('Please configure your security rules in Firebase Console or review the instructions in the README.');
+        
+        // Log more diagnostic information
+        _logger.i('Current Firebase Auth user: ${FirebaseAuth.instance.currentUser?.uid ?? "not logged in"}');
+        
+        // Log the recommended rules for reference
+        _logger.i('Recommended security rules:\n${FirebaseRulesManager.instance.getRecommendedSecurityRules()}');
+      } 
+      else if (error.code == 'failed-precondition' && error.message?.contains('requires an index') == true) {
+        _logger.e('⚠️ INDEX ERROR during $operation. This query requires a composite index.');
+        
+        // Extract the index creation URL if available
+        final urlMatch = RegExp(r'https://console\.firebase\.google\.com[^\s]+').firstMatch(error.message ?? '');
+        if (urlMatch != null) {
+          _logger.i('Create the required index using this direct link:\n${urlMatch.group(0)}');
+        }
+        
+        _logger.i('Index creation instructions:\n${FirebaseRulesManager.instance.getCompositeIndexInfo()}');
+      }
+      else {
+        _logger.e('Error during $operation: $error');
+      }
     } else {
       _logger.e('Error during $operation: $error');
     }

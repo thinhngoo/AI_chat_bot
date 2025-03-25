@@ -71,6 +71,20 @@ class ConfigValidator {
     
     return results;
   }
+
+  // Check if .env file is properly loaded
+  static bool isEnvFileLoaded() {
+    final isLoaded = dotenv.isInitialized;
+    
+    if (!isLoaded) {
+      _logger.e('.env file is not loaded properly');
+    } else {
+      final geminiApiKey = dotenv.env['GEMINI_API_KEY'];
+      _logger.i('.env file is loaded, Gemini API key exists: ${geminiApiKey != null && geminiApiKey.isNotEmpty}');
+    }
+    
+    return isLoaded;
+  }
   
   static String getGoogleAuthSetupHelp() {
     return '''
