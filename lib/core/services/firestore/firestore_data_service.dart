@@ -33,6 +33,7 @@ class FirestoreDataService {
         'createdAt': FieldValue.serverTimestamp(),
         'lastUpdated': FieldValue.serverTimestamp(),
         'isEmailVerified': user.isEmailVerified,
+        'selectedModel': user.selectedModel ?? 'gemini-2.0-flash', // Add default model
       }, SetOptions(merge: true));
       
       _logger.i('User data saved to Firestore: ${user.email}');
@@ -69,6 +70,49 @@ class FirestoreDataService {
     } catch (e) {
       _handleFirestoreError(e, 'getting user by ID');
       return null;
+    }
+  }
+  
+  // Get user's selected AI model
+  Future<String?> getUserSelectedModel(String uid) async {
+    if (_hasPermissionIssues) {
+      _logger.w('Skipping Firestore operation due to previous permission issues');
+      return null;
+    }
+    
+    try {
+      final doc = await _usersCollection.doc(uid).get();
+      
+      if (!doc.exists || doc.data() == null) {
+        return null;
+      }
+      
+      final data = doc.data() as Map<String, dynamic>;
+      return data['selectedModel'] as String?;
+    } catch (e) {
+      _handleFirestoreError(e, 'getting user selected model');
+      return null;
+    }
+  }
+  
+  // Update user's selected AI model
+  Future<bool> updateUserSelectedModel(String uid, String model) async {
+    if (_hasPermissionIssues) {
+      _logger.w('Skipping Firestore operation due to previous permission issues');
+      return false;
+    }
+    
+    try {
+      await _usersCollection.doc(uid).update({
+        'selectedModel': model,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+      
+      _logger.i('Updated user model preference to: $model');
+      return true;
+    } catch (e) {
+      _handleFirestoreError(e, 'updating user model preference');
+      return false;
     }
   }
   

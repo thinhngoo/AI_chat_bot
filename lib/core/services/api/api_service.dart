@@ -6,8 +6,13 @@ import 'package:logger/logger.dart';
 
 class ApiService {
   final Logger _logger = Logger();
-  // Update to use Gemini API endpoint
-  final String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  // Base URLs for different API providers
+  final String _geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
+  final String _grokBaseUrl = 'https://api.xai.com/v1'; 
+  final String _openaiBaseUrl = 'https://api.openai.com/v1';
+  
+  // Default model
+  String _currentModel = 'gemini-2.0-flash';
   
   bool _useFallbackResponses = false;
   int _consecutiveFailures = 0;
@@ -15,6 +20,69 @@ class ApiService {
   
   // Message history to maintain context
   final List<Map<String, dynamic>> _conversationHistory = [];
+  
+  // Define model types for provider-specific handling
+  static const String providerGemini = 'gemini';
+  static const String providerGrok = 'grok';
+  static const String providerOpenai = 'openai';
+  
+  // Model information - add Grok and ChatGPT models
+  static const List<String> availableModels = [
+    // Gemini models
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-1.0-pro',
+    'gemini-2.0-flash',
+    // OpenAI models
+    'gpt-3.5-turbo',
+    'gpt-4o',
+    // Grok models
+    'grok-1',
+    'grok-2',
+  ];
+  
+  static const Map<String, String> modelNames = {
+    // Gemini models
+    'gemini-1.5-flash': 'Gemini 1.5 Flash',
+    'gemini-1.5-pro': 'Gemini 1.5 Pro',
+    'gemini-1.0-pro': 'Gemini 1.0 Pro',
+    'gemini-2.0-flash': 'Gemini 2.0 Flash',
+    // OpenAI models
+    'gpt-3.5-turbo': 'ChatGPT 3.5 Turbo',
+    'gpt-4o': 'ChatGPT 4o',
+    // Grok models
+    'grok-1': 'Grok 1',
+    'grok-2': 'Grok 2',
+  };
+  
+  static const Map<String, String> modelDescriptions = {
+    // Gemini models
+    'gemini-1.5-flash': 'Fast, good for most interactions',
+    'gemini-1.5-pro': 'More powerful, better for complex tasks',
+    'gemini-1.0-pro': 'Stable, well-tested version',
+    'gemini-2.0-flash': 'Latest fast model with improved capabilities',
+    // OpenAI models
+    'gpt-3.5-turbo': 'Fast and efficient, good for most tasks',
+    'gpt-4o': 'Latest and most powerful ChatGPT model',
+    // Grok models
+    'grok-1': 'Grok\'s baseline model with real-time information',
+    'grok-2': 'Grok\'s advanced model for complex reasoning',
+  };
+  
+  // Map models to their providers
+  static const Map<String, String> modelProviders = {
+    // Gemini models
+    'gemini-1.5-flash': providerGemini,
+    'gemini-1.5-pro': providerGemini,
+    'gemini-1.0-pro': providerGemini,
+    'gemini-2.0-flash': providerGemini,
+    // OpenAI models
+    'gpt-3.5-turbo': providerOpenai,
+    'gpt-4o': providerOpenai,
+    // Grok models
+    'grok-1': providerGrok,
+    'grok-2': providerGrok,
+  };
   
   // Mock responses for fallback mode
   final List<String> _fallbackResponses = [
@@ -24,6 +92,23 @@ class ApiService {
     'API đang bảo trì hoặc gặp sự cố tạm thời. Tôi đang chạy ở chế độ ngoại tuyến với khả năng giới hạn.',
     'Tôi đang hoạt động ở chế độ hạn chế do máy chủ API đang quá tải. Trạng thái hiện tại: 503 Service Unavailable.',
   ];
+  
+  // Getter for current model
+  String get currentModel => _currentModel;
+  
+  // Get the provider for the current model
+  String get currentProvider => modelProviders[_currentModel] ?? providerGemini;
+  
+  // Method to set current model
+  void setModel(String model) {
+    if (availableModels.contains(model)) {
+      _logger.i('Changing AI model from $_currentModel to $model');
+      _currentModel = model;
+    } else {
+      _logger.w('Attempted to set invalid model: $model. Using default model.');
+      _currentModel = 'gemini-2.0-flash';
+    }
+  }
   
   Future<String> getDeepSeekResponse(String userMessage) async {
     // Add user message to conversation history
@@ -39,36 +124,18 @@ class ApiService {
       if (!dotenv.isInitialized) {
         _logger.e('.env file is not loaded. Make sure it exists in the project root directory.');
         _useFallbackResponses = true;
-        return 'Lỗi: Không thể tải file .env. Vui lòng đảm bảo file .env tồn tại trong thư mục gốc của dự án và chứa GEMINI_API_KEY hợp lệ.';
+        return 'Lỗi: Không thể tải file .env. Vui lòng đảm bảo file .env tồn tại trong thư mục gốc của dự án và chứa các API key cần thiết.';
       }
       
-      // Get API key from environment variables with fallback
-      final apiKey = dotenv.env['GEMINI_API_KEY'] ?? 'demo_api_key';
+      // Get appropriate API key based on the current model provider
+      final apiKey = _getApiKeyForCurrentProvider();
       
       // If API key is missing or using placeholder, switch to fallback mode
-      if (apiKey == 'your_gemini_api_key_here' || 
-          apiKey == 'demo_api_key_please_configure' || 
-          apiKey == 'demo_api_key' ||
-          apiKey == 'placeholder_client_id') {
-        _logger.w('Valid GEMINI_API_KEY not found in environment variables, using fallback mode');
+      if (apiKey == null || apiKey.isEmpty || apiKey.contains('your_') || apiKey == 'demo_api_key') {
+        _logger.w('Valid API key not found for provider $currentProvider, using fallback mode');
         _useFallbackResponses = true;
         return _getFallbackResponse();
       }
-      
-      // Create request body matching the exact Gemini API format
-      final requestBody = {
-        'contents': [
-          {
-            'parts': [
-              {'text': userMessage}
-            ]
-          }
-        ],
-        'generationConfig': {
-          'temperature': 0.7,
-          'maxOutputTokens': 1024,
-        }
-      };
       
       // Try up to _maxRetries times for transient errors
       for (int attempt = 0; attempt <= _maxRetries; attempt++) {
@@ -79,87 +146,77 @@ class ApiService {
         }
         
         try {
-          // Make API call with API key as query parameter
-          _logger.i('Sending request to Gemini API...');
-          final response = await http.post(
-            Uri.parse('$_baseUrl?key=$apiKey'),
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode(requestBody),
-          ).timeout(const Duration(seconds: 15)); // Add timeout to avoid hanging requests
+          // Call appropriate API based on the current model
+          String? response;
           
-          // Process response
-          if (response.statusCode == 200) {
+          switch (currentProvider) {
+            case providerGemini:
+              response = await _callGeminiApi(userMessage, apiKey);
+              break;
+            case providerOpenai:
+              response = await _callOpenAIApi(userMessage, apiKey);
+              break;
+            case providerGrok:
+              response = await _callGrokApi(userMessage, apiKey);
+              break;
+            default:
+              throw 'Unsupported model provider: $currentProvider';
+          }
+          
+          if (response != null) {
             // Reset failure counter on success
             _consecutiveFailures = 0;
             
-            final data = jsonDecode(response.body);
-            
-            // Extract text from Gemini response format
-            final assistantResponse = data['candidates']?[0]?['content']?['parts']?[0]?['text'] ?? 
-                'Không thể trích xuất phản hồi từ API.';
-            
             // Add assistant response to conversation history
-            _addAssistantResponse(assistantResponse);
+            _addAssistantResponse(response);
             
-            return assistantResponse;
+            return response;
           } else {
-            // Handle specific error codes
-            if (response.statusCode == 503) {
-              _logger.e('API error: 503 Service Unavailable, ${response.body}');
-              
-              // Only continue retrying for 503 errors
-              if (attempt < _maxRetries) {
-                continue; // Try again
-              }
-              
-              // After max retries, track consecutive failures and potentially switch to fallback
-              _consecutiveFailures++;
-              if (_consecutiveFailures >= 2) { // Switch to fallback after 2 consecutive 503 errors
-                _useFallbackResponses = true;
-                return 'Dịch vụ API Gemini đang không khả dụng (Lỗi 503). Đã chuyển sang chế độ ngoại tuyến. '
-                    'Vui lòng thử lại sau. Lỗi: ${_getErrorMessage(response.body)}';
-              }
-              
-              // Return a more specific error for 503
-              throw 'Dịch vụ API Gemini hiện đang quá tải hoặc bảo trì (Lỗi 503). Vui lòng thử lại sau vài phút.';
-            } else if (response.statusCode == 401 || response.statusCode == 403) {
-              _useFallbackResponses = true;
-              return 'Lỗi xác thực API Gemini (${response.statusCode}). Chuyển sang chế độ ngoại tuyến. '
-                  'Vui lòng kiểm tra API key của bạn trong file .env và khởi động lại ứng dụng.';
-            } else if (response.statusCode == 429) {
-              // Rate limit exceeded
-              _consecutiveFailures++;
-              return 'Đã vượt quá giới hạn tần suất gọi API (429 Too Many Requests). Vui lòng thử lại sau ít phút.';
-            } else {
-              // Other error codes
-              _logger.e('API error: ${response.statusCode}, ${response.body}');
-              throw 'Lỗi từ API Gemini: ${response.statusCode} - ${_getErrorMessage(response.body)}';
-            }
+            throw 'Received null response from $currentProvider API';
           }
         } catch (e) {
-          // Only retry if this is a timeout or connection error and not the final attempt
-          if ((e is http.ClientException || e.toString().contains('timeout')) && attempt < _maxRetries) {
+          // Handle specific API errors
+          if (e.toString().contains('503') || e.toString().contains('Service Unavailable')) {
+            if (attempt < _maxRetries) {
+              _logger.w('503 Service Unavailable error, retrying...');
+              continue;
+            }
+            
+            // After max retries, track consecutive failures
+            _consecutiveFailures++;
+            if (_consecutiveFailures >= 2) {
+              _useFallbackResponses = true;
+              return 'Dịch vụ API ${modelNames[_currentModel]} đang không khả dụng (Lỗi 503). Đã chuyển sang chế độ ngoại tuyến. '
+                  'Vui lòng thử lại sau. Lỗi: ${e.toString()}';
+            }
+          } else if (e.toString().contains('401') || e.toString().contains('403')) {
+            _useFallbackResponses = true;
+            return 'Lỗi xác thực API ${modelNames[_currentModel]} (401/403). Chuyển sang chế độ ngoại tuyến. '
+                'Vui lòng kiểm tra API key của bạn trong file .env và khởi động lại ứng dụng.';
+          } else if (e.toString().contains('429')) {
+            _consecutiveFailures++;
+            return 'Đã vượt quá giới hạn tần suất gọi API ${modelNames[_currentModel]} (429 Too Many Requests). Vui lòng thử lại sau ít phút.';
+          } else if (attempt < _maxRetries && (e is http.ClientException || e.toString().contains('timeout'))) {
             _logger.w('Network error during API call, will retry: $e');
             continue;
           }
-          // Otherwise, rethrow to be handled by the outer catch block
+          
+          // Re-throw for the outer catch block to handle
           rethrow;
         }
       }
       
       // If we get here, all retries failed
-      throw 'Không thể kết nối đến API Gemini sau nhiều lần thử. Dịch vụ có thể đang bảo trì.';
+      throw 'Không thể kết nối đến API ${modelNames[_currentModel]} sau nhiều lần thử. Dịch vụ có thể đang bảo trì.';
     } catch (e) {
-      _logger.e('Error calling Gemini API: $e');
+      _logger.e('Error calling API: $e');
       
       // Track consecutive failures and potentially switch to fallback mode
       _consecutiveFailures++;
-      if (_consecutiveFailures >= 3) { // After 3 consecutive failures of any kind
+      if (_consecutiveFailures >= 3) {
         _useFallbackResponses = true;
         
-        // Create a user-friendly message indicating we're switching to fallback mode
+        // Create a user-friendly message
         final errorResponse = 'Đã xảy ra lỗi liên tục khi gọi API. Chuyển sang chế độ ngoại tuyến.\n\n'
             'Lỗi: ${e.toString()}\n\n'
             'Các lỗi thường gặp:\n'
@@ -171,15 +228,156 @@ class ApiService {
         return errorResponse;
       }
       
-      // General error handling for non-fallback errors
-      final errorResponse = 'Đã xảy ra lỗi khi gọi API: ${e.toString()}\n\n'
+      // General error handling
+      final errorResponse = 'Đã xảy ra lỗi khi gọi API ${modelNames[_currentModel]}: ${e.toString()}\n\n'
           'Hướng dẫn khắc phục:\n'
-          '1. Nếu lỗi 503, đây là sự cố từ phía máy chủ Google, vui lòng thử lại sau\n'
-          '2. Kiểm tra kết nối mạng\n'
-          '3. Đảm bảo đã thêm API key hợp lệ vào file .env';
+          '1. Kiểm tra kết nối mạng\n'
+          '2. Đảm bảo đã thêm API key hợp lệ vào file .env\n'
+          '3. Thử chọn mô hình AI khác';
       
       _addAssistantResponse(errorResponse);
       return errorResponse;
+    }
+  }
+  
+  // Get API key based on the current provider
+  String? _getApiKeyForCurrentProvider() {
+    switch (currentProvider) {
+      case providerGemini:
+        return dotenv.env['GEMINI_API_KEY'];
+      case providerOpenai:
+        return dotenv.env['OPENAI_API_KEY'];
+      case providerGrok:
+        return dotenv.env['GROK_API_KEY'];
+      default:
+        return null;
+    }
+  }
+  
+  // Call Gemini API (existing implementation, modified for clarity)
+  Future<String?> _callGeminiApi(String userMessage, String apiKey) async {
+    _logger.i('Calling Gemini API with model: $_currentModel');
+    
+    // Create request body for Gemini API
+    final requestBody = {
+      'contents': [
+        {
+          'parts': [
+            {'text': userMessage}
+          ]
+        }
+      ],
+      'generationConfig': {
+        'temperature': 0.7,
+        'maxOutputTokens': 1024,
+      }
+    };
+    
+    // Generate endpoint URL for the specific model
+    final endpoint = '$_geminiBaseUrl/$_currentModel:generateContent';
+    
+    // Make API call
+    final response = await http.post(
+      Uri.parse('$endpoint?key=$apiKey'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(requestBody),
+    ).timeout(const Duration(seconds: 15));
+    
+    // Process response
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      
+      // Extract text from Gemini response format
+      final assistantResponse = data['candidates']?[0]?['content']?['parts']?[0]?['text'] ?? 
+          'Không thể trích xuất phản hồi từ API Gemini.';
+      
+      return assistantResponse;
+    } else {
+      _logger.e('Gemini API error: ${response.statusCode}, ${response.body}');
+      throw 'Lỗi từ API Gemini: ${response.statusCode} - ${_getErrorMessage(response.body)}';
+    }
+  }
+  
+  // Call OpenAI API (ChatGPT)
+  Future<String?> _callOpenAIApi(String userMessage, String apiKey) async {
+    _logger.i('Calling OpenAI API with model: $_currentModel');
+    
+    // Create request body for OpenAI API
+    final requestBody = {
+      'model': _currentModel,
+      'messages': [
+        {'role': 'system', 'content': 'You are a helpful assistant.'},
+        {'role': 'user', 'content': userMessage}
+      ],
+      'temperature': 0.7,
+      'max_tokens': 1024,
+    };
+    
+    // Make API call
+    final response = await http.post(
+      Uri.parse('$_openaiBaseUrl/chat/completions'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $apiKey',
+      },
+      body: jsonEncode(requestBody),
+    ).timeout(const Duration(seconds: 20)); // Longer timeout for OpenAI
+    
+    // Process response
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      
+      // Extract text from OpenAI response format
+      final assistantResponse = data['choices']?[0]?['message']?['content'] ?? 
+          'Không thể trích xuất phản hồi từ OpenAI API.';
+      
+      return assistantResponse;
+    } else {
+      _logger.e('OpenAI API error: ${response.statusCode}, ${response.body}');
+      throw 'Lỗi từ OpenAI API: ${response.statusCode} - ${_getErrorMessage(response.body)}';
+    }
+  }
+  
+  // Call Grok API
+  Future<String?> _callGrokApi(String userMessage, String apiKey) async {
+    _logger.i('Calling Grok API with model: $_currentModel');
+    
+    // Create request body for Grok API - format based on Grok API documentation
+    final requestBody = {
+      'model': _currentModel,
+      'messages': [
+        {'role': 'user', 'content': userMessage}
+      ],
+      'temperature': 0.7,
+      'max_tokens': 1024,
+      'stream': false,
+    };
+    
+    // Make API call
+    final response = await http.post(
+      Uri.parse('$_grokBaseUrl/chat/completions'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $apiKey',
+        'X-API-Key': apiKey,
+      },
+      body: jsonEncode(requestBody),
+    ).timeout(const Duration(seconds: 20)); // Longer timeout for Grok
+    
+    // Process response
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      
+      // Extract text from Grok response format
+      final assistantResponse = data['choices']?[0]?['message']?['content'] ?? 
+          'Không thể trích xuất phản hồi từ Grok API.';
+      
+      return assistantResponse;
+    } else {
+      _logger.e('Grok API error: ${response.statusCode}, ${response.body}');
+      throw 'Lỗi từ Grok API: ${response.statusCode} - ${_getErrorMessage(response.body)}';
     }
   }
   
@@ -238,23 +436,39 @@ class ApiService {
     }
     
     try {
-      // Try a minimal API call to check if service is back up
-      final apiKey = dotenv.env['GEMINI_API_KEY'] ?? 'demo_api_key';
-      if (apiKey == 'your_gemini_api_key_here' || apiKey == 'demo_api_key') {
+      // Check availability based on current provider
+      final apiKey = _getApiKeyForCurrentProvider();
+      if (apiKey == null || apiKey.isEmpty || apiKey.contains('your_') || apiKey == 'demo_api_key') {
         return false; // Invalid API key, so API won't be available
       }
       
-      final response = await http.get(
-        Uri.parse('https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey'),
-      ).timeout(const Duration(seconds: 5));
-      
-      if (response.statusCode == 200) {
-        _logger.i('API service has been restored, exiting fallback mode');
-        resetFallbackMode();
-        return true;
+      switch (currentProvider) {
+        case providerGemini:
+          final response = await http.get(
+            Uri.parse('$_geminiBaseUrl?key=$apiKey'),
+          ).timeout(const Duration(seconds: 5));
+          return response.statusCode == 200;
+          
+        case providerOpenai:
+          final response = await http.get(
+            Uri.parse('$_openaiBaseUrl/models'),
+            headers: {'Authorization': 'Bearer $apiKey'},
+          ).timeout(const Duration(seconds: 5));
+          return response.statusCode == 200;
+          
+        case providerGrok:
+          final response = await http.get(
+            Uri.parse('$_grokBaseUrl/models'),
+            headers: {
+              'Authorization': 'Bearer $apiKey',
+              'X-API-Key': apiKey,
+            },
+          ).timeout(const Duration(seconds: 5));
+          return response.statusCode == 200;
+          
+        default:
+          return false;
       }
-      
-      return false;
     } catch (e) {
       _logger.w('API still unavailable during availability check: $e');
       return false;

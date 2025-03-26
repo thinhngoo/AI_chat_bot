@@ -11,6 +11,8 @@ import '../../support/presentation/help_feedback_page.dart';
 import '../../settings/presentation/settings_page.dart'; // Add this import
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../widgets/ai/model_selector_widget.dart';
+import 'package:logger/logger.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -25,6 +27,7 @@ class HomePageState extends State<HomePage> {
   final ApiService _apiService = ApiService();
   final FirestoreDataService _firestoreService = FirestoreDataService(); // Add Firestore service
   final AuthService _authService = AuthService();
+  final Logger _logger = Logger(); // Add this line to fix undefined _logger
   
   // Chat session management
   final List<ChatSession> _chatSessions = [];
@@ -35,6 +38,8 @@ class HomePageState extends State<HomePage> {
   String? _currentUserId;
   bool _firestoreAvailable = true; // Track if Firestore is working properly
   bool _showedFirestoreError = false; // Track if we've already shown the error
+  String _currentModel = 'gemini-2.0-flash'; // Default model
+  bool _isLoadingModel = false;
 
   @override
   void initState() {
@@ -43,6 +48,8 @@ class HomePageState extends State<HomePage> {
     _getCurrentUserId();
     // Load chat sessions from Firestore
     _loadChatSessions();
+    // Add this to load the user's selected model when the page initializes
+    _loadUserModel();
   }
 
   // Get current user ID
@@ -512,12 +519,95 @@ class HomePageState extends State<HomePage> {
     );
   }
 
+  // Load the user's selected model from Firestore
+  Future<void> _loadUserModel() async {
+    if (_authService.currentUser == null) return;
+    
+    setState(() => _isLoadingModel = true);
+    try {
+      final userId = _authService.currentUser is String
+          ? _authService.currentUser
+          : _authService.currentUser.uid;
+          
+      if (userId != null) {
+        final selectedModel = await _firestoreService.getUserSelectedModel(userId);
+        if (selectedModel != null) {
+          setState(() => _currentModel = selectedModel);
+          _apiService.setModel(selectedModel);
+          _logger.i('Loaded user model preference: $selectedModel');
+        }
+      }
+    } catch (e) {
+      _logger.e('Error loading user model preference: $e');
+    } finally {
+      setState(() => _isLoadingModel = false);
+    }
+  }
+  
+  // Update the user's selected model
+  Future<void> _updateUserModel(String newModel) async {
+    if (_authService.currentUser == null) return;
+    
+    try {
+      final userId = _authService.currentUser is String
+          ? _authService.currentUser
+          : _authService.currentUser.uid;
+          
+      if (userId != null) {
+        setState(() => _currentModel = newModel);
+        _apiService.setModel(newModel);
+        
+        // Save to Firestore
+        await _firestoreService.updateUserSelectedModel(userId, newModel);
+        _logger.i('Updated user model preference to: $newModel');
+        
+        // Show confirmation to user
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Switched to ${ApiService.modelNames[newModel] ?? newModel}'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      _logger.e('Error updating user model preference: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update AI model preference'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('AI Chat Bot'),
         actions: [
+          // Add model selector widget
+          if (_isLoadingModel)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else
+            ModelSelectorWidget(
+              currentModel: _currentModel,
+              onModelSelected: _updateUserModel,
+              showDescription: false,
+            ),
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'reset_permissions') {

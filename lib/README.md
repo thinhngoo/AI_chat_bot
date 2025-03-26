@@ -11,8 +11,8 @@ This error occurs when the application is using a redirect URI that isn't regist
 ##### Solution
 
 1. Go to [Google Cloud Console > APIs & Services > Credentials](https://console.cloud.google.com/apis/credentials)
-1. Find and edit your OAuth 2.0 Client ID
-1. Under "Authorized redirect URIs", add:
+2. Find and edit your OAuth 2.0 Client ID
+3. Under "Authorized redirect URIs", add:
 
 ```text
 http://localhost:8080
@@ -22,7 +22,7 @@ http://localhost:5000
 http://localhost:8000
 ```
 
-1. Click Save
+4. Click Save
 
 The application tries these ports in order if the previous one is unavailable. To ensure it works in all cases, add all of them to your Google Cloud Console settings.
 
@@ -37,17 +37,17 @@ GOOGLE_DESKTOP_CLIENT_ID=your_desktop_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
 ```
 
-1. Make sure the client ID matches the one in Google Cloud Console
-1. For Windows users, ensure you're using a Desktop client, not a Web client
+2. Make sure the client ID matches the one in Google Cloud Console
+3. For Windows users, ensure you're using a Desktop client, not a Web client
 
 ### Firebase Authentication Setup
 
 For Firebase Authentication to work with Google Sign-in on Windows:
 
 1. Go to Firebase Console > Authentication > Sign-in method > Google
-1. Enable Google Sign-in
-1. In the "Web SDK configuration" section, add the same OAuth Client ID that you're using for Windows authentication
-1. Ensure this OAuth Client ID is also registered in the Google Cloud Console with all the redirect URIs listed above
+2. Enable Google Sign-in
+3. In the "Web SDK configuration" section, add the same OAuth Client ID that you're using for Windows authentication
+4. Ensure this OAuth Client ID is also registered in the Google Cloud Console with all the redirect URIs listed above
 
 ## Google Authentication Troubleshooting
 
@@ -88,7 +88,7 @@ http://localhost:5000
 http://localhost:8000
 ```
 
-1. **Check Firewall Settings**:
+3. **Check Firewall Settings**:
    - Try temporarily disabling the firewall to test
    - Add the application to firewall exceptions
    - Run the application as administrator
@@ -167,10 +167,10 @@ If you're seeing **"permission-denied"** errors when using the app, you need to 
 #### How to Configure Security Rules
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
-1. Select your project
-1. Click on "Firestore Database" in the left sidebar
-1. Click on the "Rules" tab
-1. Replace the existing rules with the following:
+2. Select your project
+3. Click on "Firestore Database" in the left sidebar
+4. Click on the "Rules" tab
+5. Replace the existing rules with the following:
 
 ```javascript
 rules_version = '2';
@@ -203,15 +203,15 @@ service cloud.firestore {
 }
 ```
 
-1. Click "Publish"
+6. Click "Publish"
 
 ### Troubleshooting Security Rules
 
 If you're still having issues after setting up the rules:
 
 1. Make sure the user is properly authenticated before accessing Firestore
-1. Check that you're using the correct userId when querying documents
-1. Verify that your chat session documents have a `userId` field that matches the authenticated user's ID
+2. Check that you're using the correct userId when querying documents
+3. Verify that your chat session documents have a `userId` field that matches the authenticated user's ID
 
 ### Testing Security Rules
 
@@ -228,14 +228,64 @@ print(report);
 ### Data Structure
 
 1. **User Collection**: Store user profiles in a `users` collection with documents using the Firebase Authentication UID as the document ID
-1. **Auth Events**: Record login/logout events in a separate collection for audit purposes
-1. **Chat Sessions**: Store each chat session with a reference to the user ID
+2. **Auth Events**: Record login/logout events in a separate collection for audit purposes
+3. **Chat Sessions**: Store each chat session with a reference to the user ID
+
+## AI Model Selection
+
+The application supports multiple AI models from different providers:
+
+### Gemini Models (Google)
+
+- **Gemini 2.0 Flash**: Latest fast model with improved capabilities (default)
+- **Gemini 1.5 Flash**: Fast, good for most interactions
+- **Gemini 1.5 Pro**: More powerful, better for complex tasks
+- **Gemini 1.0 Pro**: Stable, well-tested version
+
+### ChatGPT Models (OpenAI)
+
+- **ChatGPT 3.5 Turbo**: Fast and efficient model, good for most tasks
+- **ChatGPT 4o**: Latest and most powerful ChatGPT model with improved capabilities
+
+### Grok Models (xAI)
+
+- **Grok 1**: Baseline model with real-time information access
+- **Grok 2**: Advanced model with improved reasoning and problem-solving
+
+### How to Configure API Keys
+
+To use different AI models, you need to provide the appropriate API keys:
+
+#### Gemini API Key
+
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a new API key
+3. Add to your `.env` file as `GEMINI_API_KEY=your_key_here`
+
+#### OpenAI API Key
+
+1. Visit [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Create a new API key
+3. Add to your `.env` file as `OPENAI_API_KEY=your_key_here`
+
+#### Grok API Key
+
+1. Visit [xAI Developer Portal](https://developer.xai.com/)
+2. Create a new API key
+3. Add to your `.env` file as `GROK_API_KEY=your_key_here`
+
+### Usage Considerations
+
+Different models have different pricing structures:
+- Gemini offers free tiers with limits
+- OpenAI charges per token used (both input and output)
+- Grok may require a subscription
+
+Choose the appropriate model based on your needs and budget constraints.
 
 ## API Error Handling
 
-### Handling 503 Service Unavailable Errors
-
-The application is designed to handle temporary service outages from the Gemini API. Here's how it works:
+The application is designed to handle temporary service outages from any of the AI API providers. Here's how it works:
 
 1. **Retry Mechanism**: When a 503 error occurs, the application will automatically retry the request up to 2 times with exponential backoff.
 
@@ -244,6 +294,11 @@ The application is designed to handle temporary service outages from the Gemini 
 3. **Auto Recovery**: The application periodically checks if the API service has been restored.
 
 4. **Manual Reset**: You can manually reset the API service from the settings page if you know the service is back online.
+
+5. **AI Model Selection**: You can choose between different AI models from multiple providers:
+   - Google Gemini models
+   - OpenAI ChatGPT models
+   - xAI Grok models
 
 ### Common API Errors
 
