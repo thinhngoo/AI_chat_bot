@@ -1,125 +1,81 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/validators/password_validator.dart';
 
-class PasswordRequirements extends StatelessWidget {
-  final Map<String, bool> criteria;
+class PasswordRequirementWidget extends StatelessWidget {
+  final String password;
   final bool showTitle;
-
-  const PasswordRequirements({
+  final Map<String, bool>? criteria;
+  
+  const PasswordRequirementWidget({
     super.key,
-    required this.criteria,
-    this.showTitle = false,
+    required this.password,
+    this.showTitle = true,
+    this.criteria,
   });
-
-  /// Static method to show fixed password requirements
-  static Widget static() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: Text(
-            'Yêu cầu mật khẩu',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: Colors.grey[700],
-            ),
-          ),
-        ),
-        _buildStaticRequirement('Ít nhất 8 ký tự'),
-        _buildStaticRequirement('Ít nhất 1 chữ hoa (A-Z)'),
-        _buildStaticRequirement('Ít nhất 1 chữ thường (a-z)'),
-        _buildStaticRequirement('Ít nhất 1 chữ số (0-9)'),
-        _buildStaticRequirement(r'Ít nhất 1 ký tự đặc biệt (!@#$...)'),
-      ],
-    );
-  }
-
-  /// Helper method for static requirements
-  static Widget _buildStaticRequirement(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4.0),
-      child: Row(
-        children: [
-          Icon(
-            Icons.info_outline,
-            color: Colors.grey,
-            size: 16,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
+    final requirements = PasswordValidator.getRequirementsText();
+    final Map<String, bool> actualCriteria = criteria ?? {
+      'length': password.length >= 8,
+      'uppercase': password.contains(RegExp(r'[A-Z]')),
+      'lowercase': password.contains(RegExp(r'[a-z]')),
+      'number': password.contains(RegExp(r'[0-9]')),
+      'special': password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]')),
+    };
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showTitle) 
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: Text(
-              'Yêu cầu mật khẩu',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: Colors.grey[700],
-              ),
+        if (showTitle)
+          const Text(
+            'Yêu cầu mật khẩu:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
             ),
           ),
-        _buildRequirement(
-          'Ít nhất 8 ký tự', 
-          criteria['length'] ?? false,
-        ),
-        _buildRequirement(
-          'Ít nhất 1 chữ hoa (A-Z)', 
-          criteria['uppercase'] ?? false,
-        ),
-        _buildRequirement(
-          'Ít nhất 1 chữ thường (a-z)', 
-          criteria['lowercase'] ?? false,
-        ),
-        _buildRequirement(
-          'Ít nhất 1 chữ số (0-9)', 
-          criteria['number'] ?? false,
-        ),
-        _buildRequirement(
-          r'Ít nhất 1 ký tự đặc biệt (!@#$...)', 
-          criteria['special'] ?? false,
-        ),
+        if (showTitle)
+          const SizedBox(height: 8),
+        ...requirements.map((requirement) {
+          final bool isMet = _isRequirementMet(requirement, actualCriteria);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                Icon(
+                  isMet ? Icons.check_circle : Icons.circle_outlined,
+                  color: isMet ? Colors.green : Colors.grey,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    requirement,
+                    style: TextStyle(
+                      color: isMet ? Colors.green : Colors.grey,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }
-
-  Widget _buildRequirement(String text, bool isMet) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4.0),
-      child: Row(
-        children: [
-          Icon(
-            isMet ? Icons.check_circle : Icons.circle_outlined,
-            color: isMet ? Colors.green : Colors.grey,
-            size: 16,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              color: isMet ? Colors.black87 : Colors.grey[600],
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
+  
+  bool _isRequirementMet(String requirement, Map<String, bool> criteria) {
+    if (requirement.contains('8 ký tự')) {
+      return criteria['length'] ?? false;
+    } else if (requirement.contains('chữ hoa') && requirement.contains('chữ thường')) {
+      return (criteria['uppercase'] ?? false) && (criteria['lowercase'] ?? false);
+    } else if (requirement.contains('chữ số')) {
+      return criteria['number'] ?? false;
+    } else if (requirement.contains('ký tự đặc biệt')) {
+      return criteria['special'] ?? false;
+    }
+    return false;
   }
 }

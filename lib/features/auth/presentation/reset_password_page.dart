@@ -243,9 +243,10 @@ class ResetPasswordPageState extends State<ResetPasswordPage> {
                     
                     const SizedBox(height: 24),
                     
-                    PasswordRequirements(
-                      criteria: _passwordCriteria,
+                    PasswordRequirementWidget(
+                      password: _passwordController.text,
                       showTitle: true,
+                      criteria: _passwordCriteria,
                     ),
                     
                     if (_errorMessage != null) ...[

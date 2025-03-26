@@ -230,7 +230,10 @@ class ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   // For displaying static password requirements:
   Widget _buildPasswordRequirements() {
-    return PasswordRequirements.static();
+    return PasswordRequirementWidget(
+      password: '',
+      showTitle: true,
+    );
   }
 }
 

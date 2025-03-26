@@ -55,7 +55,7 @@ For Firebase Authentication to work with Google Sign-in on Windows:
 
 When logging in with Google, some machines handle the authentication flow automatically (browser redirects back to the app) while others require manual code entry. This difference is caused by:
 
-1. **Port Availability**: 
+1. **Port Availability**:
    - The app tries to open a local server on port 8080 (or 3000 as fallback)
    - If these ports are already in use or blocked by firewall, manual code entry is required
 
@@ -79,15 +79,16 @@ When logging in with Google, some machines handle the authentication flow automa
    - Go to Google Cloud Console > APIs & Services > Credentials
    - Edit your OAuth 2.0 Client ID
    - Add ALL these redirect URIs:
-     ```
-     http://localhost:8080
-     http://localhost:3000
-     http://localhost:4200
-     http://localhost:5000
-     http://localhost:8000
-     ```
 
-3. **Check Firewall Settings**:
+```text
+http://localhost:8080
+http://localhost:3000
+http://localhost:4200
+http://localhost:5000
+http://localhost:8000
+```
+
+1. **Check Firewall Settings**:
    - Try temporarily disabling the firewall to test
    - Add the application to firewall exceptions
    - Run the application as administrator
@@ -255,4 +256,6 @@ The application is designed to handle temporary service outages from the Gemini 
 ### Checking API Status
 
 If you're experiencing repeated 503 errors, you can check the Google AI Platform status at:
-https://status.cloud.google.com/
+[https://status.cloud.google.com/](https://status.cloud.google.com/)
+
+For more information, visit the Firebase Security Rules documentation at: [https://firebase.google.com/docs/firestore/security/get-started](https://firebase.google.com/docs/firestore/security/get-started)

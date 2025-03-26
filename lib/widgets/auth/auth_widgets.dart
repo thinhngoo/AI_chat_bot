@@ -79,6 +79,7 @@ class PasswordField extends StatefulWidget {
   final String? errorText;
   final Function(String)? onChanged;
   final String? Function(String?)? validator;
+  final VoidCallback? onSubmit;
 
   const PasswordField({
     super.key,
@@ -88,6 +89,7 @@ class PasswordField extends StatefulWidget {
     this.errorText,
     this.onChanged,
     this.validator,
+    this.onSubmit,
   });
 
   @override
@@ -121,22 +123,30 @@ class PasswordFieldState extends State<PasswordField> {
       obscureText: _obscureText,
       onChanged: widget.onChanged,
       validator: widget.validator,
+      onFieldSubmitted: (value) {
+        if (widget.onSubmit != null) {
+          widget.onSubmit!();
+        }
+      },
     );
   }
 }
 
+/// A standardized submit button used across all authentication screens
 class SubmitButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
   final bool isLoading;
-  final Color? color;
+  final Color? backgroundColor;
+  final Color? textColor;
 
   const SubmitButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.isLoading = false,
-    this.color,
+    this.backgroundColor,
+    this.textColor,
   });
 
   @override
@@ -147,17 +157,19 @@ class SubmitButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 50),
+          backgroundColor: backgroundColor ?? Theme.of(context).primaryColor,
+          foregroundColor: textColor ?? Colors.white,
+          disabledBackgroundColor: Colors.grey.shade300,
+          disabledForegroundColor: Colors.grey.shade600,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
+          elevation: 2,
         ),
         child: isLoading
             ? const SizedBox(
-                height: 20,
-                width: 20,
+                height: 24,
+                width: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -165,8 +177,54 @@ class SubmitButton extends StatelessWidget {
               )
             : Text(
                 label,
-                style: const TextStyle(fontSize: 16),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
+      ),
+    );
+  }
+}
+
+/// A standardized auth screen card container for consistent layout
+class AuthCard extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  final EdgeInsetsGeometry padding;
+
+  const AuthCard({
+    super.key,
+    required this.title,
+    required this.children,
+    this.padding = const EdgeInsets.all(24.0),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 4.0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16.0),
+      ),
+      child: Padding(
+        padding: padding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ...children,
+          ],
+        ),
       ),
     );
   }
