@@ -1,22 +1,27 @@
 import 'package:flutter/material.dart';
-import '../../core/utils/validators/password_validator.dart';
 
 class PasswordRequirementWidget extends StatelessWidget {
   final String password;
+  final List<String> requirements;
   final bool showTitle;
-  final Map<String, bool>? criteria;
+  final String title;
   
   const PasswordRequirementWidget({
     super.key,
     required this.password,
+    this.requirements = const [
+      'Ít nhất 8 ký tự',
+      'Có ít nhất 1 chữ hoa và 1 chữ thường',
+      'Có ít nhất 1 chữ số',
+      'Có ít nhất 1 ký tự đặc biệt (@, !, #, v.v.)',
+    ],
     this.showTitle = true,
-    this.criteria,
+    this.title = 'Yêu cầu mật khẩu:',
   });
 
   @override
   Widget build(BuildContext context) {
-    final requirements = PasswordValidator.getRequirementsText();
-    final Map<String, bool> actualCriteria = criteria ?? {
+    final Map<String, bool> actualCriteria = {
       'length': password.length >= 8,
       'uppercase': password.contains(RegExp(r'[A-Z]')),
       'lowercase': password.contains(RegExp(r'[a-z]')),
@@ -28,8 +33,8 @@ class PasswordRequirementWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showTitle)
-          const Text(
-            'Yêu cầu mật khẩu:',
+          Text(
+            title,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,

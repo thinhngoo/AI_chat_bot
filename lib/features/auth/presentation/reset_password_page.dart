@@ -31,13 +31,6 @@ class ResetPasswordPageState extends State<ResetPasswordPage> {
   String? _errorMessage;
   String _passwordStrength = '';
   bool _passwordsMatch = true;
-  Map<String, bool> _passwordCriteria = {
-    'length': false,
-    'uppercase': false,
-    'lowercase': false,
-    'number': false,
-    'special': false,
-  };
 
   @override
   void initState() {
@@ -48,13 +41,6 @@ class ResetPasswordPageState extends State<ResetPasswordPage> {
   void _updatePasswordCriteria(String password) {
     setState(() {
       _passwordStrength = PasswordValidator.getPasswordStrength(password);
-      _passwordCriteria = {
-        'length': password.length >= 8,
-        'uppercase': password.contains(RegExp(r'[A-Z]')),
-        'lowercase': password.contains(RegExp(r'[a-z]')),
-        'number': password.contains(RegExp(r'[0-9]')),
-        'special': password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]')),
-      };
     });
   }
 
@@ -246,7 +232,6 @@ class ResetPasswordPageState extends State<ResetPasswordPage> {
                     PasswordRequirementWidget(
                       password: _passwordController.text,
                       showTitle: true,
-                      criteria: _passwordCriteria,
                     ),
                     
                     if (_errorMessage != null) ...[

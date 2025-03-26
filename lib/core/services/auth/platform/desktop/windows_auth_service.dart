@@ -370,6 +370,42 @@ class WindowsAuthService implements AuthProviderInterface {
     }
   }
 
+  @override
+  Future<void> updatePassword(String currentPassword, String newPassword) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final users = await getUsers();
+      final currentUserEmail = await getCurrentUserEmail();
+      
+      if (currentUserEmail == null) {
+        throw 'Không có người dùng nào đang đăng nhập';
+      }
+      
+      // Find current user
+      final userIndex = users.indexWhere((user) => user['email'] == currentUserEmail);
+      
+      if (userIndex == -1) {
+        throw 'Không tìm thấy người dùng trong cơ sở dữ liệu';
+      }
+      
+      // Verify current password
+      if (users[userIndex]['password'] != currentPassword) {
+        throw 'Mật khẩu hiện tại không đúng';
+      }
+      
+      // Update password
+      users[userIndex]['password'] = newPassword;
+      
+      // Save back to SharedPreferences
+      await prefs.setString('users', jsonEncode(users));
+      
+      _logger.i('Password updated successfully for: $currentUserEmail');
+    } catch (e) {
+      _logger.e('Error updating password: $e');
+      throw e.toString();
+    }
+  }
+
   // Clean up resources
   void dispose() {
     _logger.i('Disposing WindowsAuthService');

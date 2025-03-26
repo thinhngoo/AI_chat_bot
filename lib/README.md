@@ -303,15 +303,39 @@ The application is designed to handle temporary service outages from any of the 
 
 ### Common API Errors
 
-- **503 Service Unavailable**: The Gemini API service is temporarily down or undergoing maintenance. This is a server-side issue that will resolve on its own.
+#### Gemini API Errors
 
-- **429 Too Many Requests**: You've exceeded the rate limits for the API. Wait a few minutes before trying again.
+- **503 Service Unavailable**: The Gemini API service is temporarily down or undergoing maintenance. This is a server-side issue that will resolve on its own. Wait a few minutes and try again.
 
-- **401/403 Authentication Errors**: Your API key may be invalid or expired. Check your `.env` file configuration.
+- **429 Too Many Requests**: You've exceeded the rate limits for the API. This happens when too many requests are made in a short period. Wait a few minutes before trying again.
+
+- **401/403 Authentication Errors**: Your API key may be invalid or expired. Check your `.env` file configuration and ensure the key is correctly formatted. The 401 error indicates unauthorized access, while 403 indicates the key doesn't have permission for the requested operation.
+
+- **400 Bad Request**: The request format is incorrect. This may happen if the prompt is malformed or too long. Try simplifying your prompts.
+
+- **404 Not Found**: The requested endpoint doesn't exist. This could happen if you're using an incorrect model name.
+
+#### OpenAI API Errors
+
+- **429 insufficient_quota**: You've exceeded your current quota for OpenAI API. This typically means:
+  - You're using a free tier account which has run out of credits
+  - Your billing details need to be updated
+  - You've hit your defined spending limits
+  
+  To fix this, visit [OpenAI Billing Dashboard](https://platform.openai.com/account/billing) to check your usage and update payment information if needed.
+
+- **429 rate_limit_exceeded**: You're making too many requests to the OpenAI API in a short period. Implement exponential backoff strategies in your code or reduce the frequency of requests.
+
+- **401 invalid_api_key**: Your OpenAI API key is invalid or has been rotated. Check your `.env` file and ensure the OPENAI_API_KEY is correctly set.
+
+- **500/503 Server Errors**: OpenAI's servers are experiencing issues. These are temporary and should resolve on their own.
 
 ### Checking API Status
 
 If you're experiencing repeated 503 errors, you can check the Google AI Platform status at:
 [https://status.cloud.google.com/](https://status.cloud.google.com/)
+
+For OpenAI service status, check:
+[https://status.openai.com/](https://status.openai.com/)
 
 For more information, visit the Firebase Security Rules documentation at: [https://firebase.google.com/docs/firestore/security/get-started](https://firebase.google.com/docs/firestore/security/get-started)

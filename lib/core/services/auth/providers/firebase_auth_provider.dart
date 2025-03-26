@@ -359,4 +359,103 @@ class FirebaseAuthProvider implements AuthProviderInterface {
       throw 'Lỗi xác nhận đặt lại mật khẩu';
     }
   }
+
+  @override
+  Future<void> updatePassword(String currentPassword, String newPassword) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      
+      if (user == null) {
+        _logger.e('No user is currently logged in');
+        throw 'Không có người dùng nào đang đăng nhập';
+      }
+      
+      // Get user's sign-in methods to determine how to re-authenticate
+      List<String> providers = [];
+      try {
+        final userInfo = await _firebaseAuth.fetchSignInMethodsForEmail(user.email ?? '');
+        providers = userInfo.toList();
+        _logger.i('User sign-in methods: $providers');
+      } catch (e) {
+        _logger.w('Error fetching sign-in methods: $e');
+        // Continue anyway, we'll try password auth by default
+      }
+      
+      // If user originally signed in with Google or other providers
+      if (providers.contains('google.com') && !providers.contains('password')) {
+        _logger.i('User signed in with Google. Cannot update password directly.');
+        throw 'Tài khoản này đăng nhập bằng Google. Không thể cập nhật mật khẩu qua ứng dụng.';
+      }
+      
+      if (user.email == null) {
+        _logger.e('Current user has no email');
+        throw 'Người dùng hiện tại không có email';
+      }
+      
+      try {
+        // For Firebase, we need to re-authenticate before changing password
+        AuthCredential credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: currentPassword,
+        );
+        
+        // Re-authenticate
+        _logger.i('Re-authenticating user before password change');
+        await user.reauthenticateWithCredential(credential);
+        
+        // Update password
+        _logger.i('Updating password for user: ${user.email}');
+        await user.updatePassword(newPassword);
+        
+        _logger.i('Password updated successfully');
+      } on FirebaseAuthException catch (e) {
+        _logger.e('Firebase Auth error during re-authentication or password update: ${e.code} - ${e.message}');
+        
+        switch (e.code) {
+          case 'wrong-password':
+            throw 'Mật khẩu hiện tại không đúng';
+          case 'weak-password':
+            throw 'Mật khẩu mới quá yếu';
+          case 'requires-recent-login':
+            throw 'Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất và đăng nhập lại để thực hiện thao tác này';
+          case 'invalid-credential':
+            // This commonly happens if the user originally signed in with a different method
+            if (providers.isNotEmpty && !providers.contains('password')) {
+              throw 'Không thể cập nhật mật khẩu. Tài khoản này sử dụng phương thức đăng nhập: ${_formatProviderNames(providers)}';
+            } else {
+              throw 'Mật khẩu hiện tại không đúng hoặc phiên đăng nhập đã hết hạn';
+            }
+          default:
+            throw e.message ?? 'Lỗi không xác định khi cập nhật mật khẩu';
+        }
+      } catch (e) {
+        _logger.e('Error updating password: $e');
+        throw 'Đã xảy ra lỗi khi cập nhật mật khẩu: $e';
+      }
+    } catch (e) {
+      if (e is String) {
+        throw e;
+      } else {
+        _logger.e('Unexpected error in updatePassword: $e');
+        throw 'Lỗi cập nhật mật khẩu: ${e.toString()}';
+      }
+    }
+  }
+
+  // Helper method to format provider names for user-friendly messages
+  String _formatProviderNames(List<String> providers) {
+    final Map<String, String> providerNames = {
+      'google.com': 'Google',
+      'facebook.com': 'Facebook',
+      'twitter.com': 'Twitter',
+      'github.com': 'GitHub',
+      'apple.com': 'Apple',
+      'password': 'Email/Mật khẩu',
+      'phone': 'Số điện thoại',
+    };
+    
+    return providers.map((provider) => 
+      providerNames[provider] ?? provider
+    ).join(', ');
+  }
 }

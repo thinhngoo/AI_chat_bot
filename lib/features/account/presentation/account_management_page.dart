@@ -70,55 +70,74 @@ class AccountManagementPageState extends State<AccountManagementPage> {
       return;
     }
 
+    // Validate current password is not empty
+    if (_currentPasswordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập mật khẩu hiện tại')),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final user = _authService.currentUser;
+      // Use the AuthService's updatePassword method which works for both Firebase and Windows auth
+      await _authService.updatePassword(
+        _currentPasswordController.text,
+        _newPasswordController.text
+      );
       
-      if (user == null) {
-        throw 'No user is currently logged in';
-      }
+      if (!mounted) return;
       
-      if (user is String) {
-        // Windows auth implementation
-        final prefs = await SharedPreferences.getInstance();
-        final users = await getUsers();
-        
-        final userIndex = users.indexWhere((u) => u['email'] == user);
-        if (userIndex != -1) {
-          users[userIndex]['password'] = _newPasswordController.text;
-          await prefs.setString('users', jsonEncode(users));
-          
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Mật khẩu đã được cập nhật thành công')),
-          );
-        } else {
-          throw 'User not found in local storage';
-        }
-      } else {
-        // For Firebase Auth
-        // Would need to reauthenticate first, but not fully implemented yet
-        throw 'Password change not yet supported for Firebase Auth';
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mật khẩu đã được cập nhật thành công')),
+      );
+      
+      // Clear password fields
+      _currentPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+      setState(() {
+        _passwordStrength = '';
+      });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: ${e.toString()}')),
-      );
+      
+      // Handle social login error specially
+      if (e.toString().contains('Google') || 
+          e.toString().contains('Facebook') || 
+          e.toString().contains('phương thức đăng nhập')) {
+        _showSocialLoginErrorDialog(e.toString());
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: ${e.toString()}')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _currentPasswordController.clear();
-          _newPasswordController.clear();
-          _confirmPasswordController.clear();
-          _passwordStrength = '';
         });
       }
     }
+  }
+
+  void _showSocialLoginErrorDialog(String errorMessage) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Không thể cập nhật mật khẩu'),
+        content: Text(errorMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
   }
   
   Future<void> _resendVerificationEmail() async {

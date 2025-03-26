@@ -29,14 +29,7 @@ class SignupPageState extends State<SignupPage> {
   double _passwordStrengthScore = 0.0;
   bool _acceptTerms = false;
   
-  // Add the missing _passwordCriteria map
-  Map<String, bool> _passwordCriteria = {
-    'length': false,
-    'uppercase': false,
-    'lowercase': false,
-    'number': false,
-    'special': false,
-  };
+  // Remove the unused _passwordCriteria map
   
   @override
   void initState() {
@@ -50,14 +43,7 @@ class SignupPageState extends State<SignupPage> {
       _passwordStrengthScore = strength;
       _passwordStrength = PasswordValidator.getStrengthText(strength);
       
-      // Update password criteria
-      _passwordCriteria = {
-        'length': password.length >= 8,
-        'uppercase': password.contains(RegExp(r'[A-Z]')),
-        'lowercase': password.contains(RegExp(r'[a-z]')),
-        'number': password.contains(RegExp(r'[0-9]')),
-        'special': password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]')),
-      };
+      // Remove updating the unused _passwordCriteria
     });
   }
   
@@ -246,7 +232,6 @@ class SignupPageState extends State<SignupPage> {
               PasswordRequirementWidget(
                 password: _passwordController.text,
                 showTitle: true,
-                criteria: _passwordCriteria,
               ),
               
               const SizedBox(height: 16),

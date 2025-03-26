@@ -24,4 +24,7 @@ abstract class AuthProviderInterface {
   
   // Add method for confirming password reset
   Future<void> confirmPasswordReset(String code, String newPassword);
+  
+  // Add method for updating password
+  Future<void> updatePassword(String currentPassword, String newPassword);
 }

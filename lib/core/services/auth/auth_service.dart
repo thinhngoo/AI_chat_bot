@@ -319,6 +319,17 @@ class AuthService {
     }
   }
 
+  // Update password for currently logged in user
+  Future<void> updatePassword(String currentPassword, String newPassword) async {
+    try {
+      await _auth.updatePassword(currentPassword, newPassword);
+      _logger.i('Password updated successfully');
+    } catch (e) {
+      _logger.e('Error updating password: $e');
+      throw e.toString();
+    }
+  }
+
   // Check if email is verified
   bool isEmailVerified() {
     return _auth.isEmailVerified();
