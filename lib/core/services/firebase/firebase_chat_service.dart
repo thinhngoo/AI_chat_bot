@@ -1,18 +1,13 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:logger/logger.dart';
 import '../../models/chat/chat_session.dart';
 import '../../models/chat/message.dart';
-import '../../models/firebase/firebase_chat_session.dart';
+import '../api/jarvis_api_service.dart';
 import '../auth/auth_service.dart';
 
 class FirebaseChatService {
   final Logger _logger = Logger();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final JarvisApiService _apiService = JarvisApiService();
   final AuthService _authService = AuthService();
-  
-  // Collection references
-  CollectionReference get _chatSessionsCollection => 
-      _firestore.collection('chatSessions');
   
   // Get chat sessions for current user with improved message loading
   Future<List<ChatSession>> getUserChatSessions() async {
@@ -29,52 +24,23 @@ class FirebaseChatService {
       
       _logger.i('Fetching chat sessions for user: $userId');
       
-      // Query Firestore for this user's chat sessions
-      final querySnapshot = await _chatSessionsCollection
-          .where('userId', isEqualTo: userId)
-          .orderBy('lastUpdatedAt', descending: true)
-          .get();
+      // Get conversations from API
+      final conversations = await _apiService.getConversations();
       
-      _logger.i('Found ${querySnapshot.docs.length} chat sessions');
+      _logger.i('Found ${conversations.length} chat sessions');
       
-      // Convert to local models
+      // Load messages for each conversation
       List<ChatSession> chatSessions = [];
-      for (var doc in querySnapshot.docs) {
-        // Fix: Cast the data to Map<String, dynamic> explicitly
-        final data = doc.data() as Map<String, dynamic>;
-        final sessionId = doc.id;
+      for (var conversation in conversations) {
+        final messages = await _apiService.getConversationHistory(conversation.id);
         
-        _logger.i('Loading messages for session: $sessionId');
-        
-        // Load messages for this session from subcollection
-        final messagesSnapshot = await _chatSessionsCollection
-            .doc(sessionId)
-            .collection('messages')
-            .orderBy('timestamp')
-            .get();
-        
-        _logger.i('Found ${messagesSnapshot.docs.length} messages in session $sessionId');
-        
-        // Create message list
-        final messages = messagesSnapshot.docs.map((msgDoc) {
-          final msgData = msgDoc.data();
-          return Message(
-            text: msgData['text'] ?? '',
-            isUser: msgData['isUser'] ?? false,
-            timestamp: msgData['timestamp'] != null 
-                ? (msgData['timestamp'] as Timestamp).toDate() 
-                : DateTime.now(),
-            isTyping: msgData['isTyping'] ?? false,
-          );
-        }).toList();
+        _logger.i('Found ${messages.length} messages in session ${conversation.id}');
         
         // Create complete chat session with messages
         chatSessions.add(ChatSession(
-          id: sessionId,
-          title: data['title'] ?? 'New Chat',
-          createdAt: data['createdAt'] != null 
-              ? (data['createdAt'] as Timestamp).toDate() 
-              : DateTime.now(),
+          id: conversation.id,
+          title: conversation.title,
+          createdAt: conversation.createdAt,
           messages: messages,
         ));
       }
@@ -87,7 +53,7 @@ class FirebaseChatService {
     }
   }
   
-  // Save a chat session to Firestore
+  // Save a chat session
   Future<bool> saveChatSession(ChatSession session) async {
     try {
       // Get current user ID
@@ -97,27 +63,8 @@ class FirebaseChatService {
         return false;
       }
       
-      // Get user ID based on auth provider type
-      final userId = currentUser is String ? currentUser : currentUser.uid;
-      
-      // Convert to Firebase model
-      final firebaseSession = FirebaseChatSession.fromChatSession(session, userId);
-      
-      // Save session document (without messages)
-      await _chatSessionsCollection.doc(session.id).set(firebaseSession.toMap());
-      
-      // Save messages to subcollection
-      final messagesCollection = _chatSessionsCollection
-          .doc(session.id)
-          .collection('messages');
-      
-      // Clear existing messages (optional - you might want different behavior)
-      await _deleteAllMessages(session.id);
-      
-      // Add all messages
-      for (var message in firebaseSession.messages) {
-        await messagesCollection.add(message.toMap());
-      }
+      // For Jarvis API, individual messages are saved separately
+      // and there's no need to explicitly save the entire session
       
       return true;
     } catch (e) {
@@ -129,106 +76,25 @@ class FirebaseChatService {
   // Delete a chat session
   Future<bool> deleteChatSession(String sessionId) async {
     try {
-      // Delete all messages first
-      await _deleteAllMessages(sessionId);
-      
-      // Delete the session document
-      await _chatSessionsCollection.doc(sessionId).delete();
-      
-      return true;
+      return await _apiService.deleteConversation(sessionId);
     } catch (e) {
       _logger.e('Error deleting chat session: $e');
       return false;
     }
   }
   
-  // Helper to delete all messages in a chat session
-  Future<void> _deleteAllMessages(String sessionId) async {
-    final messagesCollection = _chatSessionsCollection
-        .doc(sessionId)
-        .collection('messages');
-        
-    final messagesSnapshot = await messagesCollection.get();
-    
-    // Create a batch for efficient deletion
-    final batch = _firestore.batch();
-    
-    for (var doc in messagesSnapshot.docs) {
-      batch.delete(doc.reference);
-    }
-    
-    await batch.commit();
-  }
-  
   // Add a single message to an existing chat session
   Future<bool> addMessage(String sessionId, Message message) async {
     try {
-      // Update session's lastUpdatedAt timestamp
-      await _chatSessionsCollection.doc(sessionId).update({
-        'lastUpdatedAt': Timestamp.fromDate(DateTime.now()),
-      });
-      
-      // Add the new message
-      final firebaseMessage = FirebaseMessage.fromMessage(message);
-      
-      await _chatSessionsCollection
-          .doc(sessionId)
-          .collection('messages')
-          .add(firebaseMessage.toMap());
+      if (message.isUser) {
+        // Only send user messages to API
+        await _apiService.sendMessage(sessionId, message.text);
+      }
       
       return true;
     } catch (e) {
       _logger.e('Error adding message: $e');
       return false;
     }
-  }
-}
-
-// Move FirebaseMessage class outside of FirebaseChatService class
-class FirebaseMessage {
-  final String id;
-  final String text;
-  final bool isUser;
-  final Timestamp timestamp;
-  
-  FirebaseMessage({
-    required this.id,
-    required this.text,
-    required this.isUser,
-    required this.timestamp,
-  });
-  
-  Map<String, dynamic> toMap() {
-    return {
-      'text': text,
-      'isUser': isUser,
-      'timestamp': timestamp,
-    };
-  }
-  
-  static FirebaseMessage fromMap(Map<String, dynamic> map, String docId) {
-    return FirebaseMessage(
-      id: docId,
-      text: map['text'] ?? '',
-      isUser: map['isUser'] ?? false,
-      timestamp: map['timestamp'] ?? Timestamp.now(),
-    );
-  }
-  
-  Message toMessage() {
-    return Message(
-      text: text,
-      isUser: isUser,
-      timestamp: timestamp.toDate(),
-    );
-  }
-  
-  static FirebaseMessage fromMessage(Message message) {
-    return FirebaseMessage(
-      id: '',
-      text: message.text,
-      isUser: message.isUser,
-      timestamp: Timestamp.fromDate(message.timestamp),
-    );
   }
 }

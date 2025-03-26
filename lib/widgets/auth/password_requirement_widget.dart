@@ -1,86 +1,96 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/validators/password_validator.dart';
 
+/// Widget to display password requirements and validation status
 class PasswordRequirementWidget extends StatelessWidget {
   final String password;
-  final List<String> requirements;
   final bool showTitle;
-  final String title;
   
   const PasswordRequirementWidget({
-    super.key,
+    super.key, // Use super parameter instead of Key? key
     required this.password,
-    this.requirements = const [
-      'Ít nhất 8 ký tự',
-      'Có ít nhất 1 chữ hoa và 1 chữ thường',
-      'Có ít nhất 1 chữ số',
-      'Có ít nhất 1 ký tự đặc biệt (@, !, #, v.v.)',
-    ],
-    this.showTitle = true,
-    this.title = 'Yêu cầu mật khẩu:',
+    this.showTitle = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final Map<String, bool> actualCriteria = {
-      'length': password.length >= 8,
-      'uppercase': password.contains(RegExp(r'[A-Z]')),
-      'lowercase': password.contains(RegExp(r'[a-z]')),
-      'number': password.contains(RegExp(r'[0-9]')),
-      'special': password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]')),
-    };
+    final requirements = PasswordValidator.getRequirementsText();
+    final hasUpperLower = password.contains(RegExp(r'[A-Z]')) && password.contains(RegExp(r'[a-z]'));
+    final hasDigit = password.contains(RegExp(r'[0-9]'));
+    final hasSpecial = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+    final hasMinLength = password.length >= PasswordValidator.minLength;
+    
+    final validations = [
+      hasMinLength,
+      hasUpperLower,
+      hasDigit,
+      hasSpecial,
+    ];
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showTitle)
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8.0),
+            child: Text(
+              'Yêu cầu mật khẩu:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
           ),
-        if (showTitle)
-          const SizedBox(height: 8),
-        ...requirements.map((requirement) {
-          final bool isMet = _isRequirementMet(requirement, actualCriteria);
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
-              children: [
-                Icon(
-                  isMet ? Icons.check_circle : Icons.circle_outlined,
-                  color: isMet ? Colors.green : Colors.grey,
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    requirement,
-                    style: TextStyle(
-                      color: isMet ? Colors.green : Colors.grey,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
+        for (int i = 0; i < requirements.length; i++)
+          _buildRequirementItem(
+            requirements[i],
+            password.isEmpty ? null : validations[i],
+          ),
       ],
     );
   }
   
-  bool _isRequirementMet(String requirement, Map<String, bool> criteria) {
-    if (requirement.contains('8 ký tự')) {
-      return criteria['length'] ?? false;
-    } else if (requirement.contains('chữ hoa') && requirement.contains('chữ thường')) {
-      return (criteria['uppercase'] ?? false) && (criteria['lowercase'] ?? false);
-    } else if (requirement.contains('chữ số')) {
-      return criteria['number'] ?? false;
-    } else if (requirement.contains('ký tự đặc biệt')) {
-      return criteria['special'] ?? false;
+  Widget _buildRequirementItem(String text, bool? isValid) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 20,
+            child: _getIcon(isValid),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                color: _getColor(isValid),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _getIcon(bool? isValid) {
+    if (isValid == null) {
+      return const Icon(Icons.circle_outlined, size: 16, color: Colors.grey);
+    } else if (isValid) {
+      return const Icon(Icons.check_circle, size: 16, color: Colors.green);
+    } else {
+      return const Icon(Icons.cancel, size: 16, color: Colors.red);
     }
-    return false;
+  }
+  
+  Color _getColor(bool? isValid) {
+    if (isValid == null) {
+      return Colors.grey.shade700;
+    } else if (isValid) {
+      return Colors.green.shade900;
+    } else {
+      return Colors.red.shade900;
+    }
   }
 }

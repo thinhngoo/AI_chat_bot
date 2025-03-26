@@ -20,11 +20,11 @@ class EmailVerificationPage extends StatefulWidget {
 class EmailVerificationPageState extends State<EmailVerificationPage> {
   final AuthService _authService = AuthService();
   final Logger _logger = Logger();
-  late Timer _timer;
+  Timer? _timer;
   bool _isEmailVerified = false;
   bool _canResendEmail = true;
   int _resendCooldown = 0;
-  late Timer _resendTimer;
+  Timer? _resendTimer;
   bool _isChecking = false;
   DateTime _lastManualCheck = DateTime.now();
   bool _linkExpired = false;
@@ -53,7 +53,7 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
       final now = DateTime.now();
       if (now.difference(_lastManualCheck).inSeconds < 5) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vui lòng đợi 5 giây trước khi kiểm tra lại')),
+          const SnackBar(content: Text('Vui lòng đợi ít nhất 5 giây giữa các lần kiểm tra')),
         );
         return;
       }
@@ -71,65 +71,47 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
       
       if (!mounted) return;
       
+      // Check verification status
       bool verified = _authService.isEmailVerified();
+      _logger.i('Email verification status: $verified');
       
-      // Increment check count for non-manual checks
-      if (!isManualCheck) {
-        _verificationCheckCount++;
-        
-        // After 30 checks (7.5 minutes with new 15 sec interval), suggest the link might be expired
-        if (_verificationCheckCount > 30 && !_linkExpired) {
-          setState(() {
-            _linkExpired = true;
-          });
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Liên kết có thể đã hết hạn. Vui lòng gửi lại email xác minh.'),
-              duration: Duration(seconds: 5),
-            ),
-          );
-        }
-      }
-      
+      // Update state with verification result
       setState(() {
         _isEmailVerified = verified;
         _isChecking = false;
+        
+        // Increment check count for non-manual checks to track frequency
+        if (!isManualCheck) {
+          _verificationCheckCount++;
+          
+          // After many checks without success, consider the link expired
+          if (_verificationCheckCount > 20 && !_isEmailVerified) {
+            _linkExpired = true;
+          }
+        }
       });
       
+      // Handle verification success
       if (_isEmailVerified) {
-        _timer.cancel();
-        if (_resendCooldown > 0) {
-          _resendTimer.cancel();
-        }
+        _logger.i('Email verification confirmed');
+        _timer?.cancel();
         
-        // Show success dialog before navigation
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Xác minh thành công!'),
-              content: const Text('Email của bạn đã được xác minh. Bạn có thể đăng nhập ngay bây giờ.'),
-              actions: [
-                ElevatedButton(
-                  child: const Text('Đăng nhập'),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.pushReplacement(
-                      context, 
-                      MaterialPageRoute(builder: (context) => const LoginPage()),
-                    );
-                  },
-                ),
-              ],
-            );
-          },
-        );
+        // Navigate to home page or show success message
+        if (isManualCheck) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Email đã được xác minh thành công!')),
+          );
+          
+          // Slight delay before navigating away to show the success message
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              Navigator.pushReplacementNamed(context, '/home');
+            }
+          });
+        }
       } else if (isManualCheck) {
-        // Only show this for manual checks
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Email chưa được xác minh. Vui lòng kiểm tra hộp thư của bạn')),
+          const SnackBar(content: Text('Email chưa được xác minh. Vui lòng kiểm tra hộp thư của bạn.')),
         );
       }
     } catch (e) {
@@ -140,9 +122,10 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
         _isChecking = false;
       });
       
+      // Only show error messages for manual checks
       if (isManualCheck) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lỗi kiểm tra xác minh email: Vui lòng thử lại sau')),
+          SnackBar(content: Text('Lỗi kiểm tra xác minh email: ${e.toString()}')),
         );
       }
     }
@@ -171,12 +154,8 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
 
   @override
   void dispose() {
-    if (!_isEmailVerified) {
-      _timer.cancel();
-    }
-    if (_resendCooldown > 0) {
-      _resendTimer.cancel();
-    }
+    _timer?.cancel();
+    _resendTimer?.cancel();
     super.dispose();
   }
 
@@ -593,6 +572,46 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
               onPressed: _isChecking ? null : _backToLogin,
               child: const Text('Quay lại trang đăng nhập'),
             ),
+            if (_verificationCheckCount > 5 && !_isEmailVerified) ...[
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Text(
+                          'Đã xác minh nhưng vẫn gặp lỗi?',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Nếu bạn đã xác minh email nhưng ứng dụng vẫn không nhận ra, '
+                      'hãy thử bấm nút dưới đây để bỏ qua bước xác minh:',
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.verified_user),
+                      label: const Text('Đánh dấu đã xác minh và tiếp tục'),
+                      onPressed: _isChecking ? null : _manualVerificationOverride,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        minimumSize: const Size(double.infinity, 45),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -609,6 +628,56 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
         return 'Outlook';
       default:
         return 'Ứng dụng Email';
+    }
+  }
+  
+  Future<void> _manualVerificationOverride() async {
+    setState(() {
+      _isChecking = true;
+    });
+    
+    try {
+      _logger.i('User requested manual verification override');
+      
+      // First try to refresh tokens to ensure we have fresh data
+      await _authService.reloadUser();
+      
+      // Manually set the email as verified
+      await _authService.manuallySetEmailVerified();
+      
+      _timer?.cancel();
+      _timer = null;
+      
+      setState(() {
+        _isEmailVerified = true;
+        _isChecking = false;
+      });
+      
+      if (!mounted) return;
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã đánh dấu email là đã xác minh')),
+      );
+      
+      // Navigate to home page after a short delay
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      });
+    } catch (e) {
+      _logger.e('Manual verification override failed: $e');
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _isChecking = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể bỏ qua xác minh: ${e.toString()}')),
+      );
     }
   }
 }

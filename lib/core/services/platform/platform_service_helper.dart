@@ -135,16 +135,16 @@ class PlatformServiceHelper {
       final prefs = await SharedPreferences.getInstance();
       final users = await getUsers();
       
-      // Check if user already exists
+      // Kiểm tra người dùng đã tồn tại chưa
       final existingUserIndex = users.indexWhere((user) => user['email'] == email);
       if (existingUserIndex >= 0) {
-        // Update existing user
+        // Cập nhật người dùng hiện có
         users[existingUserIndex] = {
           'email': email,
           'password': password,
         };
       } else {
-        // Add new user
+        // Thêm người dùng mới
         users.add({
           'email': email,
           'password': password,
@@ -152,7 +152,6 @@ class PlatformServiceHelper {
       }
       
       await prefs.setString('users', jsonEncode(users));
-      _logger.i('Credentials stored for: $email');
     } catch (e) {
       _logger.e('Error storing credentials: $e');
       throw Exception('Failed to store credentials');

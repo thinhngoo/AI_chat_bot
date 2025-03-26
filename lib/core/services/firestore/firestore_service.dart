@@ -1,26 +1,21 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:logger/logger.dart';
 import '../../models/user_model.dart';
+import '../api/jarvis_api_service.dart';
 
 class FirestoreService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Logger _logger = Logger();
-  
-  // Reference to users collection
-  CollectionReference get _usersCollection => _firestore.collection('users');
+  final JarvisApiService _apiService = JarvisApiService();
   
   // Create or update user document
   Future<void> saveUserData(UserModel user) async {
     try {
-      await _usersCollection.doc(user.uid).set({
-        'email': user.email,
+      await _apiService.updateUserProfile({
         'name': user.name,
-        'createdAt': FieldValue.serverTimestamp(),
-        'isEmailVerified': user.isEmailVerified,
+        'selectedModel': user.selectedModel,
       });
-      _logger.i('User data saved to Firestore: ${user.email}');
+      _logger.i('User data saved to API: ${user.email}');
     } catch (e) {
-      _logger.e('Error saving user data to Firestore: $e');
+      _logger.e('Error saving user data to API: $e');
       throw 'Failed to save user data: $e';
     }
   }
@@ -28,7 +23,7 @@ class FirestoreService {
   // Update a specific field in a user document
   Future<void> updateUserField(String uid, String field, dynamic value) async {
     try {
-      await _usersCollection.doc(uid).update({field: value});
+      await _apiService.updateUserProfile({field: value});
       _logger.i('Updated user field: $field');
     } catch (e) {
       _logger.e('Error updating user field: $e');
@@ -38,39 +33,18 @@ class FirestoreService {
   
   // Update email verification status
   Future<void> updateEmailVerificationStatus(String uid, bool isVerified) async {
-    await updateUserField(uid, 'isEmailVerified', isVerified);
+    // Skip if this feature is not supported by the Jarvis API
+    _logger.w('Email verification update is not supported by Jarvis API');
   }
   
   // Get user document by uid
   Future<UserModel?> getUserById(String uid) async {
     try {
-      final doc = await _usersCollection.doc(uid).get();
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data() as Map<String, dynamic>;
-        return UserModel.fromMap({
-          'uid': uid,
-          ...data,
-          // Convert Timestamp to DateTime string
-          'createdAt': data['createdAt'] != null 
-              ? (data['createdAt'] as Timestamp).toDate().toIso8601String()
-              : DateTime.now().toIso8601String(),
-        });
-      }
-      return null;
+      final user = await _apiService.getCurrentUser();
+      return user;
     } catch (e) {
-      _logger.e('Error getting user data: $e');
+      _logger.e('Error getting user by ID: $e');
       return null;
-    }
-  }
-  
-  // Delete user data
-  Future<void> deleteUser(String uid) async {
-    try {
-      await _usersCollection.doc(uid).delete();
-      _logger.i('User data deleted: $uid');
-    } catch (e) {
-      _logger.e('Error deleting user data: $e');
-      throw 'Failed to delete user data: $e';
     }
   }
 }

@@ -6,8 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart'; // Add this import for Firebase
 import 'oauth_redirect_handler.dart';
 
 /// Service that handles Google authentication on Windows using OAuth flow
@@ -191,54 +189,9 @@ class WindowsGoogleAuthService {
       // Clear auth pending flag
       await prefs.setBool('google_auth_pending', false);
       
-      // Add Firebase Authentication integration with better error handling
+      // Add Firebase Authentication integration with better error handling - DISABLED
       if (idToken != null) {
-        try {
-          // First check if Firebase is initialized before attempting sign-in
-          final isFirebaseAvailable = await _isFirebaseAvailable();
-          if (!isFirebaseAvailable) {
-            _logger.w('Firebase is not available or not initialized - skipping Firebase authentication');
-            return userInfo;
-          }
-          
-          // Check if the client ID is configured in Firebase Console
-          // This is a simple check to avoid the invalid-credential error
-          final fbClientId = dotenv.env['FIREBASE_WEB_CLIENT_ID'] ?? 
-                           dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'];
-          
-          if (fbClientId == null || fbClientId.isEmpty) {
-            _logger.w('No client ID configured for Firebase - skipping Firebase authentication');
-            return userInfo;
-          }
-          
-          // Create AuthCredential with the obtained idToken
-          final AuthCredential credential = GoogleAuthProvider.credential(
-            idToken: idToken,
-            accessToken: accessToken,
-          );
-          
-          _logger.i('Attempting Firebase sign in with Google credential');
-          
-          // Sign in to Firebase with this credential
-          try {
-            final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-            _logger.i('Successfully signed in to Firebase with Google: ${userCredential.user?.uid}');
-            
-            // Add Firebase UID to user info for reference
-            userInfo['firebaseUid'] = userCredential.user?.uid;
-          } catch (e) {
-            // If we get invalid-credential, it's likely a configuration issue
-            if (e.toString().contains('invalid-credential')) {
-              _logger.e('CONFIGURATION ERROR: Please ensure the Desktop Client ID is added to Firebase Console > Authentication > Sign-in method > Google > Web SDK configuration');
-              // Don't rethrow, just continue with local auth
-            } else {
-              _logger.e('Error signing in to Firebase with Google credential: $e');
-            }
-          }
-        } catch (e) {
-          _logger.e('Error during Firebase authentication: $e');
-          // Continue without Firebase auth - don't fail the whole sign-in process
-        }
+        _logger.i('Firebase authentication is disabled when using Jarvis API');
       }
       
       return userInfo;
@@ -370,30 +323,6 @@ class WindowsGoogleAuthService {
     }
   }
   
-  // Helper method to check if Firebase is available and initialized
-  Future<bool> _isFirebaseAvailable() async {
-    try {
-      // Check if Firebase is available by accessing Firebase.apps
-      if (Firebase.apps.isEmpty) {
-        _logger.w('Firebase apps list is empty');
-        return false;
-      }
-      
-      // Also verify we can access FirebaseAuth
-      try {
-        // Just access the instance to see if it throws
-        FirebaseAuth.instance;
-        return true;
-      } catch (e) {
-        _logger.w('FirebaseAuth not available: $e');
-        return false;
-      }
-    } catch (e) {
-      _logger.w('Error checking Firebase availability: $e');
-      return false;
-    }
-  }
-
   // Check if Google authentication is pending
   Future<bool> isAuthPending() async {
     final prefs = await SharedPreferences.getInstance();

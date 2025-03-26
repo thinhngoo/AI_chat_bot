@@ -4,15 +4,11 @@ import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../auth_provider_interface.dart';
 import 'windows_google_auth_service.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Add Firebase Auth import
-import '../../../firestore/firestore_service.dart'; // Add Firestore service for user data
-import '../../../../models/user_model.dart'; // Add User model
 
 class WindowsAuthService implements AuthProviderInterface {
   final Logger _logger = Logger();
   String? _currentUserEmail;
   final WindowsGoogleAuthService _googleAuthService = WindowsGoogleAuthService();
-  final FirestoreService _firestoreService = FirestoreService(); // Add Firestore service
   
   // Stream controller for auth state changes
   final StreamController<String?> _authStateController = StreamController<String?>.broadcast();
@@ -248,9 +244,6 @@ class WindowsAuthService implements AuthProviderInterface {
     try {
       _logger.i('Attempting Google sign in on Windows platform');
       
-      // Get the global navigation key or BuildContext somehow
-      // This is tricky without a global context - we'll need to use a workaround
-      
       // Store the authentication state temporarily in shared preferences
       final authState = await _googleAuthService.startGoogleAuth();
       
@@ -258,35 +251,11 @@ class WindowsAuthService implements AuthProviderInterface {
         final email = authState['email'] as String;
         final name = authState['name'] as String?;
         
-        // Check if Firebase authentication was successful
+        // Check if Firebase authentication was successful - DISABLED
         if (authState.containsKey('firebaseUid')) {
-          final firebaseUid = authState['firebaseUid'] as String;
-          _logger.i('Firebase authentication successful with UID: $firebaseUid');
-          
-          // The user is already signed in to Firebase at this point
-          // Get current Firebase user for additional verification
-          final currentUser = FirebaseAuth.instance.currentUser;
-          
-          if (currentUser != null) {
-            // We have a valid Firebase user, save additional data to Firestore
-            UserModel userModel = UserModel(
-              uid: currentUser.uid,
-              email: email,
-              name: name,
-              createdAt: DateTime.now(),
-              isEmailVerified: true, // Google accounts are already verified
-            );
-            
-            try {
-              await _firestoreService.saveUserData(userModel);
-              _logger.i('User data saved to Firestore: $email');
-            } catch (e) {
-              _logger.e('Error saving user data to Firestore: $e');
-              // Continue with the login process even if Firestore save fails
-            }
-          }
+          _logger.i('Firebase authentication is disabled when using Jarvis API');
         } else {
-          _logger.w('Firebase authentication failed or was not attempted. Using local authentication.');
+          _logger.w('Using local authentication only');
         }
         
         // Create or update user in local storage as fallback

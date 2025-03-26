@@ -80,9 +80,12 @@ class HomePageState extends State<HomePage> {
     
     try {
       final sessions = await _chatService.getUserChatSessions();
+<<<<<<< HEAD
       
       // Process sessions to prevent message duplication
       _processSessions(sessions);
+=======
+>>>>>>> 6353b9e (Chuyển từ firebase qua jarvis api (mới xong login register))
       
       setState(() {
         _chatSessions.clear();
@@ -106,6 +109,7 @@ class HomePageState extends State<HomePage> {
         }
       });
       _logger.e('Error loading chat sessions: $e');
+<<<<<<< HEAD
     }
   }
   
@@ -130,6 +134,8 @@ class HomePageState extends State<HomePage> {
       
       session.messages.clear();
       session.messages.addAll(uniqueMessages);
+=======
+>>>>>>> 6353b9e (Chuyển từ firebase qua jarvis api (mới xong login register))
     }
   }
 

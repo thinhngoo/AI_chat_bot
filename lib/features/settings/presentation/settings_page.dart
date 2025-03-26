@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
-import '../../../core/services/firestore/firestore_data_service.dart';
-import '../../../core/utils/firebase/firebase_rules_helper.dart';
-import '../../../core/services/auth/auth_service.dart';
+import 'package:logger/logger.dart';
+import '../../../core/services/api/jarvis_api_service.dart';
+import '../../../core/services/chat/jarvis_chat_service.dart';
+import '../../../features/account/presentation/account_management_page.dart';
+import '../../../features/debug/presentation/user_data_viewer_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  SettingsPageState createState() => SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
-  final AuthService _authService = AuthService();
-  bool _isUsingFirebase = false;
-
+class SettingsPageState extends State<SettingsPage> {
+  final JarvisChatService _chatService = JarvisChatService();
+  
   @override
   void initState() {
     super.initState();
-    _isUsingFirebase = _authService.isUsingFirebaseAuth();
+    // Removed the call to _loadUserModel()
   }
 
-  Widget _buildFirestoreSection() {
+  Widget _buildAccountSection() {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       child: Padding(
@@ -29,30 +30,37 @@ class _SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Firebase Settings',
+              'Tài khoản',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             ListTile(
-              title: const Text('Reset Firestore Permissions'),
-              subtitle: const Text('Clears error state if you\'ve updated Firebase rules'),
-              trailing: const Icon(Icons.refresh),
+              title: const Text('Quản lý tài khoản'),
+              subtitle: const Text('Thay đổi mật khẩu, email và các thông tin khác'),
+              leading: const Icon(Icons.person),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () {
-                final firestoreService = FirestoreDataService();
-                firestoreService.resetPermissionCheck();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Firestore permissions check reset. Next operations will try accessing Firestore.'),
-                  )
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AccountManagementPage(),
+                  ),
                 );
               },
             ),
+            // Add new item for user data viewer
             ListTile(
-              title: const Text('View Recommended Rules'),
-              subtitle: const Text('Shows Firebase security rules required for this app'),
-              trailing: const Icon(Icons.security),
+              title: const Text('Xem dữ liệu người dùng'),
+              subtitle: const Text('Xem thông tin dữ liệu đã lưu'),
+              leading: const Icon(Icons.data_usage),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () {
-                FirebaseRulesHelper.showFirestoreRulesDialog(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UserDataViewerPage(),
+                  ),
+                );
               },
             ),
           ],
@@ -145,6 +153,98 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _buildApiSection() {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'API Settings',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              title: const Text('Reset API Connection'),
+              subtitle: const Text('Clear API error state if you\'ve fixed connectivity issues'),
+              trailing: const Icon(Icons.refresh),
+              onTap: () {
+                // Reset API connection
+                _chatService.resetApiErrorState();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('API connection reset. Next operations will try reconnecting.'),
+                  )
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApiSettingsCard() {
+    final JarvisApiService apiService = JarvisApiService();
+    final apiConfig = apiService.getApiConfig();
+    
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'API Settings',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              title: const Text('API URL'),
+              subtitle: Text(apiConfig['jarvisApiUrl'] ?? 'Not configured'),
+              leading: const Icon(Icons.cloud),
+            ),
+            ListTile(
+              title: const Text('Authentication Status'),
+              subtitle: Text(apiConfig['isAuthenticated'] ?? 'Unknown'),
+              leading: const Icon(Icons.security),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () async {
+                final bool isAvailable = await apiService.checkApiStatus();
+                // Show status dialog
+                if (context.mounted) {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text(isAvailable ? 'API is Available' : 'API is Unavailable'),
+                      content: Text(
+                        isAvailable 
+                            ? 'The Jarvis API is responding correctly.' 
+                            : 'Cannot connect to the Jarvis API. Please check your configuration and internet connection.'
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+              child: const Text('Test API Connection'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -156,9 +256,9 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Only show Firebase section if using Firebase Auth
-            if (_isUsingFirebase) _buildFirestoreSection(),
-            
+            _buildAccountSection(),
+            _buildApiSection(),
+            _buildApiSettingsCard(),
             _buildAppearanceSection(),
             _buildStorageSection(),
             

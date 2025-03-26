@@ -19,6 +19,18 @@ class ChatSession {
     return {
       'id': id,
       'title': title,
+      'createdAt': createdAt.toIso8601String(),
     };
+  }
+  
+  factory ChatSession.fromJson(Map<String, dynamic> json) {
+    return ChatSession(
+      id: json['id'],
+      title: json['title'] ?? 'New Chat',
+      createdAt: json['createdAt'] != null 
+          ? DateTime.parse(json['createdAt']) 
+          : DateTime.now(),
+      messages: [],
+    );
   }
 }

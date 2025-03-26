@@ -6,8 +6,6 @@ import 'signup_page.dart';
 import 'forgot_password_page.dart';
 import 'package:logger/logger.dart';
 import '../../../core/utils/errors/error_utils.dart';
-import '../../../core/services/platform/platform_service_helper.dart';
-import 'google_auth_handler_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -94,71 +92,31 @@ class LoginPageState extends State<LoginPage> {
     });
     
     try {
-      // Check if we're on Windows platform
-      if (PlatformServiceHelper.isDesktopWindows) {
-        _logger.i('Attempting Google sign in on Windows platform');
-        
-        // For Windows, we need to use a desktop-specific approach
-        try {
-          // Navigate to the Google auth handler page
-          if (!mounted) return;
-          
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const GoogleAuthHandlerPage(
-                initialAuthUrl: '',
-                autoStartAuth: true,
-              ),
-            ),
-          );
-          
-          // Check if sign in was successful by checking if user is logged in
-          final isLoggedIn = await _authService.isLoggedIn();
-          
-          if (isLoggedIn && mounted) {
-            // Navigate to home page on success
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const HomePage()),
-            );
-          }
-        } catch (e) {
-          if (!mounted) return;
-          _logger.e('Windows Google sign-in error: $e');
-          
-          // Show error message
-          setState(() {
-            _errorMessage = 'Lỗi đăng nhập với Google: ${e.toString()}';
-          });
-        }
-      } else {
-        // For mobile and web, we can use the standard approach
-        await _authService.signInWithGoogle();
-        
-        if (!mounted) return;
-        
-        // Navigate to home page on success
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
-        );
-      }
+      // For all platforms, we now use the Jarvis API's method
+      await _authService.signInWithGoogle();
+      
+      if (!mounted) return;
+      
+      // Navigate to home page on success
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
     } catch (e) {
       if (!mounted) return;
       
-      // Special handling for plugin_not_supported error
-      if (e.toString() == 'plugin_not_supported') {
-        _logger.w('Google Sign In plugin not supported on this platform');
+      // Special handling for unsupported error
+      if (e.toString().contains('Not implemented')) {
+        _logger.w('Google Sign In not supported by Jarvis API');
         
-        // Show a more user-friendly error message
         setState(() {
-          _errorMessage = 'Đăng nhập bằng Google không được hỗ trợ trên nền tảng này';
+          _errorMessage = 'Google Sign In is not supported in the current configuration';
         });
       } else {
         // Handle other errors
         _logger.e('Google sign-in error: $e');
         setState(() {
-          _errorMessage = 'Lỗi đăng nhập với Google: ${e.toString()}';
+          _errorMessage = 'Error signing in with Google: ${e.toString()}';
         });
       }
     } finally {

@@ -1,35 +1,102 @@
 import 'package:flutter/material.dart';
-import '../../core/services/api/api_service.dart';
+import '../../core/services/chat/jarvis_chat_service.dart';
+import '../../core/services/auth/auth_service.dart';
+import 'package:logger/logger.dart';
 
-class ModelSelectorWidget extends StatelessWidget {
+class ModelSelectorWidget extends StatefulWidget {
   final String currentModel;
-  final Function(String) onModelSelected;
-  final bool showDescription;
-  final bool showLabel;
-
+  final Function(String) onModelChanged;
+  final bool isLoading;
+  
   const ModelSelectorWidget({
-    super.key,
-    required this.currentModel,
-    required this.onModelSelected,
-    this.showDescription = false,
-    this.showLabel = true,
+    super.key, 
+    required this.currentModel, 
+    required this.onModelChanged,
+    this.isLoading = false,
   });
 
   @override
+  ModelSelectorWidgetState createState() => ModelSelectorWidgetState();
+}
+
+class ModelSelectorWidgetState extends State<ModelSelectorWidget> {
+  final JarvisChatService _chatService = JarvisChatService();
+  final AuthService _authService = AuthService();
+  final Logger _logger = Logger();
+  
+  late String _selectedModel;
+  
+  // Model data - hardcoded for now, should ideally come from the API
+  final Map<String, String> _modelNames = {
+    'gemini-2.0-flash': 'Gemini 2.0 Flash',
+    'gemini-2.0-pro': 'Gemini 2.0 Pro',
+    'claude-3-5-sonnet': 'Claude 3.5 Sonnet',
+    'gpt-4o': 'GPT-4o',
+  };
+  
+  final Map<String, String> _modelDescriptions = {
+    'gemini-2.0-flash': 'Fast responses, good for chat',
+    'gemini-2.0-pro': 'More powerful, handles complex tasks',
+    'claude-3-5-sonnet': 'Balanced performance and speed',
+    'gpt-4o': 'Advanced reasoning capabilities',
+  };
+  
+  final Map<String, String> _modelProviders = {
+    'gemini-2.0-flash': 'google',
+    'gemini-2.0-pro': 'google',
+    'claude-3-5-sonnet': 'anthropic',
+    'gpt-4o': 'openai',
+  };
+  
+  @override
+  void initState() {
+    super.initState();
+    _selectedModel = widget.currentModel;
+  }
+  
+  @override
+  void didUpdateWidget(ModelSelectorWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentModel != widget.currentModel) {
+      _selectedModel = widget.currentModel;
+    }
+  }
+  
+  Future<void> _updateUserModel(String model) async {
+    if (model == _selectedModel) return;
+    
+    try {
+      final currentUser = _authService.currentUser;
+      if (currentUser != null) {
+        final userId = currentUser is String ? currentUser : currentUser.uid;
+        final success = await _chatService.updateUserSelectedModel(userId, model);
+        
+        if (success) {
+          setState(() {
+            _selectedModel = model;
+          });
+          
+          widget.onModelChanged(model);
+        }
+      }
+    } catch (e) {
+      _logger.e('Error updating user model: $e');
+    }
+  }
+  
+  @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
-      onSelected: onModelSelected,
+      onSelected: _updateUserModel,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (showLabel) ...[
-              const Text('AI Model: '),
-              const SizedBox(width: 4),
-            ],
+            const Text('AI Model: '),
+            const SizedBox(width: 4),
             Text(
-              ApiService.modelNames[currentModel] ?? currentModel,
+              _modelNames[_selectedModel] ?? _selectedModel,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 4),
@@ -39,20 +106,20 @@ class ModelSelectorWidget extends StatelessWidget {
       ),
       itemBuilder: (BuildContext context) {
         // Group models by provider
-        final geminiModels = ApiService.availableModels.where(
-          (model) => ApiService.modelProviders[model] == ApiService.providerGemini
+        final googleModels = _modelNames.keys.where(
+          (model) => _modelProviders[model] == 'google'
         ).toList();
         
-        final openaiModels = ApiService.availableModels.where(
-          (model) => ApiService.modelProviders[model] == ApiService.providerOpenai
+        final openaiModels = _modelNames.keys.where(
+          (model) => _modelProviders[model] == 'openai'
         ).toList();
         
-        final grokModels = ApiService.availableModels.where(
-          (model) => ApiService.modelProviders[model] == ApiService.providerGrok
+        final anthropicModels = _modelNames.keys.where(
+          (model) => _modelProviders[model] == 'anthropic'
         ).toList();
         
         return [
-          // Gemini header
+          // Google header
           const PopupMenuItem<String>(
             enabled: false,
             child: Text(
@@ -63,8 +130,8 @@ class ModelSelectorWidget extends StatelessWidget {
               ),
             ),
           ),
-          // Gemini models
-          ...geminiModels.map(_buildModelMenuItem),
+          // Google models
+          ...googleModels.map(_buildModelMenuItem),
           
           // Divider
           const PopupMenuDivider(),
@@ -86,19 +153,19 @@ class ModelSelectorWidget extends StatelessWidget {
           // Divider
           const PopupMenuDivider(),
           
-          // Grok header
+          // Anthropic header
           const PopupMenuItem<String>(
             enabled: false,
             child: Text(
-              'xAI Grok',
+              'Anthropic Claude',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.purple,
               ),
             ),
           ),
-          // Grok models
-          ...grokModels.map(_buildModelMenuItem),
+          // Anthropic models
+          ...anthropicModels.map(_buildModelMenuItem),
         ];
       },
     );
@@ -112,14 +179,14 @@ class ModelSelectorWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            ApiService.modelNames[model] ?? model,
+            _modelNames[model] ?? model,
             style: TextStyle(
-              fontWeight: currentModel == model ? FontWeight.bold : FontWeight.normal,
+              fontWeight: _selectedModel == model ? FontWeight.bold : FontWeight.normal,
             ),
           ),
-          if (showDescription && ApiService.modelDescriptions.containsKey(model))
+          if (_modelDescriptions.containsKey(model))
             Text(
-              ApiService.modelDescriptions[model]!,
+              _modelDescriptions[model]!,
               style: const TextStyle(
                 fontSize: 12,
                 color: Colors.grey,
