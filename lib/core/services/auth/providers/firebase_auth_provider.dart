@@ -370,26 +370,19 @@ class FirebaseAuthProvider implements AuthProviderInterface {
         throw 'Không có người dùng nào đang đăng nhập';
       }
       
-      // Get user's sign-in methods to determine how to re-authenticate
-      List<String> providers = [];
-      try {
-        final userInfo = await _firebaseAuth.fetchSignInMethodsForEmail(user.email ?? '');
-        providers = userInfo.toList();
-        _logger.i('User sign-in methods: $providers');
-      } catch (e) {
-        _logger.w('Error fetching sign-in methods: $e');
-        // Continue anyway, we'll try password auth by default
-      }
-      
-      // If user originally signed in with Google or other providers
-      if (providers.contains('google.com') && !providers.contains('password')) {
-        _logger.i('User signed in with Google. Cannot update password directly.');
-        throw 'Tài khoản này đăng nhập bằng Google. Không thể cập nhật mật khẩu qua ứng dụng.';
-      }
-      
       if (user.email == null) {
         _logger.e('Current user has no email');
         throw 'Người dùng hiện tại không có email';
+      }
+      
+      // Check the provider ID directly from the user's providerData
+      final providerIds = user.providerData.map((userInfo) => userInfo.providerId).toSet();
+      _logger.i('User provider IDs: $providerIds');
+      
+      // If user signed in with Google but not with email/password
+      if (providerIds.contains('google.com') && !providerIds.contains('password')) {
+        _logger.i('User signed in with Google. Cannot update password directly.');
+        throw 'Tài khoản này đăng nhập bằng Google. Không thể cập nhật mật khẩu qua ứng dụng.';
       }
       
       try {
@@ -420,8 +413,8 @@ class FirebaseAuthProvider implements AuthProviderInterface {
             throw 'Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất và đăng nhập lại để thực hiện thao tác này';
           case 'invalid-credential':
             // This commonly happens if the user originally signed in with a different method
-            if (providers.isNotEmpty && !providers.contains('password')) {
-              throw 'Không thể cập nhật mật khẩu. Tài khoản này sử dụng phương thức đăng nhập: ${_formatProviderNames(providers)}';
+            if (!providerIds.contains('password')) {
+              throw 'Không thể cập nhật mật khẩu. Tài khoản này sử dụng phương thức đăng nhập: ${_formatProviderNames(providerIds)}';
             } else {
               throw 'Mật khẩu hiện tại không đúng hoặc phiên đăng nhập đã hết hạn';
             }
@@ -430,24 +423,26 @@ class FirebaseAuthProvider implements AuthProviderInterface {
         }
       } catch (e) {
         _logger.e('Error updating password: $e');
-        throw 'Đã xảy ra lỗi khi cập nhật mật khẩu: $e';
+        rethrow;
       }
     } catch (e) {
       if (e is String) {
-        throw e;
+        // Instead of throw e, create a proper error message
+        _logger.e('String error in updatePassword: $e');
+        throw Exception(e); // Wrap string errors in Exception to maintain better stack traces
       } else {
         _logger.e('Unexpected error in updatePassword: $e');
-        throw 'Lỗi cập nhật mật khẩu: ${e.toString()}';
+        rethrow; // Use rethrow instead of throw to preserve stack trace
       }
     }
   }
 
   // Helper method to format provider names for user-friendly messages
-  String _formatProviderNames(List<String> providers) {
+  String _formatProviderNames(Set<String> providers) {
     final Map<String, String> providerNames = {
       'google.com': 'Google',
       'facebook.com': 'Facebook',
-      'twitter.com': 'Twitter',
+      'twitter.com': 'Twitter', 
       'github.com': 'GitHub',
       'apple.com': 'Apple',
       'password': 'Email/Mật khẩu',
