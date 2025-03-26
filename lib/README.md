@@ -22,7 +22,7 @@ http://localhost:5000
 http://localhost:8000
 ```
 
-4. Click Save
+1. Click Save
 
 The application tries these ports in order if the previous one is unavailable. To ensure it works in all cases, add all of them to your Google Cloud Console settings.
 
@@ -37,8 +37,8 @@ GOOGLE_DESKTOP_CLIENT_ID=your_desktop_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
 ```
 
-2. Make sure the client ID matches the one in Google Cloud Console
-3. For Windows users, ensure you're using a Desktop client, not a Web client
+1. Make sure the client ID matches the one in Google Cloud Console
+2. For Windows users, ensure you're using a Desktop client, not a Web client
 
 ### Firebase Authentication Setup
 
@@ -88,7 +88,7 @@ http://localhost:5000
 http://localhost:8000
 ```
 
-3. **Check Firewall Settings**:
+1. **Check Firewall Settings**:
    - Try temporarily disabling the firewall to test
    - Add the application to firewall exceptions
    - Run the application as administrator
@@ -203,7 +203,7 @@ service cloud.firestore {
 }
 ```
 
-6. Click "Publish"
+1. Click "Publish"
 
 ### Troubleshooting Security Rules
 
@@ -277,6 +277,7 @@ To use different AI models, you need to provide the appropriate API keys:
 ### Usage Considerations
 
 Different models have different pricing structures:
+
 - Gemini offers free tiers with limits
 - OpenAI charges per token used (both input and output)
 - Grok may require a subscription
