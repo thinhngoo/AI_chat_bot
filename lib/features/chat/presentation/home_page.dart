@@ -79,6 +79,9 @@ class HomePageState extends State<HomePage> {
     try {
       final sessions = await _firestoreService.getUserChatSessions(_currentUserId!);
       
+      // Process sessions to prevent message duplication
+      _processSessions(sessions);
+      
       setState(() {
         _chatSessions.clear();
         _chatSessions.addAll(sessions);
@@ -110,6 +113,30 @@ class HomePageState extends State<HomePage> {
           });
         }
       });
+    }
+  }
+  
+  // Helper method to process sessions and prevent message duplication
+  void _processSessions(List<ChatSession> sessions) {
+    for (var session in sessions) {
+      // Remove duplicate messages (messages with same text and timestamp)
+      final uniqueMessages = <Message>[];
+      final messageKeys = <String>{};
+      
+      for (var message in session.messages) {
+        // Create a unique key for each message based on text, isUser flag and timestamp
+        final messageKey = '${message.text}_${message.isUser}_${message.timestamp.millisecondsSinceEpoch}';
+        
+        if (!messageKeys.contains(messageKey)) {
+          messageKeys.add(messageKey);
+          uniqueMessages.add(message);
+        } else {
+          _logger.d('Filtered out duplicate message: ${message.text}');
+        }
+      }
+      
+      session.messages.clear();
+      session.messages.addAll(uniqueMessages);
     }
   }
 
