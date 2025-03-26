@@ -80,12 +80,12 @@ class HomePageState extends State<HomePage> {
     
     try {
       final sessions = await _chatService.getUserChatSessions();
+<<<<<<< HEAD
       
       // Process sessions to prevent message duplication
       _processSessions(sessions);
-      
-      // Process sessions to prevent message duplication
-      _processSessions(sessions);
+=======
+>>>>>>> 6353b9e (Chuyển từ firebase qua jarvis api (mới xong login register))
       
       setState(() {
         _chatSessions.clear();
@@ -109,6 +109,7 @@ class HomePageState extends State<HomePage> {
         }
       });
       _logger.e('Error loading chat sessions: $e');
+<<<<<<< HEAD
     }
   }
   
@@ -133,30 +134,8 @@ class HomePageState extends State<HomePage> {
       
       session.messages.clear();
       session.messages.addAll(uniqueMessages);
-    }
-  }
-  
-  // Helper method to process sessions and prevent message duplication
-  void _processSessions(List<ChatSession> sessions) {
-    for (var session in sessions) {
-      // Remove duplicate messages (messages with same text and timestamp)
-      final uniqueMessages = <Message>[];
-      final messageKeys = <String>{};
-      
-      for (var message in session.messages) {
-        // Create a unique key for each message based on text, isUser flag and timestamp
-        final messageKey = '${message.text}_${message.isUser}_${message.timestamp.millisecondsSinceEpoch}';
-        
-        if (!messageKeys.contains(messageKey)) {
-          messageKeys.add(messageKey);
-          uniqueMessages.add(message);
-        } else {
-          _logger.d('Filtered out duplicate message: ${message.text}');
-        }
-      }
-      
-      session.messages.clear();
-      session.messages.addAll(uniqueMessages);
+=======
+>>>>>>> 6353b9e (Chuyển từ firebase qua jarvis api (mới xong login register))
     }
   }
 

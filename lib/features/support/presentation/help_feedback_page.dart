@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import '../../../core/services/api/api_service.dart';
 
 class HelpFeedbackPage extends StatefulWidget {
@@ -11,6 +12,7 @@ class HelpFeedbackPage extends StatefulWidget {
 class HelpFeedbackPageState extends State<HelpFeedbackPage> {
   final _feedbackController = TextEditingController();
   final ApiService _apiService = ApiService();
+  final Logger _logger = Logger();
 
   @override
   Widget build(BuildContext context) {
@@ -77,8 +79,9 @@ class HelpFeedbackPageState extends State<HelpFeedbackPage> {
                 ElevatedButton(
                   onPressed: () {
                     _apiService.resetFallbackMode();
+                    _logger.i('API fallback mode reset');
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Đã khởi tạo lại kết nối API')),
+                      const SnackBar(content: Text('API connection reset. Next request will try to connect to the server.')),
                     );
                   },
                   child: const Text('Khởi tạo lại kết nối API'),

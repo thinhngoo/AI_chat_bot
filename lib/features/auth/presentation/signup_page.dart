@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../../../core/services/auth/auth_service.dart';
-import '../../../widgets/auth/auth_widgets.dart';
 import '../../../core/utils/validators/password_validator.dart';
+import '../../../widgets/auth/auth_widgets.dart';
 import '../../../widgets/auth/password_requirement_widget.dart';
 import 'email_verification_page.dart';
-import 'login_page.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -15,21 +14,19 @@ class SignupPage extends StatefulWidget {
 }
 
 class SignupPageState extends State<SignupPage> {
-  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
   final AuthService _authService = AuthService();
   final Logger _logger = Logger();
   
   bool _isLoading = false;
   String? _errorMessage;
-  String? _confirmPasswordError;
   String _passwordStrength = '';
+  bool _showDebugInfo = false;
   double _passwordStrengthScore = 0.0;
   bool _acceptTerms = false;
-  
-  // Remove the unused _passwordCriteria map
   
   @override
   void initState() {
@@ -42,8 +39,6 @@ class SignupPageState extends State<SignupPage> {
     setState(() {
       _passwordStrengthScore = strength;
       _passwordStrength = PasswordValidator.getStrengthText(strength);
-      
-      // Remove updating the unused _passwordCriteria
     });
   }
   
@@ -51,7 +46,6 @@ class SignupPageState extends State<SignupPage> {
     // Reset error messages
     setState(() {
       _errorMessage = null;
-      _confirmPasswordError = null;
     });
     
     // Validate email
@@ -88,7 +82,7 @@ class SignupPageState extends State<SignupPage> {
     // Validate password confirmation
     if (_passwordController.text != _confirmPasswordController.text) {
       setState(() {
-        _confirmPasswordError = 'Mật khẩu xác nhận không khớp';
+        _errorMessage = 'Mật khẩu xác nhận không khớp';
       });
       return false;
     }
@@ -113,61 +107,62 @@ class SignupPageState extends State<SignupPage> {
       return;
     }
     
-    // Show loading indicator
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
     
     try {
-      final name = _nameController.text.trim();
-      final email = _emailController.text.trim();
-      final password = _passwordController.text;
+      _logger.i('Attempting to sign up user: ${_emailController.text}');
       
-      final result = await _authService.signUpWithEmailAndPassword(
-        email, 
-        password,
-        name: name.isNotEmpty ? name : null,
+      // Get name if entered
+      final name = _nameController.text.trim();
+      
+      // Call auth service to sign up
+      await _authService.signUpWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text,
+        name: name.isNotEmpty ? name : null
       );
       
       if (!mounted) return;
       
-      // Check if Firebase Auth is being used
-      if (_authService.isUsingFirebaseAuth()) {
-        // Navigate to email verification page
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => EmailVerificationPage(email: email),
+      _logger.i('Signup successful, proceeding to verification screen');
+      
+      // Navigate to email verification page
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EmailVerificationPage(
+            email: _emailController.text.trim(),
           ),
-        );
-      } else {
-        // For Windows auth, just show success and go back to login
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result)),
-        );
-        
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-        );
-      }
+        ),
+      );
     } catch (e) {
+      _logger.e('Signup error: $e');
+      
       if (!mounted) return;
       
-      String errorMessage = e.toString();
-      if (errorMessage.contains('Email already exists')) {
-        errorMessage = 'Email này đã được đăng ký';
+      String errorMsg;
+      
+      // Check for common API errors
+      if (e.toString().contains('already exists') || 
+          e.toString().contains('already in use') ||
+          e.toString().toLowerCase().contains('already registered')) {
+        errorMsg = 'Email đã được đăng ký. Vui lòng sử dụng email khác hoặc đăng nhập.';
+      } else if (e.toString().contains('network') || e.toString().contains('connect')) {
+        errorMsg = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet của bạn.';
+      } else {
+        // Use a more user-friendly error message
+        errorMsg = 'Lỗi đăng ký: ${e.toString()}';
       }
       
       setState(() {
-        _errorMessage = errorMessage;
+        _errorMessage = errorMsg;
+        _isLoading = false;
+        // Enable debug info on error
+        _showDebugInfo = true;
       });
-      
-      _logger.e('Signup error: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
@@ -189,6 +184,7 @@ class SignupPageState extends State<SignupPage> {
                   labelText: 'Họ tên (tùy chọn)',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.person),
+                  helperText: 'Tên sẽ được cập nhật sau khi đăng ký thành công',
                 ),
               ),
               const SizedBox(height: 16),
@@ -223,8 +219,8 @@ class SignupPageState extends State<SignupPage> {
               PasswordField(
                 controller: _confirmPasswordController,
                 labelText: 'Xác nhận mật khẩu',
-                errorText: _confirmPasswordError,
-                onChanged: (_) => setState(() => _confirmPasswordError = null),
+                errorText: _errorMessage,
+                onChanged: (_) => setState(() => _errorMessage = null),
               ),
               const SizedBox(height: 16),
               
@@ -290,9 +286,39 @@ class SignupPageState extends State<SignupPage> {
                   ),
                 ],
               ),
+              
+              _buildDebugInfo(),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDebugInfo() {
+    if (!_showDebugInfo) return const SizedBox.shrink();
+    
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Debug Info:', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text('API URL: ${_authService.toString()}'),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _showDebugInfo = false;
+              });
+            },
+            child: const Text('Hide Debug Info'),
+          ),
+        ],
       ),
     );
   }

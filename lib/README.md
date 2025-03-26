@@ -1,4 +1,98 @@
-# AI Chat Bot Guide
+# Jarvis AI Chat Bot
+
+## API Configuration
+
+This application uses the following Jarvis API endpoints:
+
+- **Authentication API**: https://auth-api.dev.jarvis.cx
+  - User registration, login, and session management
+
+- **Jarvis API**: https://api.dev.jarvis.cx
+  - Chat conversations, messages, and model selection
+
+- **Knowledge Base API**: https://knowledge-api.dev.jarvis.cx
+  - Document storage and retrieval for AI context
+
+## Setup Instructions
+
+1. Clone the repository
+2. Create a `.env` file in the project root based on `.env.example`
+3. Add your API keys and configuration
+4. Run `flutter pub get` to install dependencies
+5. Launch the application with `flutter run`
+
+## Features
+
+- Multi-platform support (Android, iOS, Windows)
+- Multiple AI model options (Gemini, Claude, GPT)
+- User authentication
+- Chat history management
+
+## Setup
+
+1. Clone the repository
+2. Install dependencies with `flutter pub get`
+3. Create a `.env` file in the project root (copy from .env.example)
+
+```bash
+# Example .env file contents
+JARVIS_API_URL=https://api.example.com/v1
+JARVIS_API_KEY=your_jarvis_api_key_here
+GOOGLE_DESKTOP_CLIENT_ID=your_desktop_client_id
+GOOGLE_CLIENT_SECRET=your_client_secret
+```
+
+## Authentication
+
+Authentication is handled through the Jarvis API service.
+
+- Email/password authentication
+- Google Sign-In (requires configuration)
+
+## API Configuration
+
+The application uses the Jarvis API for all backend operations:
+
+- Chat history management
+- User authentication
+- AI model configuration
+
+## Development Guidelines
+
+- Follow Flutter best practices
+- Use the provided service interfaces
+- Add tests for new features
+
+## Overview
+This AI Chat Bot application now integrates with the Jarvis API service for authentication, chat messaging, and user management, replacing the previous Firebase backend.
+
+## Key Features
+- Email/password authentication through Jarvis API
+- Chat history management
+- User profile and settings management
+- Multiple AI model selection
+
+## Configuration
+1. Create a `.env` file based on `.env.example`
+2. Add your Jarvis API credentials:
+   ```
+   JARVIS_API_URL=https://api.example.com/v1
+   JARVIS_API_KEY=your_jarvis_api_key_here
+   ```
+
+## Architecture
+The application follows a clean architecture approach:
+- Core services for API communication and authentication
+- Feature-based modules for UI components
+- Models for data representation
+
+## Services
+- `JarvisApiService`: Handles all API communication with the Jarvis backend
+- `JarvisAuthProvider`: Implements authentication operations using Jarvis API
+- `JarvisChatService`: Manages chat session operations
+
+## Migration from Firebase
+The application has been fully migrated from Firebase to the Jarvis API. The code maintains compatibility with existing components through adapter classes that abstract the backend implementation details.
 
 ## Authentication Setup
 
@@ -39,15 +133,6 @@ GOOGLE_CLIENT_SECRET=your_client_secret
 
 1. Make sure the client ID matches the one in Google Cloud Console
 2. For Windows users, ensure you're using a Desktop client, not a Web client
-
-### Firebase Authentication Setup
-
-For Firebase Authentication to work with Google Sign-in on Windows:
-
-1. Go to Firebase Console > Authentication > Sign-in method > Google
-2. Enable Google Sign-in
-3. In the "Web SDK configuration" section, add the same OAuth Client ID that you're using for Windows authentication
-4. Ensure this OAuth Client ID is also registered in the Google Cloud Console with all the redirect URIs listed above
 
 ## Google Authentication Troubleshooting
 
@@ -137,17 +222,6 @@ service cloud.firestore {
 - **Messages**: Any authenticated user can read/write messages, but they can only access messages through sessions they own
 - **User Data**: Each user can only read and write their own user document
 
-#### How to Configure Rules
-
-1. Go to [Firebase Console](https://console.firebase.google.com/) and select your project
-2. Navigate to **Firestore Database** > **Rules** tab
-3. Replace the existing rules with the recommended rules above
-4. Click **Publish**
-
-Note: Rules can take a few minutes to propagate after publishing.
-
-## Security Considerations
-
 ### Password Requirements
 
 When users reset their password via email link, the following requirements are enforced:
@@ -159,51 +233,6 @@ When users reset their password via email link, the following requirements are e
 - Contains at least one special character (!@#$%^&*(),.?":{}|<>)
 
 These requirements help ensure account security and are applied consistently throughout the application.
-
-### Firebase Firestore Security Rules
-
-If you're seeing **"permission-denied"** errors when using the app, you need to configure your Firestore security rules correctly.
-
-#### How to Configure Security Rules
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Select your project
-3. Click on "Firestore Database" in the left sidebar
-4. Click on the "Rules" tab
-5. Replace the existing rules with the following:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // User data - only accessible by the user themselves
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Chat sessions - users can only access their own chats
-    match /chatSessions/{sessionId} {
-      allow read, write: if request.auth != null && 
-                           request.auth.uid == resource.data.userId;
-      
-      // Messages in chat sessions
-      match /messages/{messageId} {
-        allow read, write: if request.auth != null && 
-                           get(/databases/$(database)/documents/chatSessions/$(sessionId)).data.userId == request.auth.uid;
-      }
-    }
-    
-    // Auth events - only allow creation, not reading or modification
-    match /authEvents/{eventId} {
-      allow create: if request.auth != null && 
-                      request.resource.data.userId == request.auth.uid;
-      allow read, update, delete: if false;
-    }
-  }
-}
-```
-
-1. Click "Publish"
 
 ### Troubleshooting Security Rules
 
@@ -339,3 +368,145 @@ For OpenAI service status, check:
 [https://status.openai.com/](https://status.openai.com/)
 
 For more information, visit the Firebase Security Rules documentation at: [https://firebase.google.com/docs/firestore/security/get-started](https://firebase.google.com/docs/firestore/security/get-started)
+
+## Jarvis API Configuration Guide
+
+To configure the Jarvis API for your project:
+
+1. Create a `.env` file in the project root directory (copy from `.env.example`)
+2. Set the following variables:
+   ```
+   JARVIS_API_URL=https://api.jarvis.ai/v1
+   JARVIS_API_KEY=your_api_key_here
+   ```
+3. Replace the values with your actual API credentials
+4. Restart the application to apply changes
+
+### Obtaining API Credentials
+
+1. Sign up for a Jarvis API account at [https://jarvis.ai/signup](https://jarvis.ai/signup)
+2. Navigate to API Settings in your account dashboard
+3. Create a new API key
+4. Copy the API key to your `.env` file
+
+### Testing API Connectivity
+
+To test if your API configuration is working:
+
+1. Run the application in debug mode
+2. Check the console logs for successful API initialization 
+3. If you see "Initialized Jarvis API with base URL: ..." the configuration is correct
+4. If you encounter connection errors, verify your API URL and credentials
+
+## Jarvis API Integration
+
+This application integrates with the Jarvis API documented at:
+https://www.apidog.com/apidoc/shared/f30d2953-f010-4ef7-a360-69f9eaf457f7
+
+### API Configuration
+
+To configure the Jarvis API integration:
+
+1. **Create Environment File**:
+   - Copy `.env.example` to `.env` in the project root
+   - Update the values with your specific API credentials
+
+2. **Required Environment Variables**:
+   ```
+   JARVIS_API_URL=https://your-api-endpoint.example.com/api/v1
+   JARVIS_API_KEY=your_api_key_here
+   ```
+
+3. **API Authentication Methods**:
+   - The app uses JWT Bearer token authentication for most requests
+   - API Key authentication is used as a fallback or for initial requests
+   - Tokens are automatically managed and stored securely
+
+### API Endpoints Used
+
+The application interacts with these primary Jarvis API endpoints:
+
+#### Authentication
+- `POST /auth/login`: User login
+- `POST /auth/register`: User registration
+- `POST /auth/logout`: User logout
+
+#### Conversations
+- `GET /conversations`: List all conversations
+- `POST /conversations`: Create a new conversation
+- `DELETE /conversations/{id}`: Delete a conversation
+- `GET /conversations/{id}/messages`: Get messages for a conversation
+- `POST /conversations/{id}/messages`: Send a message in a conversation
+
+#### User Profile
+- `GET /user/profile`: Get current user profile
+- `PUT /user/profile`: Update user profile
+- `POST /user/change-password`: Change user password
+
+#### Models
+- `GET /models`: Get available AI models
+
+### Troubleshooting API Issues
+
+If you experience issues with the Jarvis API integration:
+
+1. **Check Connection**:
+   - Use the "Test API Connection" button in Settings
+   - Verify the API URL in your `.env` file
+
+2. **Authentication Errors**:
+   - Ensure your API key is correct
+   - Try logging out and logging back in to refresh tokens
+
+3. **Common Error Codes**:
+   - `401 Unauthorized`: Invalid or expired token
+   - `403 Forbidden`: Missing permissions or invalid API key
+   - `429 Too Many Requests`: Rate limiting applied
+
+4. **Reset API Connection**:
+   - If persistent issues occur, use the "Reset API Connection" option in Settings
+
+## Common API Errors and Solutions
+
+When integrating with the Jarvis API, you might encounter these common errors:
+
+- **API Connection Errors**: When your app cannot communicate with the Jarvis API servers
+
+  Possible reasons:
+  - You haven't configured the API URL correctly
+  - You're using a free tier account which has run out of credits
+  - You've hit your defined spending limits
+  
+  To fix this, visit [OpenAI Billing Dashboard](https://platform.openai.com/account/billing) to check your usage and update payment information if needed.
+
+- **429 rate_limit_exceeded**: You're making too many requests to the OpenAI API in a short period. Implement exponential backoff strategies in your code or reduce the frequency of requests.
+
+- **401 invalid_api_key**: Your OpenAI API key is invalid or has been rotated. Check your `.env` file and ensure the OPENAI_API_KEY is correctly set.
+
+- **500/503 Server Errors**: OpenAI's servers are experiencing issues. These are temporary and should resolve on their own.
+
+### Checking API Status
+
+If you're experiencing repeated 503 errors, you can check the Google AI Platform status at:
+[https://status.cloud.google.com/](https://status.cloud.google.com/)
+
+For OpenAI service status, check:
+[https://status.openai.com/](https://status.openai.com/)
+
+For more information, visit the Firebase Security Rules documentation at: [https://firebase.google.com/docs/firestore/security/get-started](https://firebase.google.com/docs/firestore/security/get-started)
+
+# Jarvis API Integration
+
+This application integrates with the Jarvis API for authentication and chat functionality.
+
+## API Endpoints
+
+### Authentication
+- **Sign Up**: POST `/api/v1/auth/password/sign-up`
+- **Sign In**: POST `/api/v1/auth/password/sign-in`
+- **Refresh Token**: POST `/api/v1/auth/refresh-token`
+- **Logout**: DELETE `/api/v1/auth/logout`
+
+### Required Headers
+For authentication endpoints, these headers are required:
+```
