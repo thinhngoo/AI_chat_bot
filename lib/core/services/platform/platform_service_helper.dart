@@ -1,11 +1,13 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../api/jarvis_api_service.dart';
 
 class PlatformServiceHelper {
   static final Logger _logger = Logger();
+  static final JarvisApiService _apiService = JarvisApiService();
   
   // Pre-calculate platform info immediately at class load time
   static final Map<String, dynamic> _platformCache = _initPlatformCache();
@@ -18,11 +20,9 @@ class PlatformServiceHelper {
       // Detect platform with minimal overhead
       final bool isWeb = kIsWeb;
       String platform;
-      bool supportsFirebase;
       
       if (isWeb) {
         platform = 'web';
-        supportsFirebase = true;
       } else {
         try {
           // Log platform details to help with debugging
@@ -31,22 +31,16 @@ class PlatformServiceHelper {
           
           if (operatingSystem == 'android') {
             platform = 'android';
-            supportsFirebase = true;
           } else if (operatingSystem == 'ios') {
             platform = 'ios';
-            supportsFirebase = true;
           } else if (operatingSystem == 'macos') {
             platform = 'macos';
-            supportsFirebase = true;
           } else if (operatingSystem == 'windows') {
             platform = 'windows';
-            supportsFirebase = true; // We can use Firebase on Windows, but not google_sign_in
           } else if (operatingSystem == 'linux') {
             platform = 'linux';
-            supportsFirebase = false;
           } else {
             platform = 'unknown';
-            supportsFirebase = false;
           }
           
           Logger().i('Platform detection - OS: $operatingSystem');
@@ -54,13 +48,11 @@ class PlatformServiceHelper {
           // Fallback for any platform detection errors
           Logger().e('Error detecting platform: $e');
           platform = 'unknown';
-          supportsFirebase = false;
         }
       }
       
       // Cache platform information
       cache['platform'] = platform;
-      cache['supportsFirebase'] = supportsFirebase;
       cache['isWeb'] = isWeb;
       cache['isDesktopWindows'] = !isWeb && platform == 'windows';
       cache['isMobileOrWeb'] = isWeb || platform == 'android' || platform == 'ios';
@@ -68,7 +60,6 @@ class PlatformServiceHelper {
       // Create platform info result map
       final Map<String, dynamic> platformInfo = {
         'platform': platform,
-        'supportsFirebase': supportsFirebase,
         'isDesktop': platform == 'windows' || platform == 'macos' || platform == 'linux',
         'isMobile': platform == 'android' || platform == 'ios',
         'isWeb': isWeb,
@@ -80,13 +71,11 @@ class PlatformServiceHelper {
       // Fallback in case of any error
       Logger().e('Error in platform detection: $e');
       cache['platform'] = 'unknown';
-      cache['supportsFirebase'] = false;
       cache['isWeb'] = false;
       cache['isDesktopWindows'] = false;
       cache['isMobileOrWeb'] = false;
       cache['platformInfo'] = {
         'platform': 'unknown',
-        'supportsFirebase': false,
         'isDesktop': false,
         'isMobile': false,
         'isWeb': false,
@@ -100,7 +89,6 @@ class PlatformServiceHelper {
   // Fast getters that use pre-calculated values  
   static bool get isDesktopWindows => _platformCache['isDesktopWindows'] as bool;
   static bool get isMobileOrWeb => _platformCache['isMobileOrWeb'] as bool;
-  static bool get supportsFirebaseAuth => _platformCache['supportsFirebase'] as bool;
   
   // Return the cached platform info immediately
   static Map<String, dynamic> getPlatformInfo() {
@@ -109,75 +97,34 @@ class PlatformServiceHelper {
   
   // Helper method to determine which auth service to use
   static String get authServiceImplementation {
-    return isDesktopWindows ? 'windows' : 'firebase';
+    return isDesktopWindows ? 'windows' : 'jarvis';
   }
   
   // Helper method for loading platform-specific config
   static Map<String, dynamic> getPlatformConfig() {
-    if (isDesktopWindows) {
-      return {
-        'useFirebase': false,
-        'useLocalAuth': true,
-        'autoVerifyEmail': true,
-      };
-    } else {
-      return {
-        'useFirebase': true,
-        'useLocalAuth': false,
-        'autoVerifyEmail': false,
-      };
-    }
+    return {
+      'useJarvisApi': true,
+      'autoVerifyEmail': true,
+    };
   }
   
-  // Secure storage alternative for Windows
+  // Credentials are now managed by JarvisApiService
   static Future<void> storeCredentials(String email, String password) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final users = await getUsers();
-      
-      // Kiểm tra người dùng đã tồn tại chưa
-      final existingUserIndex = users.indexWhere((user) => user['email'] == email);
-      if (existingUserIndex >= 0) {
-        // Cập nhật người dùng hiện có
-        users[existingUserIndex] = {
-          'email': email,
-          'password': password,
-        };
-      } else {
-        // Thêm người dùng mới
-        users.add({
-          'email': email,
-          'password': password,
-        });
-      }
-      
-      await prefs.setString('users', jsonEncode(users));
+      // Login with Jarvis API to store credentials
+      await _apiService.signIn(email, password);
+      _logger.i('Credentials stored via Jarvis API login');
     } catch (e) {
       _logger.e('Error storing credentials: $e');
       throw Exception('Failed to store credentials');
     }
   }
 
-  static Future<List<Map<String, String>>> getUsers() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final usersJson = prefs.getString('users');
-      if (usersJson == null) {
-        return [];
-      }
-      final usersList = jsonDecode(usersJson) as List;
-      return usersList.map((item) => Map<String, String>.from(item)).toList();
-    } catch (e) {
-      _logger.e('Error retrieving users: $e');
-      return [];
-    }
-  }
-  
   static Future<bool> validateCredentials(String email, String password) async {
     try {
-      final users = await getUsers();
-      return users.any((user) => 
-        user['email'] == email && user['password'] == password);
+      // Validate by attempting to sign in
+      await _apiService.signIn(email, password);
+      return true;
     } catch (e) {
       _logger.e('Error validating credentials: $e');
       return false;
@@ -186,12 +133,30 @@ class PlatformServiceHelper {
   
   static Future<void> clearCredentials() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('users');
+      // Log out of Jarvis API
+      await _apiService.logout();
       _logger.i('All credentials cleared');
     } catch (e) {
       _logger.e('Error clearing credentials: $e');
       throw Exception('Failed to clear credentials');
+    }
+  }
+  
+  // Get all users stored in local storage (Windows)
+  static Future<List<Map<String, dynamic>>> getUsers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final usersJson = prefs.getString('users');
+      
+      if (usersJson == null || usersJson.isEmpty) {
+        return [];
+      }
+      
+      final List<dynamic> decoded = jsonDecode(usersJson);
+      return decoded.map((user) => Map<String, dynamic>.from(user)).toList();
+    } catch (e) {
+      _logger.e('Error getting users from local storage: $e');
+      return [];
     }
   }
 }

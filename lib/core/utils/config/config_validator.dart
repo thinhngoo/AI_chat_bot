@@ -4,58 +4,60 @@ import 'package:logger/logger.dart';
 class ConfigValidator {
   static final Logger _logger = Logger();
   
-  static Map<String, bool> validateGoogleAuthConfig() {
+  static Map<String, bool> validateJarvisApiConfig() {
     final results = <String, bool>{};
     
     // Check required environment variables
-    final desktopClientId = dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'];
-    results['hasDesktopClientId'] = desktopClientId != null && desktopClientId.isNotEmpty;
+    final authApiUrl = dotenv.env['AUTH_API_URL'];
+    results['hasAuthApiUrl'] = authApiUrl != null && authApiUrl.isNotEmpty;
     
-    final clientSecret = dotenv.env['GOOGLE_CLIENT_SECRET'];
-    results['hasClientSecret'] = clientSecret != null && clientSecret.isNotEmpty;
+    final jarvisApiUrl = dotenv.env['JARVIS_API_URL'];
+    results['hasJarvisApiUrl'] = jarvisApiUrl != null && jarvisApiUrl.isNotEmpty;
+    
+    final jarvisApiKey = dotenv.env['JARVIS_API_KEY'];
+    results['hasJarvisApiKey'] = jarvisApiKey != null && jarvisApiKey.isNotEmpty;
+    
+    final stackProjectId = dotenv.env['STACK_PROJECT_ID'];
+    results['hasStackProjectId'] = stackProjectId != null && stackProjectId.isNotEmpty;
+    
+    final stackClientKey = dotenv.env['STACK_PUBLISHABLE_CLIENT_KEY'];
+    results['hasStackClientKey'] = stackClientKey != null && stackClientKey.isNotEmpty;
     
     // Check for placeholder values that weren't replaced
-    if (results['hasDesktopClientId'] == true) {
-      if (desktopClientId == 'your_desktop_client_id_here' || 
-          desktopClientId == 'your_client_id_here') {
-        _logger.w('GOOGLE_DESKTOP_CLIENT_ID contains a placeholder value');
-        results['hasDesktopClientId'] = false;
-      }
-    }
-    
-    if (results['hasClientSecret'] == true) {
-      if (clientSecret == 'your_client_secret_here') {
-        _logger.w('GOOGLE_CLIENT_SECRET contains a placeholder value');
-        results['hasClientSecret'] = false;
+    if (results['hasJarvisApiKey'] == true) {
+      if (jarvisApiKey == 'your_jarvis_api_key_here' || 
+          jarvisApiKey == 'your_api_key_here') {
+        _logger.w('JARVIS_API_KEY contains a placeholder value');
+        results['hasJarvisApiKey'] = false;
       }
     }
     
     // Add overall status
-    results['isGoogleAuthConfigValid'] = 
-        results['hasDesktopClientId'] == true && 
-        results['hasClientSecret'] == true;
+    results['isJarvisApiConfigValid'] = 
+        results['hasAuthApiUrl'] == true && 
+        results['hasJarvisApiUrl'] == true && 
+        results['hasJarvisApiKey'] == true &&
+        results['hasStackProjectId'] == true;
     
     return results;
   }
   
-  static bool isFirebaseGoogleAuthValid() {
-    // This is just a quick check of the environment variables
-    // We can't check Firebase Console settings programmatically
-    final desktopClientId = dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'];
+  // Check if .env file is properly loaded
+  static bool isEnvFileLoaded() {
+    final isLoaded = dotenv.isInitialized;
     
-    if (desktopClientId == null || desktopClientId.isEmpty) {
-      return false;
+    if (!isLoaded) {
+      _logger.e('.env file is not loaded properly');
+    } else {
+      final jarvisApiKey = dotenv.env['JARVIS_API_KEY'];
+      _logger.i('.env file is loaded, Jarvis API key exists: ${jarvisApiKey != null && jarvisApiKey.isNotEmpty}');
     }
     
-    if (desktopClientId == 'your_desktop_client_id_here' || 
-        desktopClientId == 'your_client_id_here') {
-      return false;
-    }
-    
-    return true;
+    return isLoaded;
   }
   
-  static Map<String, bool> validateApiConfig() {
+  // Validate AI model API keys
+  static Map<String, bool> validateAiApiConfig() {
     final results = <String, bool>{};
     
     // Check Gemini API key
@@ -71,33 +73,28 @@ class ConfigValidator {
     
     return results;
   }
-
-  // Check if .env file is properly loaded
-  static bool isEnvFileLoaded() {
-    final isLoaded = dotenv.isInitialized;
-    
-    if (!isLoaded) {
-      _logger.e('.env file is not loaded properly');
-    } else {
-      final geminiApiKey = dotenv.env['GEMINI_API_KEY'];
-      _logger.i('.env file is loaded, Gemini API key exists: ${geminiApiKey != null && geminiApiKey.isNotEmpty}');
-    }
-    
-    return isLoaded;
-  }
   
-  static String getGoogleAuthSetupHelp() {
+  static String getJarvisApiSetupHelp() {
     return '''
-To set up Google Authentication:
+To set up Jarvis API Integration:
 
 1. Create a .env file at the project root (copy from .env.example)
-2. Add your Google OAuth credentials:
-   GOOGLE_DESKTOP_CLIENT_ID=your_desktop_client_id_here
-   GOOGLE_CLIENT_SECRET=your_client_secret_here
+2. Add your Jarvis API credentials:
+   AUTH_API_URL=https://app.stack-auth.com/api/v1
+   JARVIS_API_URL=https://api.jarvis.cx
+   JARVIS_API_KEY=your_jarvis_api_key_here
+   
+3. Add your Stack authentication credentials:
+   STACK_PROJECT_ID=your_stack_project_id
+   STACK_PUBLISHABLE_CLIENT_KEY=your_stack_client_key
+   
+   IMPORTANT: The STACK_PROJECT_ID and STACK_PUBLISHABLE_CLIENT_KEY must be valid
+   and must match each other. If they don't match, authentication will fail.
+   
+4. Restart the application to apply the changes
 
-3. In Firebase Console:
-   - Go to Authentication > Sign-in method > Google
-   - Add the SAME client ID to "Web SDK configuration"
+If you continue to experience issues, use the User Data Viewer page in the
+Settings menu to check your configuration.
 ''';
   }
 }

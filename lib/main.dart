@@ -4,12 +4,24 @@ import 'package:logger/logger.dart';
 import 'core/services/auth/auth_service.dart';
 import 'features/auth/presentation/login_page.dart';
 import 'features/chat/presentation/home_page.dart';
+import 'core/constants/api_constants.dart';  // Import constants
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Load environment variables
-  await dotenv.load(fileName: '.env');
+  final logger = Logger();
+  
+  // We still load environment variables for other settings like API keys
+  try {
+    await dotenv.load(fileName: '.env');
+    logger.i('Environment variables loaded');
+  } catch (e) {
+    logger.w('Failed to load .env file: $e');
+    logger.i('Using default constants for API configuration');
+  }
+  
+  // Log that we're using hardcoded constants for Stack Auth
+  logger.i('Using Stack Project ID: ${ApiConstants.stackProjectId.substring(0, 8)}...');
   
   // Initialize the auth service (now using Jarvis)
   await AuthService().initializeService();
@@ -33,6 +45,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// Add the AuthCheckPage class
 class AuthCheckPage extends StatefulWidget {
   const AuthCheckPage({super.key});
 
@@ -44,29 +57,43 @@ class _AuthCheckPageState extends State<AuthCheckPage> {
   final AuthService _authService = AuthService();
   final Logger _logger = Logger();
   bool _isLoading = true;
-  bool _isLoggedIn = false;
 
   @override
   void initState() {
     super.initState();
-    _checkAuth();
+    _checkAuthStatus();
   }
 
-  Future<void> _checkAuth() async {
+  Future<void> _checkAuthStatus() async {
     try {
+      _logger.i('Checking authentication status...');
       final isLoggedIn = await _authService.isLoggedIn();
       
-      if (mounted) {
-        setState(() {
-          _isLoggedIn = isLoggedIn;
-          _isLoading = false;
-        });
+      if (!mounted) return;
+      
+      if (isLoggedIn) {
+        _logger.i('User is logged in, navigating to home page');
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      } else {
+        _logger.i('User is not logged in, navigating to login page');
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+        );
       }
     } catch (e) {
-      _logger.e('Error checking authentication: $e');
+      _logger.e('Error checking auth status: $e');
+      
+      if (!mounted) return;
+      
+      // On error, default to login page
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+      );
+    } finally {
       if (mounted) {
         setState(() {
-          _isLoggedIn = false;
           _isLoading = false;
         });
       }
@@ -75,18 +102,12 @@ class _AuthCheckPageState extends State<AuthCheckPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    if (_isLoggedIn) {
-      return const HomePage();
-    } else {
-      return const LoginPage();
-    }
+    return Scaffold(
+      body: Center(
+        child: _isLoading
+            ? const CircularProgressIndicator()
+            : const Text('Checking authentication status...'),
+      ),
+    );
   }
 }

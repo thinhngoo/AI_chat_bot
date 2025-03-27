@@ -1,70 +1,34 @@
 @echo off
-echo AI Chat Bot - Windows OAuth Setup
-echo --------------------------------
-
-echo This script will help you set up Google OAuth for Windows.
+echo Jarvis API Setup Helper
+echo =======================
 echo.
-echo Prerequisites:
-echo  1. A Google Cloud project with OAuth 2.0 credentials
-echo  2. A Firebase project with Google authentication enabled
+echo This script will help you set up your .env file for Jarvis API integration.
 echo.
 
-set /p continue=Do you want to continue? (y/n): 
-if /i not "%continue%"=="y" (
-    echo Setup canceled.
-    exit /b 0
+if exist .env (
+  echo Found existing .env file.
+  set /p overwrite="Do you want to overwrite it? (y/n): "
+  if /i "%overwrite%" neq "y" (
+    echo Setup cancelled. Your existing .env file was not modified.
+    goto :end
+  )
 )
 
+echo Creating .env file from template...
+copy .env.example .env > nul
+echo .env file created.
 echo.
-echo Step 1: Creating or updating .env file with OAuth credentials
+echo Please edit the .env file with your Jarvis API credentials:
 echo.
-
-if exist ".env" (
-    echo Existing .env file found.
-) else (
-    echo Creating new .env file...
-    echo # Google OAuth credentials> .env
-    echo GEMINI_API_KEY=your_gemini_api_key_here>> .env
-)
-
+echo - AUTH_API_URL: URL for the Jarvis Auth API
+echo - JARVIS_API_URL: URL for the Jarvis API
+echo - JARVIS_API_KEY: Your Jarvis API key
+echo - STACK_PROJECT_ID: Your Stack Project ID
+echo - STACK_PUBLISHABLE_CLIENT_KEY: Your Stack Publishable Client Key
 echo.
-echo Please enter your Google OAuth credentials:
-echo (You can find these in the Google Cloud Console)
+echo You can obtain these credentials from the Jarvis developer portal.
 echo.
+echo Setup completed. Please update the .env file with your actual credentials.
 
-set /p client_id=Desktop Client ID: 
-set /p client_secret=Client Secret: 
-
-if "%client_id%"=="" (
-    echo Client ID cannot be empty.
-    exit /b 1
-)
-
-if "%client_secret%"=="" (
-    echo Client Secret cannot be empty.
-    exit /b 1
-)
-
-echo.
-echo Updating .env file with credentials...
-
-powershell -Command "(Get-Content .env) -replace 'GOOGLE_DESKTOP_CLIENT_ID=.*', 'GOOGLE_DESKTOP_CLIENT_ID=%client_id%' | Set-Content .env"
-powershell -Command "(Get-Content .env) -replace 'GOOGLE_CLIENT_SECRET=.*', 'GOOGLE_CLIENT_SECRET=%client_secret%' | Set-Content .env"
-
-if not exist ".env" (
-    echo Failed to update .env file.
-    exit /b 1
-)
-
-echo.
-echo IMPORTANT: Make sure to add this client ID to Firebase Console as well!
-echo 1. Go to Firebase Console > Authentication > Sign-in method > Google
-echo 2. Add this client ID to "Web SDK configuration" section
-echo.
-
-echo OAuth credentials set up successfully!
-echo.
-
-echo You can now build the application:
-echo flutter build windows --release
-echo.
+:end
+pause

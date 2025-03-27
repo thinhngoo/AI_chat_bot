@@ -55,9 +55,7 @@ class JarvisChatService {
       }
       
       // Create new chat session
-      final session = await _apiService.createConversation(title);
-      
-      return session;
+      return await _apiService.createConversation(title);
     } catch (e) {
       _logger.e('Error creating chat session: $e');
       return null;
@@ -74,17 +72,20 @@ class JarvisChatService {
     }
   }
   
-  // Add a message to a chat session
-  Future<Message?> addMessage(String sessionId, String text) async {
+  // Add a message to a chat session and get the response
+  Future<Message?> sendMessage(String sessionId, String text) async {
     try {
       // Send message to API
-      final message = await _apiService.sendMessage(sessionId, text);
-      
-      return message;
+      return await _apiService.sendMessage(sessionId, text);
     } catch (e) {
-      _logger.e('Error adding message: $e');
+      _logger.e('Error sending message: $e');
       return null;
     }
+  }
+  
+  // Add message method (call the sendMessage method)
+  Future<Message?> addMessage(String sessionId, String text) async {
+    return await sendMessage(sessionId, text);
   }
   
   // Get messages from a chat session
@@ -97,14 +98,14 @@ class JarvisChatService {
     }
   }
   
-  // Get user's selected model
+  // Get user's selected model with userId parameter
   Future<String?> getUserSelectedModel(String userId) async {
     try {
       // Check if user is logged in
       final isLoggedIn = await _authService.isLoggedIn();
       if (!isLoggedIn) {
-        _logger.w('No user logged in, cannot get user model');
-        return null;
+        _logger.w('No user logged in, returning default model');
+        return 'gemini-2.0-flash'; // Default model
       }
       
       // Get user profile to extract selected model
@@ -112,11 +113,16 @@ class JarvisChatService {
       return user?.selectedModel ?? 'gemini-2.0-flash'; // Default model if not set
     } catch (e) {
       _logger.e('Error getting user selected model: $e');
-      return null;
+      return 'gemini-2.0-flash'; // Default model on error
     }
   }
   
-  // Update user's selected model
+  // Get selected model without user ID (for backward compatibility)
+  Future<String?> getSelectedModel() async {
+    return getUserSelectedModel('');
+  }
+  
+  // Update user's selected model with two parameters
   Future<bool> updateUserSelectedModel(String userId, String model) async {
     try {
       // Check if user is logged in
@@ -134,6 +140,11 @@ class JarvisChatService {
       _logger.e('Error updating user selected model: $e');
       return false;
     }
+  }
+  
+  // Update model with just the model parameter (for backward compatibility)
+  Future<bool> updateSelectedModel(String model) async {
+    return updateUserSelectedModel('', model);
   }
   
   // Reset API error state

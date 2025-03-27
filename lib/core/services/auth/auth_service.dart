@@ -1,12 +1,10 @@
 import 'package:logger/logger.dart';
 import 'dart:async';
 import 'providers/jarvis_auth_provider.dart';
-import 'auth_provider_interface.dart';
 
 class AuthService {
   final Logger _logger = Logger();
-  // Auth provider field to allow reassignment
-  AuthProviderInterface _auth;
+  final JarvisAuthProvider _auth = JarvisAuthProvider();
   bool _isInitialized = false;
   bool _isInitializing = false;
   
@@ -14,8 +12,7 @@ class AuthService {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   
-  // Initialize with JarvisAuthProvider as the default
-  AuthService._internal() : _auth = JarvisAuthProvider() {
+  AuthService._internal() {
     _logger.i('AuthService created with Jarvis Auth Provider');
   }
   
@@ -27,7 +24,7 @@ class AuthService {
     _logger.i('Initializing AuthService with Jarvis API');
     
     try {
-      // No special setup needed for Jarvis API
+      await _auth.initialize();
       _isInitialized = true;
       _logger.i('AuthService initialized successfully');
     } catch (e) {
@@ -118,18 +115,13 @@ class AuthService {
   
   // Check if email is verified
   bool isEmailVerified() {
-    _logger.i('AuthService checking if email is verified');
     return _auth.isEmailVerified();
   }
   
   // Manual override for verification status
   Future<void> manuallySetEmailVerified() async {
     _logger.i('Manual override for email verification requested');
-    if (_auth is JarvisAuthProvider) {
-      await (_auth as JarvisAuthProvider).manuallySetEmailVerified();
-    } else {
-      _logger.w('Manual email verification not supported for current provider');
-    }
+    await _auth.manuallySetEmailVerified();
   }
   
   // Resend verification email

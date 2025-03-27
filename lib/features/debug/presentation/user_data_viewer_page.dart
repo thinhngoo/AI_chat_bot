@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../core/services/api/jarvis_api_service.dart';
 import '../../../core/services/auth/auth_service.dart';
-import '../../../core/services/platform/platform_service_helper.dart';
+import '../../../tools/windows_user_data_tool.dart';
 
 class UserDataViewerPage extends StatefulWidget {
   const UserDataViewerPage({super.key});
@@ -14,13 +15,15 @@ class UserDataViewerPage extends StatefulWidget {
 
 class _UserDataViewerPageState extends State<UserDataViewerPage> {
   final Logger _logger = Logger();
-  final JarvisApiService _apiService = JarvisApiService();
   final AuthService _authService = AuthService();
+  final JarvisApiService _apiService = JarvisApiService();
   
   bool _isLoading = true;
   Map<String, dynamic> _userData = {};
-  Map<String, String> _tokenData = {};
-  List<Map<String, dynamic>> _localUsers = [];
+  Map<String, dynamic> _apiConfig = {};
+  Map<String, dynamic> _envConfig = {};
+  List<Map<String, dynamic>> _storedUsers = [];
+  String _prefsPath = '';
   
   @override
   void initState() {
@@ -29,63 +32,101 @@ class _UserDataViewerPageState extends State<UserDataViewerPage> {
   }
   
   Future<void> _loadUserData() async {
-    if (!mounted) return;
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
     
     try {
-      // 1. Lấy dữ liệu từ Jarvis API nếu đã đăng nhập - Fix boolean condition
-      final isLoggedIn = await _authService.isLoggedIn();
-      if (isLoggedIn) {
-        final currentUser = await _apiService.getCurrentUser();
-        if (currentUser != null) {
-          _userData = currentUser.toMap();
-        }
-      }
+      // Get user info
+      final user = _authService.currentUser;
       
-      // 2. Lấy thông tin token từ SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      final accessToken = prefs.getString('jarvis_access_token') ?? 'Không có';
-      final refreshToken = prefs.getString('jarvis_refresh_token') ?? 'Không có';
-      final userId = prefs.getString('jarvis_user_id') ?? 'Không có';
+      // Get API config
+      final apiConfig = _apiService.getApiConfig();
       
-      _tokenData = {
-        'Access Token': _maskToken(accessToken),
-        'Refresh Token': _maskToken(refreshToken),
-        'User ID': userId,
-      };
+      // Get .env variables (sanitized)
+      final envConfig = await _getEnvVariables();
       
-      // 3. Lấy dữ liệu người dùng local (Windows)
-      if (PlatformServiceHelper.isDesktopWindows) {
-        _localUsers = await PlatformServiceHelper.getUsers();
-      }
+      // Get stored users from SharedPreferences
+      final storedUsers = await WindowsUserDataTool.getStoredUsers();
       
-    } catch (e) {
-      _logger.e('Error loading user data: $e');
-      // Check if widget is still mounted before using context
+      // Get SharedPreferences path
+      final prefsPath = await WindowsUserDataTool.getSharedPreferencesPath() ?? 'Unknown';
+      
       if (!mounted) return;
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi tải dữ liệu: $e')),
-      );
-    } finally {
-      // Check if widget is still mounted before calling setState
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      setState(() {
+        if (user != null) {
+          if (user is Map) {
+            _userData = Map<String, dynamic>.from(user);
+          } else {
+            _userData = user.toMap();
+          }
+        } else {
+          _userData = {'status': 'No user logged in'};
+        }
+        
+        _apiConfig = Map<String, dynamic>.from(apiConfig);
+        _envConfig = envConfig;
+        _storedUsers = storedUsers;
+        _prefsPath = prefsPath;
+        _isLoading = false;
+      });
+    } catch (e) {
+      _logger.e('Error loading user data: $e');
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _userData = {'error': e.toString()};
+        _isLoading = false;
+      });
     }
   }
   
-  // Che dấu token để bảo mật
-  String _maskToken(String token) {
-    if (token.length <= 10) return '*' * token.length;
-    return '${token.substring(0, 5)}...${token.substring(token.length - 5)}';
+  Future<Map<String, dynamic>> _getEnvVariables() async {
+    final result = <String, dynamic>{};
+    
+    try {
+      // Get environment variables but mask sensitive data
+      result['AUTH_API_URL'] = dotenv.env['AUTH_API_URL'] ?? 'Not set';
+      result['JARVIS_API_URL'] = dotenv.env['JARVIS_API_URL'] ?? 'Not set';
+      
+      // Mask API key
+      final apiKey = dotenv.env['JARVIS_API_KEY'];
+      if (apiKey != null && apiKey.isNotEmpty) {
+        result['JARVIS_API_KEY'] = '${apiKey.substring(0, 4)}...${apiKey.length} chars';
+      } else {
+        result['JARVIS_API_KEY'] = 'Not set';
+      }
+      
+      // Mask Stack Project ID
+      final stackProjectId = dotenv.env['STACK_PROJECT_ID'];
+      if (stackProjectId != null && stackProjectId.isNotEmpty) {
+        result['STACK_PROJECT_ID'] = '${stackProjectId.substring(0, 6)}...';
+      } else {
+        result['STACK_PROJECT_ID'] = 'Not set';
+      }
+      
+      // Mask Stack Publishable Client Key
+      final stackKey = dotenv.env['STACK_PUBLISHABLE_CLIENT_KEY'];
+      if (stackKey != null && stackKey.isNotEmpty) {
+        result['STACK_PUBLISHABLE_CLIENT_KEY'] = '${stackKey.substring(0, 4)}...${stackKey.length} chars';
+      } else {
+        result['STACK_PUBLISHABLE_CLIENT_KEY'] = 'Not set';
+      }
+    } catch (e) {
+      _logger.e('Error getting env variables: $e');
+      result['error'] = e.toString();
+    }
+    
+    return result;
   }
   
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Xem Dữ Liệu Người Dùng'),
+        title: const Text('User Data Viewer'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -100,183 +141,206 @@ class _UserDataViewerPageState extends State<UserDataViewerPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Hiển thị thông tin người dùng từ API
-                  Card(
-                    margin: const EdgeInsets.only(bottom: 16.0),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Dữ liệu từ Jarvis API',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const Divider(),
-                          _userData.isEmpty
-                              ? const Text('Không có dữ liệu hoặc chưa đăng nhập')
-                              : _buildDataTable(_userData),
-                        ],
-                      ),
-                    ),
+                  _buildSection('User Info', _userData),
+                  _buildDivider(),
+                  _buildSection('API Configuration', _apiConfig),
+                  _buildDivider(),
+                  _buildSection('Environment Variables', _envConfig),
+                  _buildDivider(),
+                  Text(
+                    'SharedPreferences Path:',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  
-                  // Hiển thị thông tin token
-                  Card(
-                    margin: const EdgeInsets.only(bottom: 16.0),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Thông tin Token đăng nhập',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const Divider(),
-                          _buildTokenTable(_tokenData),
-                        ],
-                      ),
-                    ),
+                  Text(_prefsPath),
+                  _buildDivider(),
+                  Text(
+                    'Stored Users (${_storedUsers.length}):',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  
-                  // Hiển thị dữ liệu người dùng cục bộ (Windows)
-                  if (PlatformServiceHelper.isDesktopWindows) ...[
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Dữ liệu cục bộ (Windows)',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Divider(),
-                            _localUsers.isEmpty
-                                ? const Text('Không có dữ liệu người dùng cục bộ')
-                                : _buildLocalUsersTable(_localUsers),
-                          ],
-                        ),
-                      ),
+                  _buildStoredUsersList(),
+                  _buildDivider(),
+                  ElevatedButton(
+                    onPressed: _testConnection,
+                    child: const Text('Test API Connection'),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: _clearTokens,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
                     ),
-                  ],
+                    child: const Text('Clear Auth Tokens'),
+                  ),
                 ],
               ),
             ),
     );
   }
   
-  Widget _buildDataTable(Map<String, dynamic> data) {
-    return Table(
-      columnWidths: const {
-        0: FlexColumnWidth(1),
-        1: FlexColumnWidth(2),
-      },
-      border: TableBorder.all(
-        color: Colors.grey.shade300,
-        width: 1,
-      ),
-      children: data.entries.map((entry) {
-        final value = entry.value is DateTime
-            ? entry.value.toString()
-            : entry.value?.toString() ?? 'null';
-        
-        return TableRow(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                entry.key,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(value),
-            ),
-          ],
-        );
-      }).toList(),
-    );
-  }
-  
-  Widget _buildTokenTable(Map<String, String> data) {
-    return Table(
-      columnWidths: const {
-        0: FlexColumnWidth(1),
-        1: FlexColumnWidth(2),
-      },
-      border: TableBorder.all(
-        color: Colors.grey.shade300,
-        width: 1,
-      ),
-      children: data.entries.map((entry) {
-        return TableRow(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                entry.key,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(entry.value),
-            ),
-          ],
-        );
-      }).toList(),
-    );
-  }
-  
-  Widget _buildLocalUsersTable(List<Map<String, dynamic>> users) {
+  Widget _buildSection(String title, Map<String, dynamic> data) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: users.map((user) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8.0),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(4.0),
-          ),
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        Card(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: user.entries.map((entry) {
-                // Mask password
-                final value = entry.key == 'password'
-                    ? '********'
-                    : entry.value?.toString() ?? 'null';
-                
+              children: data.entries.map((entry) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4.0),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '${entry.key}: ',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      SizedBox(
+                        width: 150,
+                        child: Text(
+                          '${entry.key}:',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      Expanded(child: Text(value)),
+                      Expanded(
+                        child: Text(
+                          _formatValue(entry.value),
+                        ),
+                      ),
                     ],
                   ),
                 );
               }).toList(),
             ),
           ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildStoredUsersList() {
+    if (_storedUsers.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(8.0),
+        child: Text('No stored users found'),
+      );
+    }
+    
+    return Column(
+      children: _storedUsers.map((user) {
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4.0),
+          child: ListTile(
+            title: Text(user['email'] ?? 'Unknown email'),
+            subtitle: Text('UID: ${user['uid'] ?? 'No UID'}'),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () => _removeUser(user['email']),
+            ),
+          ),
         );
       }).toList(),
     );
+  }
+  
+  Future<void> _removeUser(String? email) async {
+    if (email == null) return;
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove User'),
+        content: Text('Are you sure you want to remove user $email?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed == true) {
+      try {
+        await WindowsUserDataTool.removeUser(email);
+        _loadUserData(); // Refresh data
+      } catch (e) {
+        _logger.e('Error removing user: $e');
+      }
+    }
+  }
+  
+  Widget _buildDivider() {
+    return const Divider(height: 32);
+  }
+  
+  String _formatValue(dynamic value) {
+    if (value == null) return 'null';
+    if (value is bool) return value ? 'true' : 'false';
+    if (value is Map || value is List) return value.toString();
+    return value.toString();
+  }
+  
+  Future<void> _testConnection() async {
+    try {
+      final isConnected = await _apiService.checkApiStatus();
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isConnected
+                ? 'Connection successful!'
+                : 'Connection failed. Check API configuration.',
+          ),
+          backgroundColor: isConnected ? Colors.green : Colors.red,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  
+  Future<void> _clearTokens() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('jarvis_access_token');
+      await prefs.remove('jarvis_refresh_token');
+      await prefs.remove('jarvis_user_id');
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Auth tokens cleared. App restart may be required.'),
+        ),
+      );
+      
+      _loadUserData(); // Refresh the data
+    } catch (e) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error clearing tokens: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

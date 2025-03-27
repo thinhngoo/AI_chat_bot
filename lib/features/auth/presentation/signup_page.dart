@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/utils/validators/password_validator.dart';
+import '../../../features/debug/presentation/user_data_viewer_page.dart';
 import '../../../widgets/auth/auth_widgets.dart';
 import '../../../widgets/auth/password_requirement_widget.dart';
 import 'email_verification_page.dart';
@@ -145,8 +146,16 @@ class SignupPageState extends State<SignupPage> {
       
       String errorMsg;
       
+      // Check for project ID or publishable key errors
+      if (e.toString().contains('publishable key is not valid for the project') || 
+          e.toString().contains('project') && e.toString().contains('key')) {
+        errorMsg = 'Configuration error: The API credentials in the application are invalid. Please contact support.';
+        setState(() {
+          _showDebugInfo = true; // Show debug info on critical errors
+        });
+      }
       // Check for common API errors
-      if (e.toString().contains('already exists') || 
+      else if (e.toString().contains('already exists') || 
           e.toString().contains('already in use') ||
           e.toString().toLowerCase().contains('already registered')) {
         errorMsg = 'Email đã được đăng ký. Vui lòng sử dụng email khác hoặc đăng nhập.';
@@ -160,8 +169,6 @@ class SignupPageState extends State<SignupPage> {
       setState(() {
         _errorMessage = errorMsg;
         _isLoading = false;
-        // Enable debug info on error
-        _showDebugInfo = true;
       });
     }
   }
@@ -310,6 +317,16 @@ class SignupPageState extends State<SignupPage> {
         children: [
           const Text('Debug Info:', style: TextStyle(fontWeight: FontWeight.bold)),
           Text('API URL: ${_authService.toString()}'),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const UserDataViewerPage(),
+                ),
+              );
+            },
+            child: const Text('View Configuration Details'),
+          ),
           TextButton(
             onPressed: () {
               setState(() {

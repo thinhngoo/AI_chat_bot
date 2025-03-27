@@ -1,7 +1,120 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:logger/logger.dart';
+
+/// Utility class for managing user data on Windows
+class WindowsUserDataTool {
+  static final Logger _logger = Logger();
+  
+  /// Get SharedPreferences path on Windows
+  static Future<String?> getSharedPreferencesPath() async {
+    try {
+      if (Platform.isWindows) {
+        // On Windows, SharedPreferences are typically stored in AppData\Roaming
+        // The exact path depends on the app's package name
+        final appDataDir = Platform.environment['APPDATA'];
+        if (appDataDir != null) {
+          return '$appDataDir\\AI_Chat_Bot\\SharedPreferences';
+        }
+      } else {
+        // For other platforms, try to get application documents directory
+        final appDocDir = await getApplicationDocumentsDirectory();
+        return '${appDocDir.path}/SharedPreferences';
+      }
+    } catch (e) {
+      _logger.e('Error getting SharedPreferences path: $e');
+    }
+    return null;
+  }
+  
+  /// Get all users stored in SharedPreferences
+  static Future<List<Map<String, dynamic>>> getStoredUsers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final usersJson = prefs.getString('users');
+      
+      if (usersJson == null || usersJson.isEmpty) {
+        return [];
+      }
+      
+      final List<dynamic> decoded = jsonDecode(usersJson);
+      return decoded.map((user) => Map<String, dynamic>.from(user)).toList();
+    } catch (e) {
+      _logger.e('Error getting stored users: $e');
+      return [];
+    }
+  }
+  
+  /// Add a user to SharedPreferences
+  static Future<bool> addUser(Map<String, dynamic> userData) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final usersJson = prefs.getString('users');
+      
+      List<dynamic> users = [];
+      if (usersJson != null && usersJson.isNotEmpty) {
+        users = jsonDecode(usersJson);
+      }
+      
+      // Check if user already exists
+      final existingUserIndex = users.indexWhere((user) => 
+        user['email'] == userData['email']);
+      
+      if (existingUserIndex >= 0) {
+        // Update existing user
+        users[existingUserIndex] = userData;
+      } else {
+        // Add new user
+        users.add(userData);
+      }
+      
+      // Save updated users list
+      await prefs.setString('users', jsonEncode(users));
+      return true;
+    } catch (e) {
+      _logger.e('Error adding user: $e');
+      return false;
+    }
+  }
+  
+  /// Remove a user from SharedPreferences
+  static Future<bool> removeUser(String email) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final usersJson = prefs.getString('users');
+      
+      if (usersJson == null || usersJson.isEmpty) {
+        return false;
+      }
+      
+      List<dynamic> users = jsonDecode(usersJson);
+      
+      // Remove user with matching email
+      users.removeWhere((user) => user['email'] == email);
+      
+      // Save updated users list
+      await prefs.setString('users', jsonEncode(users));
+      return true;
+    } catch (e) {
+      _logger.e('Error removing user: $e');
+      return false;
+    }
+  }
+  
+  /// Clear all users from SharedPreferences
+  static Future<bool> clearAllUsers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('users', '[]');
+      return true;
+    } catch (e) {
+      _logger.e('Error clearing users: $e');
+      return false;
+    }
+  }
+}
 
 /// Tiện ích command line để xem và quản lý dữ liệu người dùng Windows
 ///
@@ -14,26 +127,24 @@ void main() async {
   logger.i('Đang tải dữ liệu người dùng...');
   
   try {
-    final prefs = await SharedPreferences.getInstance();
-    final usersJson = prefs.getString('users');
+    final users = await WindowsUserDataTool.getStoredUsers();
     
-    if (usersJson == null || usersJson.isEmpty) {
+    if (users.isEmpty) {
       logger.i('Không tìm thấy dữ liệu người dùng nào.');
-      await _showMenu(prefs, [], logger);
+      await _showMenu([], logger);
       return;
     }
     
-    final List<dynamic> users = jsonDecode(usersJson);
     logger.i('Đã tìm thấy ${users.length} người dùng.');
     
-    await _showMenu(prefs, users, logger);
+    await _showMenu(users, logger);
   } catch (e) {
     logger.e('Lỗi: $e');
     exit(1);
   }
 }
 
-Future<void> _showMenu(SharedPreferences prefs, List<dynamic> users, Logger logger) async {
+Future<void> _showMenu(List<Map<String, dynamic>> users, Logger logger) async {
   bool running = true;
   
   while (running) {
@@ -56,10 +167,10 @@ Future<void> _showMenu(SharedPreferences prefs, List<dynamic> users, Logger logg
         await _viewUserDetails(users, logger);
         break;
       case '3':
-        await _deleteUser(prefs, users, logger);
+        await _deleteUser(users, logger);
         break;
       case '4':
-        await _clearAllData(prefs, logger);
+        await _clearAllData(logger);
         users = [];
         break;
       case '5':
@@ -75,7 +186,7 @@ Future<void> _showMenu(SharedPreferences prefs, List<dynamic> users, Logger logg
   }
 }
 
-void _listUsers(List<dynamic> users, Logger logger) {
+void _listUsers(List<Map<String, dynamic>> users, Logger logger) {
   if (users.isEmpty) {
     logger.i('Không có người dùng nào.');
     return;
@@ -90,7 +201,7 @@ void _listUsers(List<dynamic> users, Logger logger) {
   }
 }
 
-Future<void> _viewUserDetails(List<dynamic> users, Logger logger) async {
+Future<void> _viewUserDetails(List<Map<String, dynamic>> users, Logger logger) async {
   if (users.isEmpty) {
     logger.i('Không có người dùng nào để xem.');
     return;
@@ -115,7 +226,7 @@ Future<void> _viewUserDetails(List<dynamic> users, Logger logger) async {
   }
 }
 
-Future<void> _deleteUser(SharedPreferences prefs, List<dynamic> users, Logger logger) async {
+Future<void> _deleteUser(List<Map<String, dynamic>> users, Logger logger) async {
   if (users.isEmpty) {
     logger.i('Không có người dùng nào để xóa.');
     return;
@@ -139,9 +250,13 @@ Future<void> _deleteUser(SharedPreferences prefs, List<dynamic> users, Logger lo
     final confirm = stdin.readLineSync()?.toLowerCase();
     
     if (confirm == 'y' || confirm == 'yes') {
-      users.removeAt(index);
-      await prefs.setString('users', jsonEncode(users));
-      logger.i('Đã xóa người dùng.');
+      final success = await WindowsUserDataTool.removeUser(email);
+      if (success) {
+        users.removeAt(index);
+        logger.i('Đã xóa người dùng.');
+      } else {
+        logger.e('Lỗi khi xóa người dùng.');
+      }
     } else {
       logger.i('Hủy xóa.');
     }
@@ -150,19 +265,23 @@ Future<void> _deleteUser(SharedPreferences prefs, List<dynamic> users, Logger lo
   }
 }
 
-Future<void> _clearAllData(SharedPreferences prefs, Logger logger) async {
+Future<void> _clearAllData(Logger logger) async {
   stdout.write('CẢNH BÁO: Bạn có chắc chắn muốn xóa TẤT CẢ dữ liệu người dùng? (y/n): ');
   final confirm = stdin.readLineSync()?.toLowerCase();
   
   if (confirm == 'y' || confirm == 'yes') {
-    await prefs.setString('users', '[]');
-    logger.i('Đã xóa tất cả dữ liệu người dùng.');
+    final success = await WindowsUserDataTool.clearAllUsers();
+    if (success) {
+      logger.i('Đã xóa tất cả dữ liệu người dùng.');
+    } else {
+      logger.e('Lỗi khi xóa tất cả dữ liệu người dùng.');
+    }
   } else {
     logger.i('Hủy xóa.');
   }
 }
 
-void _exportData(List<dynamic> users, Logger logger) {
+void _exportData(List<Map<String, dynamic>> users, Logger logger) {
   final json = const JsonEncoder.withIndent('  ').convert(users);
   logger.i('\nDữ liệu người dùng (JSON):');
   logger.i(json);

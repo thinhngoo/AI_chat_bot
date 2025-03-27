@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../models/user_model.dart';
 import '../../models/chat/chat_session.dart';
 import '../../models/chat/message.dart';
+import '../../constants/api_constants.dart';  // Import the constants
 
 class JarvisApiService {
   static final JarvisApiService _instance = JarvisApiService._internal();
@@ -24,44 +25,43 @@ class JarvisApiService {
   String? _verificationCallbackUrl;
   
   JarvisApiService._internal() {
-    // Initialize with default URLs, will be updated in initialize()
-    _authApiUrl = 'https://auth-api.dev.jarvis.cx';
-    _jarvisApiUrl = 'https://api.dev.jarvis.cx';
-    _knowledgeApiUrl = 'https://knowledge-api.dev.jarvis.cx';
+    // Initialize with default URLs from constants
+    _authApiUrl = ApiConstants.authApiUrl;
+    _jarvisApiUrl = ApiConstants.jarvisApiUrl;
+    _knowledgeApiUrl = ApiConstants.knowledgeApiUrl;
+    
+    // Set Stack auth values from constants
+    _stackProjectId = ApiConstants.stackProjectId;
+    _stackPublishableClientKey = ApiConstants.stackPublishableClientKey;
+    _verificationCallbackUrl = ApiConstants.verificationCallbackUrl;
   }
   
   // Initialize service and load token if available
   Future<void> initialize() async {
     try {
-      // Load API URLs and key from environment variables
+      // Load API key from environment variables if available
       await dotenv.load(fileName: '.env');
-      _authApiUrl = dotenv.env['AUTH_API_URL'] ?? 'https://auth-api.dev.jarvis.cx';
-      _jarvisApiUrl = dotenv.env['JARVIS_API_URL'] ?? 'https://api.dev.jarvis.cx';
-      _knowledgeApiUrl = dotenv.env['KNOWLEDGE_API_URL'] ?? 'https://knowledge-api.dev.jarvis.cx';
-      _apiKey = dotenv.env['JARVIS_API_KEY'];
+      _apiKey = dotenv.env['JARVIS_API_KEY'] ?? ApiConstants.defaultApiKey;
       
-      // Load Jarvis Stack configuration
-      _stackProjectId = dotenv.env['STACK_PROJECT_ID'] ?? 'a914f06b-5e46-4966-8693-80e4b9f4f409';
-      _stackPublishableClientKey = dotenv.env['STACK_PUBLISHABLE_CLIENT_KEY'] ?? 
-                              'pck_tqsy29b64a585km2g4wnpc57ypjprzzdch8xzpq0xhayr';
-      _verificationCallbackUrl = dotenv.env['VERIFICATION_CALLBACK_URL'] ?? 
-                            'https://auth.dev.jarvis.cx/handler/email-verification?after_auth_return_to=%2Fauth%2Fsignin%3Fclient_id%3Djarvis_chat%26redirect%3Dhttps%253A%252F%252Fchat.dev.jarvis.cx%252Fauth%252Foauth%252Fsuccess';
-      
-      if (_apiKey == null || _apiKey!.isEmpty) {
-        _logger.w('JARVIS_API_KEY not found in .env file. API calls may fail.');
-      }
-      
+      // Log initialization information
       _logger.i('Initialized Jarvis API service with:');
       _logger.i('- Auth API URL: $_authApiUrl');
       _logger.i('- Jarvis API URL: $_jarvisApiUrl');
       _logger.i('- Knowledge API URL: $_knowledgeApiUrl');
-      _logger.i('- Stack Project ID: ${_stackProjectId != null ? "configured" : "missing"}');
+      _logger.i('- Stack Project ID: ${_maskString(_stackProjectId ?? "missing")}');
+      _logger.i('- Stack Publishable Client Key: ${_maskString(_stackPublishableClientKey ?? "missing")}');
       
       // Load auth token
       await _loadAuthToken();
     } catch (e) {
       _logger.e('Error initializing Jarvis API service: $e');
     }
+  }
+  
+  // Helper to mask sensitive values for logging
+  String _maskString(String value) {
+    if (value.length <= 8) return '****';
+    return '${value.substring(0, 4)}...${value.substring(value.length - 4)}';
   }
   
   // Authentication - Sign Up
@@ -690,9 +690,8 @@ class JarvisApiService {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'X-Stack-Access-Type': 'client',
-      'X-Stack-Project-Id': _stackProjectId ?? 'a914f06b-5e46-4966-8693-80e4b9f4f409',
-      'X-Stack-Publishable-Client-Key': _stackPublishableClientKey ?? 
-                                     'pck_tqsy29b64a585km2g4wnpc57ypjprzzdch8xzpq0xhayr',
+      'X-Stack-Project-Id': _stackProjectId ?? ApiConstants.stackProjectId,
+      'X-Stack-Publishable-Client-Key': _stackPublishableClientKey ?? ApiConstants.stackPublishableClientKey,
     };
     
     // Add API key if available

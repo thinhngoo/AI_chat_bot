@@ -1,9 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../widgets/auth/auth_widgets.dart';
 import '../../../core/utils/validators/password_validator.dart';
+import '../../../core/services/api/jarvis_api_service.dart';
 
 class AccountManagementPage extends StatefulWidget {
   const AccountManagementPage({super.key});
@@ -17,6 +16,7 @@ class AccountManagementPageState extends State<AccountManagementPage> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final AuthService _authService = AuthService();
+  final JarvisApiService _apiService = JarvisApiService();
   bool _isLoading = false;
   String _emailAddress = '';
   String _passwordStrength = '';
@@ -33,7 +33,7 @@ class AccountManagementPageState extends State<AccountManagementPage> {
     dynamic user = _authService.currentUser;
     if (user != null) {
       setState(() {
-        // For Firebase user, email is a property. For WindowsAuth, currentUser is the email
+        // For Jarvis API, currentUser is the UserModel
         _emailAddress = user is String ? user : user.email ?? 'Unknown';
         _isEmailVerified = _authService.isEmailVerified();
       });
@@ -83,84 +83,34 @@ class AccountManagementPageState extends State<AccountManagementPage> {
     });
 
     try {
-      // Use the AuthService's updatePassword method which works for both Firebase and Windows auth
-      await _authService.updatePassword(
+      // Use the Jarvis API to update password
+      final success = await _apiService.changePassword(
         _currentPasswordController.text,
         _newPasswordController.text
       );
       
       if (!mounted) return;
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mật khẩu đã được cập nhật thành công')),
-      );
-      
-      // Clear password fields
-      _currentPasswordController.clear();
-      _newPasswordController.clear();
-      _confirmPasswordController.clear();
-      setState(() {
-        _passwordStrength = '';
-      });
-    } catch (e) {
-      if (!mounted) return;
-      
-      // Handle social login error specially
-      if (e.toString().contains('Google') || 
-          e.toString().contains('Facebook') || 
-          e.toString().contains('phương thức đăng nhập')) {
-        _showSocialLoginErrorDialog(e.toString());
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mật khẩu đã được cập nhật thành công')),
+        );
+        
+        // Clear password fields
+        _currentPasswordController.clear();
+        _newPasswordController.clear();
+        _confirmPasswordController.clear();
+        setState(() {
+          _passwordStrength = '';
+        });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: ${e.toString()}')),
+          const SnackBar(content: Text('Không thể cập nhật mật khẩu. Vui lòng thử lại.')),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _showSocialLoginErrorDialog(String errorMessage) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Không thể cập nhật mật khẩu'),
-        content: Text(errorMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Đóng'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Future<void> _resendVerificationEmail() async {
-    if (_isEmailVerified) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email của bạn đã được xác minh')),
-      );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      await _authService.resendVerificationEmail();
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email xác minh đã được gửi lại')),
-      );
     } catch (e) {
       if (!mounted) return;
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi: ${e.toString()}')),
       );
@@ -173,16 +123,11 @@ class AccountManagementPageState extends State<AccountManagementPage> {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getUsers() async {
-    final prefs = await SharedPreferences.getInstance();
-    final usersJson = prefs.getString('users');
-    
-    if (usersJson == null) {
-      return [];
-    }
-    
-    final List<dynamic> decoded = jsonDecode(usersJson);
-    return decoded.map((user) => Map<String, dynamic>.from(user)).toList();
+  // Email verification is handled automatically by Jarvis API
+  Future<void> _resendVerificationEmail() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Tính năng này không được hỗ trợ bởi API hiện tại')),
+    );
   }
 
   @override

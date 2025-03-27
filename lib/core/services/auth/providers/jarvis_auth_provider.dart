@@ -12,15 +12,16 @@ class JarvisAuthProvider implements AuthProviderInterface {
   final StreamController<UserModel?> _authStateController = StreamController<UserModel?>.broadcast();
   
   JarvisAuthProvider() {
-    _initialize();
+    // Don't automatically initialize in constructor
   }
   
-  Future<void> _initialize() async {
+  Future<void> initialize() async {
     try {
       await _apiService.initialize();
       // Try to load current user if already logged in
       _currentUser = await _apiService.getCurrentUser();
       _authStateController.add(_currentUser);
+      _logger.i('JarvisAuthProvider initialized: ${_currentUser != null ? 'User logged in' : 'No user'}');
     } catch (e) {
       _logger.e('Error initializing JarvisAuthProvider: $e');
     }

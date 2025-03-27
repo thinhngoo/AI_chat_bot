@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:logger/logger.dart';
 import '../../../core/services/api/jarvis_api_service.dart';
 import '../../../core/services/chat/jarvis_chat_service.dart';
 import '../../../features/account/presentation/account_management_page.dart';
@@ -14,6 +13,7 @@ class SettingsPage extends StatefulWidget {
 
 class SettingsPageState extends State<SettingsPage> {
   final JarvisChatService _chatService = JarvisChatService();
+  bool _isDarkMode = false;
   
   @override
   void initState() {
@@ -35,31 +35,25 @@ class SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              title: const Text('Quản lý tài khoản'),
-              subtitle: const Text('Thay đổi mật khẩu, email và các thông tin khác'),
               leading: const Icon(Icons.person),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              title: const Text('Quản lý tài khoản'),
+              subtitle: const Text('Thay đổi mật khẩu, thông tin cá nhân'),
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const AccountManagementPage(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const AccountManagementPage()),
                 );
               },
             ),
             // Add new item for user data viewer
             ListTile(
-              title: const Text('Xem dữ liệu người dùng'),
-              subtitle: const Text('Xem thông tin dữ liệu đã lưu'),
               leading: const Icon(Icons.data_usage),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              title: const Text('Xem dữ liệu người dùng'),
+              subtitle: const Text('Kiểm tra thông tin và trạng thái đăng nhập'),
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const UserDataViewerPage(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const UserDataViewerPage()),
                 );
               },
             ),
@@ -78,24 +72,27 @@ class SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Appearance',
+              'Giao diện',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             SwitchListTile(
-              title: const Text('Dark Mode'),
-              subtitle: const Text('Enable dark theme throughout the app'),
-              value: true, // This should be connected to a theme provider
-              onChanged: (bool value) {
-                // Update theme
+              title: const Text('Chế độ tối'),
+              subtitle: const Text('Thay đổi giao diện sang màu tối'),
+              value: _isDarkMode,
+              onChanged: (value) {
+                setState(() {
+                  _isDarkMode = value;
+                });
+                // Implement dark mode functionality in a real app
               },
             ),
             ListTile(
-              title: const Text('Font Size'),
-              subtitle: const Text('Change text size throughout the app'),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              leading: const Icon(Icons.font_download),
+              title: const Text('Kích thước chữ'),
+              subtitle: const Text('Điều chỉnh kích thước chữ hiển thị'),
               onTap: () {
-                // Show font size options
+                // Font size selection would be implemented here
               },
             ),
           ],
@@ -113,38 +110,16 @@ class SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Storage',
+              'Lưu trữ & Dữ liệu',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             ListTile(
-              title: const Text('Clear Chat History'),
-              subtitle: const Text('Remove all chat sessions from this device'),
-              trailing: const Icon(Icons.delete_outline),
+              leading: const Icon(Icons.delete),
+              title: const Text('Xóa lịch sử trò chuyện'),
+              subtitle: const Text('Xóa tất cả các cuộc trò chuyện'),
               onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Clear Chat History'),
-                    content: const Text('This will delete all chat history. This action cannot be undone.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          // Clear chat history
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Chat history cleared')),
-                          );
-                        },
-                        child: const Text('Clear'),
-                      ),
-                    ],
-                  ),
-                );
+                _showClearHistoryDialog();
               },
             ),
           ],
@@ -162,22 +137,16 @@ class SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'API Settings',
+              'API & Tích hợp',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             ListTile(
-              title: const Text('Reset API Connection'),
-              subtitle: const Text('Clear API error state if you\'ve fixed connectivity issues'),
-              trailing: const Icon(Icons.refresh),
+              leading: const Icon(Icons.api),
+              title: const Text('Cài đặt API'),
+              subtitle: const Text('Xem và quản lý cài đặt API'),
               onTap: () {
-                // Reset API connection
-                _chatService.resetApiErrorState();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('API connection reset. Next operations will try reconnecting.'),
-                  )
-                );
+                // Navigate to API settings
               },
             ),
           ],
@@ -198,50 +167,97 @@ class SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'API Settings',
+              'Thông tin API',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             ListTile(
-              title: const Text('API URL'),
-              subtitle: Text(apiConfig['jarvisApiUrl'] ?? 'Not configured'),
               leading: const Icon(Icons.cloud),
+              title: const Text('Jarvis API URL'),
+              subtitle: Text(apiConfig['jarvisApiUrl'] ?? 'Not configured'),
             ),
             ListTile(
-              title: const Text('Authentication Status'),
-              subtitle: Text(apiConfig['isAuthenticated'] ?? 'Unknown'),
               leading: const Icon(Icons.security),
+              title: const Text('API Authentication'),
+              subtitle: Text('Status: ${apiConfig['isAuthenticated']}'),
             ),
             const SizedBox(height: 8),
             ElevatedButton(
-              onPressed: () async {
-                final bool isAvailable = await apiService.checkApiStatus();
-                // Show status dialog
-                if (context.mounted) {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Text(isAvailable ? 'API is Available' : 'API is Unavailable'),
-                      content: Text(
-                        isAvailable 
-                            ? 'The Jarvis API is responding correctly.' 
-                            : 'Cannot connect to the Jarvis API. Please check your configuration and internet connection.'
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('OK'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-              },
+              onPressed: () => _testApiConnection(context),
               child: const Text('Test API Connection'),
             ),
           ],
         ),
       ),
+    );
+  }
+  
+  // New method to test API connection with proper context handling
+  Future<void> _testApiConnection(BuildContext context) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    
+    try {
+      // Show loading indicator
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('Testing API connection...')),
+      );
+      
+      final apiService = JarvisApiService();
+      final isConnected = await apiService.checkApiStatus();
+      
+      // Only proceed if the widget is still mounted
+      if (!mounted) return;
+      
+      // Show result
+      scaffoldMessenger.hideCurrentSnackBar();
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(isConnected 
+              ? 'API connection successful!' 
+              : 'API connection failed. Check your API configuration.'),
+          backgroundColor: isConnected ? Colors.green : Colors.red,
+        ),
+      );
+    } catch (e) {
+      // Only proceed if the widget is still mounted
+      if (!mounted) return;
+      
+      // Show error
+      scaffoldMessenger.hideCurrentSnackBar();
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('Error testing API connection: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  
+  void _showClearHistoryDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Xóa lịch sử'),
+          content: const Text('Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Hủy'),
+            ),
+            TextButton(
+              onPressed: () {
+                // Clear chat history would be implemented here
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Đã xóa lịch sử trò chuyện')),
+                );
+              },
+              child: const Text('Xóa'),
+            ),
+          ],
+        );
+      },
     );
   }
 

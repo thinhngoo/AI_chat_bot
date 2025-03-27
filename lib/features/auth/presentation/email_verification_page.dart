@@ -22,8 +22,8 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
   final Logger _logger = Logger();
   Timer? _timer;
   bool _isEmailVerified = false;
-  bool _canResendEmail = true;
-  int _resendCooldown = 0;
+  final bool _canResendEmail = true;
+  final int _resendCooldown = 0;
   Timer? _resendTimer;
   bool _isChecking = false;
   DateTime _lastManualCheck = DateTime.now();
@@ -131,24 +131,29 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
     }
   }
   
-  void _startResendCooldown() {
-    setState(() {
-      _canResendEmail = false;
-      _resendCooldown = 60;
-    });
+  // Note: With Jarvis API, we can't resend verification emails
+  // This method now shows an informative message instead
+  Future<void> _resendVerificationEmail() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Tính năng gửi lại email xác minh không được hỗ trợ bởi API hiện tại.')),
+    );
     
-    _resendTimer = Timer.periodic(
-      const Duration(seconds: 1),
-      (timer) {
-        setState(() {
-          if (_resendCooldown > 0) {
-            _resendCooldown--;
-          } else {
-            _canResendEmail = true;
-            timer.cancel();
-          }
-        });
-      },
+    // Show dialog with more information
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tính năng không được hỗ trợ'),
+        content: const Text(
+          'Tính năng gửi lại email xác minh không được hỗ trợ bởi API hiện tại.\n\n'
+          'Vui lòng kiểm tra hòm thư (bao gồm thư mục spam) hoặc thử đăng ký lại với email khác.'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -157,116 +162,6 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
     _timer?.cancel();
     _resendTimer?.cancel();
     super.dispose();
-  }
-
-  Future<void> _resendVerificationEmail() async {
-    if (!_canResendEmail) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vui lòng đợi $_resendCooldown giây trước khi gửi lại')),
-      );
-      return;
-    }
-    
-    setState(() {
-      _isChecking = true; // Use existing loading indicator
-    });
-    
-    try {
-      // Check if there is a logged in user first
-      if (_authService.currentUser == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Phiên đã hết hạn. Đang chuyển về trang đăng nhập...')),
-        );
-        
-        // Navigate back to login page after a short delay
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginPage()),
-            );
-          }
-        });
-        return;
-      }
-      
-      // Reset expired link status
-      setState(() {
-        _linkExpired = false;
-        _verificationCheckCount = 0;
-      });
-      
-      await _authService.resendVerificationEmail();
-      
-      if (!mounted) return;
-      
-      _startResendCooldown();
-      
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Email đã gửi'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Email xác minh mới đã được gửi đến ${_maskEmail(widget.email)}.'),
-              const SizedBox(height: 8),
-              const Text('Lưu ý:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const Text('• Kiểm tra thư mục Spam nếu bạn không thấy email'),
-              const Text('• Email có thể mất vài phút để đến'),
-              const Text('• Liên kết xác minh có hiệu lực trong 24 giờ'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Đóng'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _openEmailApp();
-              },
-              child: const Text('Mở ứng dụng Email'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      _logger.e('Error resending verification email: $e');
-      if (!mounted) return;
-      
-      String errorMessage = 'Không thể gửi lại email xác minh';
-      
-      if (e.toString().contains('too-many-requests')) {
-        errorMessage = 'Quá nhiều yêu cầu. Vui lòng thử lại sau vài phút';
-      } else if (e.toString().contains('network-request-failed')) {
-        errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet';
-      } else if (e.toString().contains('Người dùng chưa đăng nhập')) {
-        errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại';
-        
-        // Navigate back to login after a delay
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) {
-            Navigator.pushReplacement(
-              context, 
-              MaterialPageRoute(builder: (context) => const LoginPage()),
-            );
-          }
-        });
-      }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isChecking = false;
-        });
-      }
-    }
   }
 
   Future<void> _openEmailApp() async {
