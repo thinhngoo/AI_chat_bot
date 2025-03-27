@@ -6,7 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../models/user_model.dart';
 import '../../models/chat/chat_session.dart';
 import '../../models/chat/message.dart';
-import '../../constants/api_constants.dart';  // Import the constants
+import '../../constants/api_constants.dart';
 
 class JarvisApiService {
   static final JarvisApiService _instance = JarvisApiService._internal();
@@ -68,12 +68,6 @@ class JarvisApiService {
   Future<Map<String, dynamic>> signUp(String email, String password, {String? name}) async {
     try {
       _logger.i('Attempting sign-up for email: $email');
-      _logger.i('Using auth API URL: $_authApiUrl');
-      
-      // Log headers for debugging (without sensitive values)
-      final headersForLog = _getAuthHeaders(includeAuth: false);
-      headersForLog.removeWhere((key, value) => key.toLowerCase().contains('key') || key.toLowerCase().contains('secret'));
-      _logger.i('Request headers: $headersForLog');
       
       // Only include the required fields in the sign-up request
       final requestBody = {
@@ -87,10 +81,8 @@ class JarvisApiService {
         _logger.i('Name provided but will be set after sign-up: $name');
       }
       
-      _logger.i('Request body keys: ${requestBody.keys.toList()}');
-      
       final response = await http.post(
-        Uri.parse('$_authApiUrl/api/v1/auth/password/sign-up'),
+        Uri.parse('$_authApiUrl${ApiConstants.authPasswordSignUp}'),
         headers: _getAuthHeaders(includeAuth: false),
         body: jsonEncode(requestBody),
       );
@@ -101,7 +93,6 @@ class JarvisApiService {
       Map<String, dynamic> data;
       try {
         data = jsonDecode(response.body);
-        _logger.i('Response keys: ${data.keys.toList()}');
       } catch (e) {
         _logger.e('Error parsing response JSON: $e');
         _logger.e('Response body: ${response.body}');
@@ -160,10 +151,9 @@ class JarvisApiService {
   Future<Map<String, dynamic>> signIn(String email, String password) async {
     try {
       _logger.i('Attempting sign-in for email: $email');
-      _logger.i('Using auth API URL: $_authApiUrl');
       
       final response = await http.post(
-        Uri.parse('$_authApiUrl/api/v1/auth/password/sign-in'),
+        Uri.parse('$_authApiUrl${ApiConstants.authPasswordSignIn}'),
         headers: _getAuthHeaders(includeAuth: false),
         body: jsonEncode({
           'email': email,
@@ -177,7 +167,6 @@ class JarvisApiService {
       Map<String, dynamic> data;
       try {
         data = jsonDecode(response.body);
-        _logger.i('Response keys: ${data.keys.toList()}');
       } catch (e) {
         _logger.e('Error parsing response JSON: $e');
         _logger.e('Response body: ${response.body}');
@@ -215,7 +204,7 @@ class JarvisApiService {
     }
   }
   
-  // Refresh token - Updated to match API docs
+  // Refresh token
   Future<bool> refreshToken() async {
     try {
       if (_refreshToken == null) {
@@ -230,7 +219,7 @@ class JarvisApiService {
       headers['X-Stack-Refresh-Token'] = _refreshToken!;
       
       final response = await http.post(
-        Uri.parse('$_authApiUrl/api/v1/auth/sessions/current/refresh'),
+        Uri.parse('$_authApiUrl${ApiConstants.authSessionRefresh}'),
         headers: headers,
       );
       
@@ -263,7 +252,7 @@ class JarvisApiService {
     }
   }
   
-  // Logout - Updated to match API docs
+  // Logout
   Future<bool> logout() async {
     try {
       if (_accessToken == null) {
@@ -280,7 +269,7 @@ class JarvisApiService {
       }
       
       final response = await http.delete(
-        Uri.parse('$_authApiUrl/api/v1/auth/sessions/current'),
+        Uri.parse('$_authApiUrl${ApiConstants.authSessionCurrent}'),
         headers: headers,
       );
       
@@ -297,7 +286,6 @@ class JarvisApiService {
         } catch (e) {
           _logger.e('Error parsing logout response: $e');
         }
-        
         // Clear tokens locally even if server logout fails
         await _clearAuthToken();
         return false;
@@ -313,7 +301,7 @@ class JarvisApiService {
   Future<List<ChatSession>> getConversations() async {
     try {
       final response = await http.get(
-        Uri.parse('$_jarvisApiUrl/conversations'),
+        Uri.parse('$_jarvisApiUrl${ApiConstants.conversations}'),
         headers: _getHeaders(),
       );
       
@@ -460,7 +448,7 @@ class JarvisApiService {
       }
       
       final response = await http.get(
-        Uri.parse('$_jarvisApiUrl/user/profile'),
+        Uri.parse('$_jarvisApiUrl${ApiConstants.userProfile}'),
         headers: _getHeaders(),
       );
       
@@ -484,7 +472,7 @@ class JarvisApiService {
           name: userData['name'],
           createdAt: userData['created_at'] != null ? DateTime.parse(userData['created_at']) : DateTime.now(),
           isEmailVerified: userData['email_verified'] ?? false,
-          selectedModel: userData['selected_model'] ?? 'gemini-2.0-flash',
+          selectedModel: userData['selected_model'] ?? ApiConstants.defaultModel,
         );
       } else if (response.statusCode == 401 || response.statusCode == 403) {
         _logger.w('Authentication error (${response.statusCode}) when getting user profile, attempting token refresh');
@@ -589,7 +577,7 @@ class JarvisApiService {
       
       // Try to get verification status from auth API
       final response = await http.get(
-        Uri.parse('$_authApiUrl/api/v1/auth/email/verification/status'),
+        Uri.parse('$_authApiUrl${ApiConstants.authEmailVerificationStatus}'),
         headers: _getAuthHeaders(includeAuth: true),
       );
       
@@ -646,7 +634,7 @@ class JarvisApiService {
       data.forEach((key, value) {
         // Convert camelCase to snake_case
         final snakeKey = key.replaceAllMapped(
-          RegExp(r'[A-Z]'), 
+          RegExp(r'[A-Z]'),
           (match) => '_${match.group(0)!.toLowerCase()}'
         );
         apiData[snakeKey] = value;
@@ -731,9 +719,9 @@ class JarvisApiService {
   Future<void> _loadAuthToken() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _accessToken = prefs.getString('jarvis_access_token');
-      _refreshToken = prefs.getString('jarvis_refresh_token');
-      _userId = prefs.getString('jarvis_user_id');
+      _accessToken = prefs.getString(ApiConstants.accessTokenKey);
+      _refreshToken = prefs.getString(ApiConstants.refreshTokenKey);
+      _userId = prefs.getString(ApiConstants.userIdKey);
     } catch (e) {
       _logger.e('Error loading auth token: $e');
     }
@@ -742,16 +730,16 @@ class JarvisApiService {
   Future<void> _saveAuthToken(String accessToken, String? refreshToken, String? userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('jarvis_access_token', accessToken);
+      await prefs.setString(ApiConstants.accessTokenKey, accessToken);
       _accessToken = accessToken;
       
       if (refreshToken != null) {
-        await prefs.setString('jarvis_refresh_token', refreshToken);
+        await prefs.setString(ApiConstants.refreshTokenKey, refreshToken);
         _refreshToken = refreshToken;
       }
       
       if (userId != null) {
-        await prefs.setString('jarvis_user_id', userId);
+        await prefs.setString(ApiConstants.userIdKey, userId);
         _userId = userId;
       }
     } catch (e) {
@@ -762,9 +750,9 @@ class JarvisApiService {
   Future<void> _clearAuthToken() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('jarvis_access_token');
-      await prefs.remove('jarvis_refresh_token');
-      await prefs.remove('jarvis_user_id');
+      await prefs.remove(ApiConstants.accessTokenKey);
+      await prefs.remove(ApiConstants.refreshTokenKey);
+      await prefs.remove(ApiConstants.userIdKey);
       _accessToken = null;
       _refreshToken = null;
       _userId = null;
@@ -777,12 +765,12 @@ class JarvisApiService {
   bool isAuthenticated() {
     return _accessToken != null;
   }
-
+  
   // Get user ID
   String? getUserId() {
     return _userId;
   }
-
+  
   // Helper method to check API status
   Future<bool> checkApiStatus() async {
     try {
@@ -814,7 +802,7 @@ class JarvisApiService {
   Future<List<Map<String, String>>> getAvailableModels() async {
     try {
       final response = await http.get(
-        Uri.parse('$_jarvisApiUrl/models'),
+        Uri.parse('$_jarvisApiUrl${ApiConstants.models}'),
         headers: _getHeaders(),
       );
       
@@ -832,20 +820,18 @@ class JarvisApiService {
         return models;
       } else {
         // Return default models if API call fails
-        return [
-          {'id': 'gemini-2.0-flash', 'name': 'Gemini 2.0 Flash'},
-          {'id': 'gemini-2.0-pro', 'name': 'Gemini 2.0 Pro'},
-          {'id': 'claude-3-5-sonnet', 'name': 'Claude 3.5 Sonnet'},
-          {'id': 'gpt-4o', 'name': 'GPT-4o'},
-        ];
+        return ApiConstants.modelNames.entries.map((entry) => {
+          'id': entry.key,
+          'name': entry.value,
+        }).toList();
       }
     } catch (e) {
       _logger.e('Get available models error: $e');
       // Return default models on error
-      return [
-        {'id': 'gemini-2.0-flash', 'name': 'Gemini 2.0 Flash'},
-        {'id': 'gemini-2.0-pro', 'name': 'Gemini 2.0 Pro'},
-      ];
+      return ApiConstants.modelNames.entries.map((entry) => {
+        'id': entry.key,
+        'name': entry.value,
+      }).toList().take(2).toList(); // Just return first 2 models as fallback
     }
   }
 }

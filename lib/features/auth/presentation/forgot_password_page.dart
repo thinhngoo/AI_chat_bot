@@ -1,40 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../../../core/services/auth/auth_service.dart';
-import '../../../core/utils/errors/error_utils.dart';
-import '../../../widgets/auth/password_requirement_widget.dart';
+import '../../../core/utils/validators/password_validator.dart';
+import '../../../widgets/auth/auth_widgets.dart';
 import 'login_page.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
 
   @override
-  ForgotPasswordPageState createState() => ForgotPasswordPageState();
+  State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
 }
 
-class ForgotPasswordPageState extends State<ForgotPasswordPage> {
+class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final TextEditingController _emailController = TextEditingController();
   final AuthService _authService = AuthService();
   final Logger _logger = Logger();
   
   bool _isLoading = false;
+  bool _isSuccess = false;
   String? _errorMessage;
-  bool _resetEmailSent = false;
 
   Future<void> _resetPassword() async {
-    final email = _emailController.text.trim();
+    // Hide keyboard
+    FocusScope.of(context).unfocus();
     
-    // Basic validation
-    if (email.isEmpty) {
+    // Validate email
+    if (_emailController.text.trim().isEmpty) {
       setState(() {
-        _errorMessage = 'Vui lòng nhập địa chỉ email';
+        _errorMessage = 'Vui lòng nhập email';
       });
       return;
     }
     
-    if (!_isValidEmail(email)) {
+    if (!PasswordValidator.isValidEmail(_emailController.text.trim())) {
       setState(() {
-        _errorMessage = 'Vui lòng nhập địa chỉ email hợp lệ';
+        _errorMessage = 'Email không hợp lệ';
       });
       return;
     }
@@ -45,39 +46,45 @@ class ForgotPasswordPageState extends State<ForgotPasswordPage> {
     });
     
     try {
-      await _authService.sendPasswordResetEmail(email);
+      _logger.i('Sending password reset email to: ${_emailController.text}');
       
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _resetEmailSent = true;
-        });
-      }
+      // Call auth service to send password reset email
+      await _authService.sendPasswordResetEmail(_emailController.text.trim());
       
-      _logger.i('Password reset email sent to $email');
+      if (!mounted) return;
+      
+      _logger.i('Password reset email sent successfully');
+      
+      setState(() {
+        _isLoading = false;
+        _isSuccess = true;
+      });
     } catch (e) {
-      final error = ErrorUtils.getAuthErrorInfo(e.toString());
+      _logger.e('Error sending password reset email: $e');
       
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = error.message;
-        });
+      if (!mounted) return;
+      
+      String errorMsg;
+      
+      // Check for common API errors
+      if (e.toString().contains('user not found') || 
+          e.toString().contains('not found') ||
+          e.toString().contains('no user')) {
+        errorMsg = 'Không tìm thấy tài khoản với email này. Vui lòng kiểm tra lại email.';
+      } else if (e.toString().contains('network') || e.toString().contains('connect')) {
+        errorMsg = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet của bạn.';
+      } else if (e.toString().contains('Not implemented')) {
+        errorMsg = 'Tính năng này hiện không khả dụng với Jarvis API. Vui lòng liên hệ quản trị viên để được hỗ trợ.';
+      } else {
+        // Use a more user-friendly error message
+        errorMsg = 'Đã xảy ra lỗi: ${e.toString()}';
       }
       
-      _logger.e('Failed to send password reset email: $e');
+      setState(() {
+        _errorMessage = errorMsg;
+        _isLoading = false;
+      });
     }
-  }
-
-  bool _isValidEmail(String email) {
-    final emailRegExp = RegExp(r'^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+');
-    return emailRegExp.hasMatch(email);
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    super.dispose();
   }
 
   @override
@@ -85,22 +92,18 @@ class ForgotPasswordPageState extends State<ForgotPasswordPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quên mật khẩu'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
       ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(24.0),
           child: Card(
-            elevation: 4.0,
+            elevation: 4,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16.0),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Padding(
               padding: const EdgeInsets.all(24.0),
-              child: _resetEmailSent ? _buildSuccessContent() : _buildResetForm(),
+              child: _isSuccess ? _buildSuccessContent() : _buildRequestContent(),
             ),
           ),
         ),
@@ -108,41 +111,27 @@ class ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  Widget _buildResetForm() {
+  Widget _buildRequestContent() {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Đặt lại mật khẩu',
+          'Khôi phục mật khẩu',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
-          textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         const Text(
           'Nhập địa chỉ email của bạn để nhận liên kết đặt lại mật khẩu',
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
         
-        TextFormField(
+        EmailField(
           controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: 'Email',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.email),
-          ),
-          onChanged: (_) {
-            if (_errorMessage != null) {
-              setState(() {
-                _errorMessage = null;
-              });
-            }
-          },
+          onChanged: (_) => setState(() => _errorMessage = null),
         ),
         
         if (_errorMessage != null) ...[
@@ -156,14 +145,10 @@ class ForgotPasswordPageState extends State<ForgotPasswordPage> {
         
         const SizedBox(height: 24),
         
-        SizedBox(
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _resetPassword,
-            child: _isLoading 
-              ? const CircularProgressIndicator()
-              : const Text('Gửi liên kết đặt lại'),
-          ),
+        SubmitButton(
+          label: 'Gửi liên kết đặt lại',
+          onPressed: _resetPassword,
+          isLoading: _isLoading,
         ),
         
         const SizedBox(height: 16),
@@ -207,19 +192,13 @@ class ForgotPasswordPageState extends State<ForgotPasswordPage> {
           style: TextStyle(fontStyle: FontStyle.italic),
         ),
         
-        // Use the standardized requirements widget
-        const SizedBox(height: 24),
-        _buildPasswordRequirements(),
-        
         const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-              );
+              Navigator.of(context).pop();
             },
             child: const Text('Quay lại đăng nhập'),
           ),
@@ -228,39 +207,9 @@ class ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  // For displaying static password requirements:
-  Widget _buildPasswordRequirements() {
-    return PasswordRequirementWidget(
-      password: '',
-      showTitle: true,
-    );
-  }
-}
-
-/// Widget to display a single password requirement item
-class PasswordRequirementItem extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const PasswordRequirementItem({
-    super.key,
-    required this.icon,
-    required this.text,
-  });
-
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.green),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(text),
-          ),
-        ],
-      ),
-    );
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
   }
 }

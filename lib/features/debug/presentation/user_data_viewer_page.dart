@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../core/services/api/jarvis_api_service.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../tools/windows_user_data_tool.dart';
+import '../../../core/constants/api_constants.dart';
 
 class UserDataViewerPage extends StatefulWidget {
   const UserDataViewerPage({super.key});
@@ -319,9 +320,9 @@ class _UserDataViewerPageState extends State<UserDataViewerPage> {
   Future<void> _clearTokens() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('jarvis_access_token');
-      await prefs.remove('jarvis_refresh_token');
-      await prefs.remove('jarvis_user_id');
+      await prefs.remove(ApiConstants.accessTokenKey);
+      await prefs.remove(ApiConstants.refreshTokenKey);
+      await prefs.remove(ApiConstants.userIdKey);
       
       if (!mounted) return;
       

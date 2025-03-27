@@ -3,6 +3,7 @@ import '../../models/chat/chat_session.dart';
 import '../../models/chat/message.dart';
 import '../api/jarvis_api_service.dart';
 import '../auth/auth_service.dart';
+import '../../constants/api_constants.dart';
 
 class JarvisChatService {
   final Logger _logger = Logger();
@@ -105,15 +106,15 @@ class JarvisChatService {
       final isLoggedIn = await _authService.isLoggedIn();
       if (!isLoggedIn) {
         _logger.w('No user logged in, returning default model');
-        return 'gemini-2.0-flash'; // Default model
+        return ApiConstants.defaultModel;
       }
       
       // Get user profile to extract selected model
       final user = await _apiService.getCurrentUser();
-      return user?.selectedModel ?? 'gemini-2.0-flash'; // Default model if not set
+      return user?.selectedModel ?? ApiConstants.defaultModel;
     } catch (e) {
       _logger.e('Error getting user selected model: $e');
-      return 'gemini-2.0-flash'; // Default model on error
+      return ApiConstants.defaultModel;
     }
   }
   

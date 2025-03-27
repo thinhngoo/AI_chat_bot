@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:logger/logger.dart';
 import 'jarvis_api_service.dart';
+import '../../constants/api_constants.dart';
 
 /// API Service that wraps JarvisApiService to maintain compatibility with existing code
 class ApiService {
@@ -16,16 +17,10 @@ class ApiService {
   }
   
   // Current model settings
-  String _currentModel = 'gemini-2.0-flash';
+  String _currentModel = ApiConstants.defaultModel;
   bool _useFallbackResponses = false;
   
-  // Model names for UI display
-  static const Map<String, String> modelNames = {
-    'gemini-2.0-flash': 'Gemini 2.0 Flash',
-    'gemini-2.0-pro': 'Gemini 2.0 Pro',
-    'claude-3-5-sonnet': 'Claude 3.5 Sonnet',
-    'gpt-4o': 'GPT-4o',
-  };
+  // Model names are now in ApiConstants
   
   Future<void> _initialize() async {
     await _jarvisApi.initialize();
@@ -53,12 +48,12 @@ class ApiService {
   
   // Set the model to use
   void setModel(String modelId) {
-    if (modelNames.containsKey(modelId)) {
+    if (ApiConstants.modelNames.containsKey(modelId)) {
       _currentModel = modelId;
       _logger.i('Model set to: $modelId');
     } else {
       _logger.w('Unknown model ID: $modelId, using default');
-      _currentModel = 'gemini-2.0-flash';
+      _currentModel = ApiConstants.defaultModel;
     }
     
     // Optional: Inform the API service about the model change
@@ -142,7 +137,7 @@ class ApiService {
   
   // Get available models
   List<Map<String, String>> getAvailableModels() {
-    return modelNames.entries.map((entry) => {
+    return ApiConstants.modelNames.entries.map((entry) => {
       'id': entry.key,
       'name': entry.value,
     }).toList();

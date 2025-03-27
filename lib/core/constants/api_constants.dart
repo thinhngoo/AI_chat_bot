@@ -9,14 +9,39 @@ class ApiConstants {
   static const String stackJwksUrl = 'https://api.stack-auth.com/api/v1/projects/fdd3c88a-6321-4a07-ba47-d94ed8725c92/.well-known/jwks.json';
   
   // API URLs
-  static const String authApiUrl = 'https://app.stack-auth.com/api/v1';
+  static const String authApiUrl = 'https://api.stack-auth.com/api';
   static const String jarvisApiUrl = 'https://api.jarvis.cx';
   static const String knowledgeApiUrl = 'https://knowledge-api.jarvis.cx';
   
   // Verification callback URL
   static const String verificationCallbackUrl = 'https://auth.dev.jarvis.cx/handler/email-verification?after_auth_return_to=%2Fauth%2Fsignin%3Fclient_id%3Djarvis_chat%26redirect%3Dhttps%253A%252F%252Fchat.dev.jarvis.cx%252Fauth%252Foauth%252Fsuccess';
   
-  // The Jarvis API key will still need to come from .env
-  // but we can add a default test key for development environments
+  // Default API key for development environments
   static const String defaultApiKey = 'test_jarvis_api_key_for_development_only';
+  
+  // API endpoints
+  static const String authPasswordSignUp = '/v1/auth/password/sign-up';
+  static const String authPasswordSignIn = '/v1/auth/password/sign-in';
+  static const String authSessionRefresh = '/v1/auth/sessions/current/refresh';
+  static const String authSessionCurrent = '/v1/auth/sessions/current';
+  static const String authEmailVerificationStatus = '/v1/auth/email/verification/status';
+  static const String userProfile = '/user/profile';
+  static const String userChangePassword = '/user/change-password';
+  static const String conversations = '/conversations';
+  static const String status = '/status';
+  static const String models = '/models';
+  
+  // Model constants
+  static const String defaultModel = 'gemini-2.0-flash';
+  static const Map<String, String> modelNames = {
+    'gemini-2.0-flash': 'Gemini 2.0 Flash',
+    'gemini-2.0-pro': 'Gemini 2.0 Pro',
+    'claude-3-5-sonnet': 'Claude 3.5 Sonnet',
+    'gpt-4o': 'GPT-4o',
+  };
+  
+  // Storage keys
+  static const String accessTokenKey = 'jarvis_access_token';
+  static const String refreshTokenKey = 'jarvis_refresh_token';
+  static const String userIdKey = 'jarvis_user_id';
 }
