@@ -4,10 +4,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/api/jarvis_api_service.dart';
 import '../../../core/services/auth/auth_service.dart';
-import '../../../core/utils/diagnostics/platform_checker.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../tools/windows_user_data_tool.dart';
-import 'windows_user_data_viewer.dart';
 
 class UserDataViewerPage extends StatefulWidget {
   const UserDataViewerPage({super.key});
@@ -22,6 +20,7 @@ class _UserDataViewerPageState extends State<UserDataViewerPage> with SingleTick
   final JarvisApiService _apiService = JarvisApiService();
   
   late TabController _tabController;
+  
   Map<String, dynamic> _userData = {};
   Map<String, dynamic> _apiConfig = {};
   Map<String, dynamic> _envConfig = {};
@@ -61,11 +60,7 @@ class _UserDataViewerPageState extends State<UserDataViewerPage> with SingleTick
       
       setState(() {
         if (user != null) {
-          if (user is Map) {
-            _userData = Map<String, dynamic>.from(user as Map);
-          } else {
-            _userData = user.toMap();
-          }
+          _userData = user.toMap(); // Use toMap() directly without checking type
         } else {
           _userData = {'status': 'No user logged in'};
         }
@@ -156,30 +151,42 @@ class _UserDataViewerPageState extends State<UserDataViewerPage> with SingleTick
                   _buildDivider(),
                   _buildSection('Environment Variables', _envConfig),
                   _buildDivider(),
-                  Text(
-                    'SharedPreferences Path:',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Stored Users',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('SharedPreferences Path: $_prefsPath'),
+                              const SizedBox(height: 8),
+                              _buildStoredUsersList(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(_prefsPath),
                   _buildDivider(),
-                  Text(
-                    'Stored Users (${_storedUsers.length}):',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  _buildStoredUsersList(),
-                  _buildDivider(),
-                  ElevatedButton(
-                    onPressed: _testConnection,
-                    child: const Text('Test API Connection'),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _clearTokens,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Clear Auth Tokens'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: _testConnection,
+                        child: const Text('Test API Connection'),
+                      ),
+                      ElevatedButton(
+                        onPressed: _clearTokens,
+                        child: const Text('Clear Auth Tokens'),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -201,23 +208,22 @@ class _UserDataViewerPageState extends State<UserDataViewerPage> with SingleTick
             padding: const EdgeInsets.all(8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: data.entries.map((entry) {
+              children: data.entries.map<Widget>((entry) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4.0),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(
-                        width: 150,
+                      Expanded(
+                        flex: 1,
                         child: Text(
                           '${entry.key}:',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                       Expanded(
-                        child: Text(
-                          _formatValue(entry.value),
-                        ),
+                        flex: 2,
+                        child: Text(_formatValue(entry.value)),
                       ),
                     ],
                   ),

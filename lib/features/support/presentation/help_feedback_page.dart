@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../core/services/auth/auth_service.dart';
 
 class HelpFeedbackPage extends StatefulWidget {
   const HelpFeedbackPage({super.key});
@@ -13,17 +12,16 @@ class HelpFeedbackPage extends StatefulWidget {
 class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
   final Logger _logger = Logger();
   final TextEditingController _feedbackController = TextEditingController();
-  final AuthService _authService = AuthService();
   bool _isSendingFeedback = false;
   bool _showThankYou = false;
   final String _supportEmail = 'support@jarvis.cx';
-  
+
   @override
   void dispose() {
     _feedbackController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _sendFeedback() async {
     if (_feedbackController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -31,24 +29,24 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
       );
       return;
     }
-    
+
     setState(() {
       _isSendingFeedback = true;
     });
-    
+
     try {
       // Here you would typically send the feedback to your backend
       // For now, we'll just simulate a successful submission
       await Future.delayed(const Duration(seconds: 2));
-      
+
       if (!mounted) return;
-      
+
       setState(() {
         _isSendingFeedback = false;
         _showThankYou = true;
         _feedbackController.clear();
       });
-      
+
       // Reset thank you message after a delay
       Future.delayed(const Duration(seconds: 3), () {
         if (mounted) {
@@ -60,17 +58,17 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
     } catch (e) {
       _logger.e('Error sending feedback: $e');
       if (!mounted) return;
-      
+
       setState(() {
         _isSendingFeedback = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error sending feedback: $e')),
       );
     }
   }
-  
+
   Future<void> _sendEmailToSupport() async {
     final Uri emailUri = Uri(
       scheme: 'mailto',
@@ -80,7 +78,7 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
         'body': 'Hi Support Team,\n\nI need help with the following issue:\n\n',
       }),
     );
-    
+
     try {
       if (await canLaunchUrl(emailUri)) {
         await launchUrl(emailUri);
@@ -93,19 +91,19 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
     } catch (e) {
       _logger.e('Error launching email: $e');
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
   }
-  
+
   String? _encodeQueryParameters(Map<String, String> params) {
     return params.entries
         .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
         .join('&');
   }
-  
+
   void _viewFAQ() {
     // In a real app, you would navigate to a FAQ page
     // For now, we'll just show a dialog with some sample FAQs
@@ -122,22 +120,22 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
               SizedBox(height: 4),
               Text('A: Tap the "+" button on the home screen to start a new chat.'),
               SizedBox(height: 12),
-              
+
               Text('Q: How do I change the AI model?', style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height: 4),
               Text('A: Tap the model selector in the top-right corner of the screen and choose your preferred model.'),
               SizedBox(height: 12),
-              
+
               Text('Q: How do I delete a chat?', style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height: 4),
               Text('A: Swipe left on a chat or tap the delete icon next to it.'),
               SizedBox(height: 12),
-              
+
               Text('Q: Is my data secure?', style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height: 4),
               Text('A: Yes, we encrypt all communications and do not store your chat data permanently.'),
               SizedBox(height: 12),
-              
+
               Text('Q: How do I reset my password?', style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height: 4),
               Text('A: Go to the login screen and tap "Forgot Password" to receive a password reset link.'),
@@ -153,7 +151,7 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
       ),
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -180,15 +178,15 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     ListTile(
                       leading: const Icon(Icons.question_answer),
                       title: const Text('View FAQ'),
                       onTap: _viewFAQ,
                     ),
-                    
+
                     const Divider(),
-                    
+
                     ListTile(
                       leading: const Icon(Icons.email),
                       title: const Text('Contact Support'),
@@ -199,9 +197,9 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Feedback Section
             Card(
               child: Padding(
@@ -224,7 +222,7 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     TextField(
                       controller: _feedbackController,
                       decoration: const InputDecoration(
@@ -233,9 +231,9 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
                       ),
                       maxLines: 5,
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     if (_showThankYou)
                       Container(
                         padding: const EdgeInsets.all(8),
@@ -251,9 +249,9 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
                           ],
                         ),
                       ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -273,9 +271,9 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // App Information
             Card(
               child: Padding(
@@ -291,15 +289,15 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     const ListTile(
                       leading: Icon(Icons.info),
                       title: Text('Version'),
                       subtitle: Text('1.0.0'),
                     ),
-                    
+
                     const Divider(),
-                    
+
                     ListTile(
                       leading: const Icon(Icons.description),
                       title: const Text('Terms of Service'),
@@ -307,9 +305,9 @@ class _HelpFeedbackPageState extends State<HelpFeedbackPage> {
                         // Navigate to Terms of Service
                       },
                     ),
-                    
+
                     const Divider(),
-                    
+
                     ListTile(
                       leading: const Icon(Icons.privacy_tip),
                       title: const Text('Privacy Policy'),

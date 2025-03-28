@@ -1,75 +1,93 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:logger/logger.dart';
+import 'package:path_provider/path_provider.dart';
 
-/// Helper class for Windows-specific user data operations
+/// Utility for managing user data stored in SharedPreferences
+/// Particularly useful for debugging on Windows platform
 class WindowsUserDataTool {
   static final Logger _logger = Logger();
   
-  /// Get the path to the SharedPreferences file
+  /// Get the path where SharedPreferences are stored
   static Future<String?> getSharedPreferencesPath() async {
     try {
-      if (!Platform.isWindows) {
-        return 'Not running on Windows';
-      }
-      
-      final appDataDir = await getApplicationSupportDirectory();
-      return appDataDir.path;
+      // Get application support directory
+      final directory = await getApplicationSupportDirectory();
+      return directory.path;
     } catch (e) {
       _logger.e('Error getting SharedPreferences path: $e');
       return null;
     }
   }
   
-  /// Get list of stored users
+  /// Get a list of all stored users
   static Future<List<Map<String, dynamic>>> getStoredUsers() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final usersJson = prefs.getString('users');
+      final allKeys = prefs.getKeys();
       
-      if (usersJson == null || usersJson.isEmpty) {
-        return [];
+      // Look for keys that appear to be user-related
+      final userKeys = allKeys.where((key) => 
+        key.contains('user') || 
+        key.contains('auth') ||
+        key.contains('token') ||
+        key.contains('current')
+      ).toList();
+      
+      final users = <Map<String, dynamic>>[];
+      
+      // Special handling for current users
+      final currentUserJson = prefs.getString('currentUser');
+      if (currentUserJson != null) {
+        try {
+          // Add current user
+          users.add({
+            'type': 'Current User',
+            'email': _extractEmailFromJson(currentUserJson),
+            'uid': _extractUidFromJson(currentUserJson),
+            'source': 'currentUser'
+          });
+        } catch (e) {
+          _logger.e('Error parsing current user: $e');
+        }
       }
       
-      final List<dynamic> decoded = jsonDecode(usersJson);
-      return decoded.map((user) => Map<String, dynamic>.from(user)).toList();
+      // Get tokens for diagnostics
+      final accessToken = prefs.getString('jarvis_access_token');
+      final refreshToken = prefs.getString('jarvis_refresh_token');
+      final userId = prefs.getString('jarvis_user_id');
+      
+      if (accessToken != null && userId != null) {
+        users.add({
+          'type': 'Active Session',
+          'email': 'Unknown',
+          'uid': userId,
+          'hasAccessToken': accessToken.isNotEmpty,
+          'hasRefreshToken': refreshToken != null && refreshToken.isNotEmpty,
+          'source': 'jarvis_tokens'
+        });
+      }
+      
+      // Get stored users from other sources
+      for (final key in userKeys) {
+        if (key == 'currentUser' || key.startsWith('jarvis_')) continue; // Skip already handled keys
+        
+        final value = prefs.getString(key);
+        if (value != null) {
+          users.add({
+            'type': 'Stored Data',
+            'key': key,
+            'value': value.length > 30 ? '${value.substring(0, 30)}...' : value,
+            'source': key
+          });
+        }
+      }
+      
+      return users;
     } catch (e) {
       _logger.e('Error getting stored users: $e');
       return [];
-    }
-  }
-  
-  /// Add a user to SharedPreferences
-  static Future<bool> addUser(Map<String, dynamic> userData) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final usersJson = prefs.getString('users');
-      
-      List<dynamic> users = [];
-      if (usersJson != null && usersJson.isNotEmpty) {
-        users = jsonDecode(usersJson);
-      }
-      
-      // Check if user already exists
-      final existingUserIndex = users.indexWhere((user) => 
-        user['email'] == userData['email']);
-      
-      if (existingUserIndex >= 0) {
-        // Update existing user
-        users[existingUserIndex] = userData;
-      } else {
-        // Add new user
-        users.add(userData);
-      }
-      
-      // Save updated users list
-      await prefs.setString('users', jsonEncode(users));
-      return true;
-    } catch (e) {
-      _logger.e('Error adding user: $e');
-      return false;
     }
   }
   
@@ -77,16 +95,19 @@ class WindowsUserDataTool {
   static Future<bool> removeUser(String email) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final usersJson = prefs.getString('users');
       
-      if (usersJson == null || usersJson.isEmpty) {
-        return false;
+      // Look for user in currentUser
+      final currentUserJson = prefs.getString('currentUser');
+      if (currentUserJson != null && _extractEmailFromJson(currentUserJson) == email) {
+        await prefs.remove('currentUser');
       }
       
-      List<dynamic> users = jsonDecode(usersJson);
-      users.removeWhere((user) => user['email'] == email);
+      // Also remove tokens if we're removing the active user
+      await prefs.remove('jarvis_access_token');
+      await prefs.remove('jarvis_refresh_token');
+      await prefs.remove('jarvis_user_id');
       
-      await prefs.setString('users', jsonEncode(users));
+      _logger.i('Removed user with email: $email');
       return true;
     } catch (e) {
       _logger.e('Error removing user: $e');
@@ -98,11 +119,53 @@ class WindowsUserDataTool {
   static Future<bool> clearAllUsers() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('users', '[]');
+      
+      // Remove all user-related keys
+      await prefs.remove('currentUser');
+      await prefs.remove('jarvis_access_token');
+      await prefs.remove('jarvis_refresh_token');
+      await prefs.remove('jarvis_user_id');
+      
+      _logger.i('Cleared all users');
       return true;
     } catch (e) {
       _logger.e('Error clearing all users: $e');
       return false;
+    }
+  }
+  
+  // Helper methods to extract email and UID from JSON
+  static String _extractEmailFromJson(String json) {
+    try {
+      // Check if json contains email field
+      if (json.contains('"email"')) {
+        // Extract the email value
+        final regExp = RegExp(r'"email"\s*:\s*"([^"]+)"');
+        final match = regExp.firstMatch(json);
+        if (match != null && match.groupCount >= 1) {
+          return match.group(1) ?? 'Unknown';
+        }
+      }
+      return 'Unknown';
+    } catch (e) {
+      return 'Error extracting email';
+    }
+  }
+  
+  static String _extractUidFromJson(String json) {
+    try {
+      // Check if json contains uid field
+      if (json.contains('"uid"')) {
+        // Extract the uid value
+        final regExp = RegExp(r'"uid"\s*:\s*"([^"]+)"');
+        final match = regExp.firstMatch(json);
+        if (match != null && match.groupCount >= 1) {
+          return match.group(1) ?? 'Unknown';
+        }
+      }
+      return 'Unknown';
+    } catch (e) {
+      return 'Error extracting UID';
     }
   }
 }
@@ -186,9 +249,9 @@ void _listUsers(List<Map<String, dynamic>> users, Logger logger) {
   logger.i('\nDanh sách người dùng:');
   for (int i = 0; i < users.length; i++) {
     final user = users[i];
-    final email = user['email'] ?? 'Không có email';
-    final name = user['name'] ?? 'Không có tên';
-    logger.i('${i + 1}. $email (Tên: $name)');
+    final key = user['key'] ?? 'Không có key';
+    final value = user['value'] ?? 'Không có giá trị';
+    logger.i('${i + 1}. $key (Giá trị: $value)');
   }
 }
 
@@ -235,13 +298,13 @@ Future<void> _deleteUser(List<Map<String, dynamic>> users, Logger logger) async 
     }
     
     final user = users[index];
-    final email = user['email'] ?? 'Không có email';
+    final key = user['key'] ?? 'Không có key';
     
-    stdout.write('Bạn có chắc chắn muốn xóa người dùng "$email"? (y/n): ');
+    stdout.write('Bạn có chắc chắn muốn xóa người dùng với key "$key"? (y/n): ');
     final confirm = stdin.readLineSync()?.toLowerCase();
     
     if (confirm == 'y' || confirm == 'yes') {
-      final success = await WindowsUserDataTool.removeUser(email);
+      final success = await WindowsUserDataTool.removeUser(key);
       if (success) {
         users.removeAt(index);
         logger.i('Đã xóa người dùng.');

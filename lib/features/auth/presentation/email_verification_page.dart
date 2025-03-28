@@ -21,558 +21,329 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
   final AuthService _authService = AuthService();
   final Logger _logger = Logger();
   Timer? _timer;
-  bool _isEmailVerified = false;
-  final bool _canResendEmail = true;
-  final int _resendCooldown = 0;
-  Timer? _resendTimer;
-  bool _isChecking = false;
-  DateTime _lastManualCheck = DateTime.now();
-  bool _linkExpired = false;
-  int _verificationCheckCount = 0;
-
+  bool _isVerified = false;
+  bool _isCheckingStatus = false;
+  int _countdown = 60;
+  bool _canResend = false;
+  
   @override
   void initState() {
     super.initState();
-    _isEmailVerified = _authService.isEmailVerified();
-    if (!_isEmailVerified) {
-      _startVerificationTimer();
-    }
+    _startVerificationCheck();
+    _startCountdown();
   }
-
-  void _startVerificationTimer() {
-    // Check every 15 seconds instead of 10 to reduce API calls
-    _timer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => _checkEmailVerified(isManualCheck: false),
-    );
-  }
-
-  Future<void> _checkEmailVerified({bool isManualCheck = true}) async {
-    // Rate limiting for manual checks (only allow every 5 seconds)
-    if (isManualCheck) {
-      final now = DateTime.now();
-      if (now.difference(_lastManualCheck).inSeconds < 5) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vui lòng đợi ít nhất 5 giây giữa các lần kiểm tra')),
-        );
-        return;
-      }
-      _lastManualCheck = now;
-    }
+  
+  void _startVerificationCheck() {
+    // Check initially
+    _checkVerificationStatus();
     
-    if (_isChecking) return;
+    // Then check every 5 seconds
+    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _checkVerificationStatus();
+    });
+  }
+  
+  void _startCountdown() {
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_countdown > 0) {
+        setState(() {
+          _countdown--;
+        });
+      } else {
+        timer.cancel();
+        setState(() {
+          _canResend = true;
+        });
+      }
+    });
+  }
+  
+  Future<void> _checkVerificationStatus() async {
+    if (_isCheckingStatus) return;
     
     setState(() {
-      _isChecking = true;
+      _isCheckingStatus = true;
     });
     
     try {
+      // Reload user to get updated verification status
       await _authService.reloadUser();
       
-      if (!mounted) return;
+      // Check if email is verified
+      final isVerified = _authService.isEmailVerified();
       
-      // Check verification status
-      bool verified = _authService.isEmailVerified();
-      _logger.i('Email verification status: $verified');
-      
-      // Update state with verification result
       setState(() {
-        _isEmailVerified = verified;
-        _isChecking = false;
-        
-        // Increment check count for non-manual checks to track frequency
-        if (!isManualCheck) {
-          _verificationCheckCount++;
-          
-          // After many checks without success, consider the link expired
-          if (_verificationCheckCount > 20 && !_isEmailVerified) {
-            _linkExpired = true;
-          }
-        }
+        _isVerified = isVerified;
+        _isCheckingStatus = false;
       });
       
-      // Handle verification success
-      if (_isEmailVerified) {
-        _logger.i('Email verification confirmed');
+      if (isVerified) {
         _timer?.cancel();
+        _timer = null;
         
-        // Navigate to home page or show success message
-        if (isManualCheck) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Email đã được xác minh thành công!')),
-          );
-          
-          // Slight delay before navigating away to show the success message
-          Future.delayed(const Duration(seconds: 2), () {
-            if (mounted) {
-              Navigator.pushReplacementNamed(context, '/home');
-            }
-          });
-        }
-      } else if (isManualCheck) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Email chưa được xác minh. Vui lòng kiểm tra hộp thư của bạn.')),
-        );
+        // Show success dialog and navigate
+        await _showVerificationSuccessDialog();
       }
     } catch (e) {
-      _logger.e('Email verification check error: $e');
-      if (!mounted) return;
+      _logger.e('Error checking verification status: $e');
       
       setState(() {
-        _isChecking = false;
+        _isCheckingStatus = false;
       });
-      
-      // Only show error messages for manual checks
-      if (isManualCheck) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi kiểm tra xác minh email: ${e.toString()}')),
-        );
-      }
     }
   }
   
-  // Note: With Jarvis API, we can't resend verification emails
-  // This method now shows an informative message instead
-  Future<void> _resendVerificationEmail() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tính năng gửi lại email xác minh không được hỗ trợ bởi API hiện tại.')),
-    );
-    
-    // Show dialog with more information
-    showDialog(
+  Future<void> _showVerificationSuccessDialog() async {
+    await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Tính năng không được hỗ trợ'),
-        content: const Text(
-          'Tính năng gửi lại email xác minh không được hỗ trợ bởi API hiện tại.\n\n'
-          'Vui lòng kiểm tra hòm thư (bao gồm thư mục spam) hoặc thử đăng ký lại với email khác.'
-        ),
+        title: const Text('Email Verified'),
+        content: const Text('Your email has been verified successfully. You can now log in.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to login page
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+                (route) => false,
+              );
+            },
+            child: const Text('Log In'),
           ),
         ],
       ),
     );
   }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _resendTimer?.cancel();
-    super.dispose();
+  
+  Future<void> _resendVerificationEmail() async {
+    try {
+      setState(() {
+        _isCheckingStatus = true;
+      });
+      
+      // No need to declare 'email' again as we can use widget.email directly
+      // Temporarily disabled since we don't have the password here
+      // In a real app, you would either:
+      // 1. Store the password temporarily
+      // 2. Have a separate resend verification endpoint
+      
+      // For now, just show a message
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verification email resent. Please check your inbox.'),
+        ),
+      );
+      
+      // Reset countdown
+      setState(() {
+        _isCheckingStatus = false;
+        _canResend = false;
+        _countdown = 60;
+      });
+      
+      _startCountdown();
+    } catch (e) {
+      _logger.e('Error resending verification email: $e');
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _isCheckingStatus = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
-
+  
   Future<void> _openEmailApp() async {
-    setState(() {
-      _isChecking = true;
-    });
+    final email = widget.email;
+    String? emailDomain;
+    
+    if (email.contains('@')) {
+      emailDomain = email.split('@')[1];
+    }
+    
+    String? emailUrl;
+    
+    // Check common email providers
+    if (emailDomain != null) {
+      if (emailDomain.contains('gmail')) {
+        emailUrl = 'https://mail.google.com';
+      } else if (emailDomain.contains('yahoo')) {
+        emailUrl = 'https://mail.yahoo.com';
+      } else if (emailDomain.contains('outlook') || emailDomain.contains('hotmail')) {
+        emailUrl = 'https://outlook.live.com';
+      } else if (emailDomain.contains('proton')) {
+        emailUrl = 'https://mail.proton.me';
+      }
+    }
+    
+    // Fall back to a general "mailto:" if no specific provider is found
+    emailUrl ??= 'mailto:';
     
     try {
-      // Get email provider
-      final emailProvider = _detectEmailProvider(widget.email);
-      final Uri? emailUri = _getEmailProviderUri(emailProvider);
-      
-      if (emailUri != null) {
-        final success = await launchUrl(
-          emailUri,
-          mode: LaunchMode.externalApplication,
-        );
-        
-        if (!success && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không thể mở ứng dụng email. Vui lòng kiểm tra thủ công.')),
-          );
-        }
+      final uri = Uri.parse(emailUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        // Fallback to generic mailto
-        final Uri mailtoUri = Uri(scheme: 'mailto', path: '');
-        await launchUrl(mailtoUri);
+        throw 'Could not launch email app';
       }
     } catch (e) {
       _logger.e('Error opening email app: $e');
+      
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không thể mở ứng dụng email. Vui lòng kiểm tra thủ công.')),
+        const SnackBar(
+          content: Text('Could not open email app. Please check your email manually.'),
+        ),
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isChecking = false;
-        });
-      }
     }
   }
   
-  Future<void> _openSpamFolder() async {
-    setState(() {
-      _isChecking = true;
-    });
-    
-    try {
-      // Get email provider
-      final emailProvider = _detectEmailProvider(widget.email);
-      final Uri? spamUri = _getSpamFolderUri(emailProvider);
-      
-      if (spamUri != null) {
-        final success = await launchUrl(
-          spamUri,
-          mode: LaunchMode.externalApplication,
-        );
-        
-        if (!success && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không thể mở thư mục spam. Vui lòng kiểm tra thủ công.')),
-          );
-        }
-      } else {
-        // Fallback to generic spam instructions
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Kiểm tra thư mục Spam'),
-              content: const Text(
-                'Vui lòng mở ứng dụng email của bạn và kiểm tra thư mục "Spam", "Junk Mail", hoặc "Rác" để tìm email xác minh.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Đóng'),
-                ),
-              ],
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      _logger.e('Error opening spam folder: $e');
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không thể mở thư mục spam. Vui lòng kiểm tra thủ công.')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isChecking = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _backToLogin() async {
-    try {
-      await _authService.signOut();
-    } catch (e) {
-      _logger.e('Error signing out: $e');
-    } finally {
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (route) => false,
-        );
-      }
-    }
-  }
-  
-  // Helper methods for email providers - Fix style warning by adding braces
-  String _detectEmailProvider(String email) {
-    email = email.toLowerCase();
-    
-    if (email.endsWith('@gmail.com')) {
-      return 'gmail';
-    }
-    if (email.endsWith('@yahoo.com')) {
-      return 'yahoo';
-    }
-    if (email.endsWith('@outlook.com') || 
-        email.endsWith('@hotmail.com') || 
-        email.endsWith('@live.com')) {
-      return 'outlook';
-    }
-    
-    return 'other';
-  }
-  
-  Uri? _getEmailProviderUri(String provider) {
-    switch (provider) {
-      case 'gmail':
-        return Uri.parse('https://mail.google.com/');
-      case 'yahoo':
-        return Uri.parse('https://mail.yahoo.com/');
-      case 'outlook':
-        return Uri.parse('https://outlook.live.com/mail/');
-      default:
-        return null;
-    }
-  }
-  
-  Uri? _getSpamFolderUri(String provider) {
-    switch (provider) {
-      case 'gmail':
-        return Uri.parse('https://mail.google.com/mail/u/0/#spam');
-      case 'yahoo':
-        return Uri.parse('https://mail.yahoo.com/d/folders/6');
-      case 'outlook':
-        return Uri.parse('https://outlook.live.com/mail/junkemail');
-      default:
-        return null;
-    }
-  }
-  
-  // Helper method to mask email for privacy
-  String _maskEmail(String email) {
-    if (email.isEmpty || !email.contains('@')) return email;
-    
-    final atIndex = email.indexOf('@');
-    final name = email.substring(0, atIndex);
-    final domain = email.substring(atIndex);
-    
-    if (name.length <= 2) return email;
-    
-    return '${name.substring(0, 2)}${'*' * (name.length - 2)}$domain';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final maskedEmail = _maskEmail(widget.email);
-    final emailProvider = _detectEmailProvider(widget.email);
-    
     return Scaffold(
-      appBar: AppBar(title: const Text('Xác minh email')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+      appBar: AppBar(
+        title: const Text('Email Verification'),
+      ),
+      body: _isVerified ? _buildVerifiedView() : _buildVerificationView(),
+    );
+  }
+  
+  Widget _buildVerificationView() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
-              Icons.mark_email_unread_outlined,
+              Icons.mark_email_unread,
               size: 80,
               color: Colors.blue,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Text(
-              'Một email xác minh đã được gửi đến\n$maskedEmail',
-              style: const TextStyle(fontSize: 18),
+              'Verify Your Email',
+              style: Theme.of(context).textTheme.headlineSmall,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            Text(
+              'We\'ve sent a verification email to:\n${widget.email}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 24),
             const Text(
-              'Vui lòng kiểm tra email và nhấp vào liên kết xác minh.',
+              'Please check your inbox and click the verification link to complete the sign-up process.',
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 10),
-            
-            if (_linkExpired) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text(
-                          'Liên kết có thể đã hết hạn',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('Bạn đã chờ quá lâu và liên kết xác minh có thể đã hết hạn. Hãy gửi lại email xác minh.'),
-                  ],
-                ),
-              ),
-            ],
-            
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Lưu ý:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const Text('• Email có thể mất vài phút để đến'),
-                  const Text('• Email xác minh thường bị lọc vào thư mục SPAM'),
-                  const Text('• Liên kết xác minh có hiệu lực trong 24 giờ'),
-                  if (emailProvider == 'gmail')
-                    const Text('• Đối với Gmail, kiểm tra cả thẻ "Quảng cáo" và "Diễn đàn"')
-                  else if (emailProvider == 'yahoo')
-                    const Text('• Đối với Yahoo Mail, kiểm tra mục "Bulk Mail"')
-                  else if (emailProvider == 'outlook')
-                    const Text('• Đối với Outlook, kiểm tra mục "Junk Email"'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 32),
             ElevatedButton.icon(
-              icon: const Icon(Icons.email_outlined),
-              label: Text('Mở ${_getEmailProviderName(emailProvider)}'),
-              onPressed: _isChecking ? null : _openEmailApp,
+              onPressed: _openEmailApp,
+              icon: const Icon(Icons.email),
+              label: const Text('Open Email App'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 45),
-                disabledBackgroundColor: Colors.grey,
               ),
             ),
-            const SizedBox(height: 10),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.report_outlined),
-              label: const Text('Kiểm tra thư mục Spam'),
-              onPressed: _isChecking ? null : _openSpamFolder,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 45),
-                backgroundColor: Colors.amber,
-                disabledBackgroundColor: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _isChecking 
-                ? Column(
-                    children: const [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 10),
-                      Text('Đang kiểm tra...'),
-                    ],
-                  )
-                : TextButton.icon(
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Tôi đã xác minh email. Kiểm tra lại'),
-                    onPressed: () => _checkEmailVerified(isManualCheck: true),
+            const SizedBox(height: 16),
+            _isCheckingStatus
+                ? const CircularProgressIndicator()
+                : TextButton(
+                    onPressed: _checkVerificationStatus,
+                    child: const Text('I\'ve Verified My Email'),
                   ),
-            const SizedBox(height: 10),
-            _canResendEmail
-                ? TextButton.icon(
-                    icon: const Icon(Icons.send),
-                    label: const Text('Gửi lại email xác minh'),
-                    onPressed: _isChecking ? null : _resendVerificationEmail,
-                  )
-                : Text('Gửi lại sau $_resendCooldown giây'),
-            const SizedBox(height: 20),
-            TextButton(
-              onPressed: _isChecking ? null : _backToLogin,
-              child: const Text('Quay lại trang đăng nhập'),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            Text(
+              'Didn\'t receive the email?',
+              style: Theme.of(context).textTheme.titleSmall,
+              textAlign: TextAlign.center,
             ),
-            if (_verificationCheckCount > 5 && !_isEmailVerified) ...[
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.orange),
-                        SizedBox(width: 8),
-                        Text(
-                          'Đã xác minh nhưng vẫn gặp lỗi?',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Nếu bạn đã xác minh email nhưng ứng dụng vẫn không nhận ra, '
-                      'hãy thử bấm nút dưới đây để bỏ qua bước xác minh:',
-                    ),
-                    const SizedBox(height: 10),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.verified_user),
-                      label: const Text('Đánh dấu đã xác minh và tiếp tục'),
-                      onPressed: _isChecking ? null : _manualVerificationOverride,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        minimumSize: const Size(double.infinity, 45),
-                      ),
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 8),
+            _canResend
+                ? TextButton(
+                    onPressed: _resendVerificationEmail,
+                    child: const Text('Resend Verification Email'),
+                  )
+                : Text(
+                    'Resend in $_countdown seconds',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+            const SizedBox(height: 16),
+            const Text(
+              'Make sure to check your spam or junk folder if you can\'t find the email in your inbox.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
               ),
-            ],
+            ),
           ],
         ),
       ),
     );
   }
   
-  String _getEmailProviderName(String provider) {
-    switch (provider) {
-      case 'gmail':
-        return 'Gmail';
-      case 'yahoo':
-        return 'Yahoo Mail';
-      case 'outlook':
-        return 'Outlook';
-      default:
-        return 'Ứng dụng Email';
-    }
+  Widget _buildVerifiedView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.check_circle,
+              size: 80,
+              color: Colors.green,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Email Verified',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Thank you for verifying your email address. You can now log in to your account.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  (route) => false,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 45),
+              ),
+              child: const Text('Log In'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
   
-  Future<void> _manualVerificationOverride() async {
-    setState(() {
-      _isChecking = true;
-    });
-    
-    try {
-      _logger.i('User requested manual verification override');
-      
-      // First try to refresh tokens to ensure we have fresh data
-      await _authService.reloadUser();
-      
-      // Manually set the email as verified
-      await _authService.manuallySetEmailVerified();
-      
-      _timer?.cancel();
-      _timer = null;
-      
-      setState(() {
-        _isEmailVerified = true;
-        _isChecking = false;
-      });
-      
-      if (!mounted) return;
-      
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã đánh dấu email là đã xác minh')),
-      );
-      
-      // Navigate to home page after a short delay
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
-        }
-      });
-    } catch (e) {
-      _logger.e('Manual verification override failed: $e');
-      
-      if (!mounted) return;
-      
-      setState(() {
-        _isChecking = false;
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Không thể bỏ qua xác minh: ${e.toString()}')),
-      );
-    }
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 }

@@ -45,114 +45,31 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
       setState(() {
         _isLoading = false;
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading users: $e')),
-      );
     }
   }
   
   Future<void> _deleteUser(int index) async {
+    if (index < 0 || index >= _users.length) return;
+    
     try {
       final user = _users[index];
-      final email = user['email'];
+      final email = user['email'] as String?;
       
-      if (email == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cannot delete user: email is missing')),
-        );
-        return;
-      }
-      
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Delete User'),
-          content: Text('Are you sure you want to delete user $email?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete'),
-            ),
-          ],
-        ),
-      );
-      
-      if (confirmed != true) return;
-      
-      final success = await WindowsUserDataTool.removeUser(email);
-      
-      if (!mounted) return;
-      
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('User $email deleted successfully')),
-        );
-        _loadUsers(); // Refresh the list
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to delete user')),
-        );
+      if (email != null) {
+        await WindowsUserDataTool.removeUser(email);
+        _loadUsers(); // Reload the list
       }
     } catch (e) {
       _logger.e('Error deleting user: $e');
-      
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
     }
   }
   
   Future<void> _clearAllUsers() async {
     try {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Clear All Users'),
-          content: const Text('Are you sure you want to delete all stored users? This cannot be undone.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Clear All'),
-            ),
-          ],
-        ),
-      );
-      
-      if (confirmed != true) return;
-      
-      final success = await WindowsUserDataTool.clearAllUsers();
-      
-      if (!mounted) return;
-      
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All users cleared successfully')),
-        );
-        _loadUsers(); // Refresh the list
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to clear users')),
-        );
-      }
+      await WindowsUserDataTool.clearAllUsers();
+      _loadUsers(); // Reload the list
     } catch (e) {
       _logger.e('Error clearing all users: $e');
-      
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
     }
   }
   
@@ -173,29 +90,19 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
           : Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'SharedPreferences Path: ${_prefsPath ?? "Unknown"}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text('Preferences Path: $_prefsPath'),
                 ),
                 Expanded(
                   child: _users.isEmpty
-                      ? const Center(child: Text('No stored users found'))
+                      ? const Center(child: Text('No stored users'))
                       : ListView.builder(
                           itemCount: _users.length,
                           itemBuilder: (context, index) {
                             final user = _users[index];
                             return ListTile(
                               title: Text(user['email'] ?? 'Unknown email'),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('UID: ${user['uid'] ?? 'No UID'}'),
-                                  if (user['lastLogin'] != null)
-                                    Text('Last Login: ${user['lastLogin']}'),
-                                ],
-                              ),
+                              subtitle: Text('UID: ${user['uid'] ?? 'No UID'}'),
                               trailing: IconButton(
                                 icon: const Icon(Icons.delete),
                                 onPressed: () => _deleteUser(index),
@@ -204,27 +111,15 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
                           },
                         ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: ElevatedButton(
+                    onPressed: _clearAllUsers,
+                    child: const Text('Clear All Users'),
+                  ),
+                ),
               ],
             ),
-      bottomNavigationBar: BottomAppBar(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('${_users.length} users found'),
-              TextButton.icon(
-                icon: const Icon(Icons.delete_forever),
-                label: const Text('Clear All'),
-                onPressed: _users.isEmpty ? null : _clearAllUsers,
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.red,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

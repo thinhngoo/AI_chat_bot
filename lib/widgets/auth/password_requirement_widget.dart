@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/utils/validators/password_validator.dart';
 
 class PasswordRequirementWidget extends StatelessWidget {
   final String password;
@@ -13,73 +12,70 @@ class PasswordRequirementWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final requirements = PasswordValidator.getRequirementsText();
-    
-    return Container(
-      padding: const EdgeInsets.all(8.0),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8.0),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (showTitle) ...[
-            const Text(
-              'Yêu cầu mật khẩu:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8.0),
-          ],
-          ...requirements.map(
-            (requirement) => _buildRequirement(
-              requirement,
-              _checkRequirement(requirement, password),
+    final requirements = [
+      {
+        'text': 'Ít nhất 8 ký tự',
+        'isMet': password.length >= 8,
+      },
+      {
+        'text': 'Ít nhất 1 chữ hoa',
+        'isMet': password.contains(RegExp(r'[A-Z]')),
+      },
+      {
+        'text': 'Ít nhất 1 chữ thường',
+        'isMet': password.contains(RegExp(r'[a-z]')),
+      },
+      {
+        'text': 'Ít nhất 1 chữ số',
+        'isMet': password.contains(RegExp(r'[0-9]')),
+      },
+      {
+        'text': 'Ít nhất 1 ký tự đặc biệt',
+        'isMet': password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]')),
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showTitle) ...[
+          const Text(
+            'Yêu cầu mật khẩu:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
             ),
           ),
+          const SizedBox(height: 8),
         ],
-      ),
+        ...requirements.map((req) => _buildRequirement(
+          req['text'] as String,
+          req['isMet'] as bool,
+        )),
+      ],
     );
   }
 
   Widget _buildRequirement(String text, bool isMet) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      padding: const EdgeInsets.only(bottom: 4.0),
       child: Row(
         children: [
           Icon(
             isMet ? Icons.check_circle : Icons.circle_outlined,
             color: isMet ? Colors.green : Colors.grey,
-            size: 16.0,
+            size: 16,
           ),
-          const SizedBox(width: 8.0),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: isMet ? Colors.black : Colors.grey.shade700,
-                fontSize: 12.0,
-              ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              color: isMet ? Colors.green : Colors.grey[700],
+              fontSize: 12,
             ),
           ),
         ],
       ),
     );
-  }
-
-  bool _checkRequirement(String requirement, String password) {
-    if (password.isEmpty) return false;
-    
-    if (requirement.contains('8 ký tự')) {
-      return password.length >= 8;
-    } else if (requirement.contains('chữ hoa') && requirement.contains('chữ thường')) {
-      return password.contains(RegExp(r'[A-Z]')) && password.contains(RegExp(r'[a-z]'));
-    } else if (requirement.contains('chữ số')) {
-      return password.contains(RegExp(r'[0-9]'));
-    } else if (requirement.contains('ký tự đặc biệt')) {
-      return password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
-    }
-    
-    return false;
   }
 }

@@ -118,8 +118,8 @@ class _ChatScreenState extends State<ChatScreen> {
         _scrollToBottom();
       });
       
-      // Send message to service and get user message back
-      final userMessage = await _chatService.sendMessage(
+      // Send message to service - don't store return value since we're not using it
+      await _chatService.sendMessage(
         widget.chatSession.id, 
         text,
       );
@@ -332,7 +332,7 @@ class _ChatScreenState extends State<ChatScreen> {
         decoration: BoxDecoration(
           color: isUser
               ? Theme.of(context).colorScheme.primary
-              : Colors.grey[300],
+              : const Color(0xFFEEEEEE), // Use const Color instead of Colors.grey[300]
           borderRadius: BorderRadius.circular(16),
         ),
         constraints: BoxConstraints(

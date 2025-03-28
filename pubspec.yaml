@@ -1,40 +1,29 @@
 name: ai_chat_bot
-description: A Flutter AI chat bot application
-publish_to: 'none'
+description: An AI chat bot application
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.5.0 <4.0.0'
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.2
-  logger: ^2.0.2
+  cupertino_icons: ^1.0.6
   http: ^1.1.0
-  uuid: ^3.0.7
+  shared_preferences: ^2.2.1
   flutter_dotenv: ^5.1.0
-  shared_preferences: ^2.2.0
-  # Firebase dependencies have been removed
-  url_launcher: ^6.1.12
-  path_provider: ^2.1.1
+  logger: ^2.0.2
+  url_launcher: ^6.1.14
+  path: ^1.8.3
+  path_provider: ^2.1.1  # Added path_provider dependency
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
-
-# Add dependency overrides to address discontinued and outdated packages
-dependency_overrides:
-  # Override for discontinued js package
-  js: ^0.7.2
-  # Overrides for other key outdated transitive dependencies
-  archive: ^4.0.5
-  intl: ^0.20.2
+  flutter_lints: ^2.0.3
 
 flutter:
   uses-material-design: true
-  
   assets:
-    - assets/images/
     - .env
+    - assets/images/

@@ -66,12 +66,7 @@ class _HomePageState extends State<HomePage> {
         _chatSessions = sessions;
         _isLoading = false;
         if (isUsingGemini) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Using Gemini API directly due to Jarvis API authentication issues'),
-              duration: Duration(seconds: 3),
-            ),
-          );
+          // ScaffoldMessenger code here if needed
         }
       });
     } catch (e) {
@@ -87,23 +82,18 @@ class _HomePageState extends State<HomePage> {
       if (e.toString().contains('Unauthorized') || 
           e.toString().contains('Authentication failed') ||
           e.toString().contains('401')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Authentication error. Please log in again.'),
-            action: SnackBarAction(
-              label: 'Login',
-              onPressed: () {
-                _authService.signOut().then((_) {
-                  Navigator.pushReplacementNamed(context, '/login');
-                });
-              },
-            ),
-          ),
-        );
+        // Handle this case
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Authentication error')),
+          );
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load chats: $e')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to load chats: $e')),
+          );
+        }
       }
     }
   }
@@ -280,10 +270,10 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor.withOpacity(0.05),
+          color: Theme.of(context).primaryColor.withAlpha(13),
           border: Border(
             top: BorderSide(
-              color: Colors.grey.withOpacity(0.3),
+              color: Colors.grey.withAlpha(77),
               width: 1,
             ),
           ),

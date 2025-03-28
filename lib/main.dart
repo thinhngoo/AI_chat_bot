@@ -41,28 +41,16 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: _getLandingPage(),
+      home: const AuthCheckPage(),
       routes: {
         '/home': (context) => const HomePage(),
         '/login': (context) => const LoginPage(),
       },
     );
   }
-  
-  Widget _getLandingPage() {
-    // Check if user is already logged in
-    final authService = AuthService();
-    final isLoggedIn = authService.currentUser != null;
-    
-    if (isLoggedIn) {
-      return const HomePage();
-    } else {
-      return const LoginPage();
-    }
-  }
 }
 
-// Add the AuthCheckPage class
+// AuthCheckPage class remains unchanged...
 class AuthCheckPage extends StatefulWidget {
   const AuthCheckPage({super.key});
 

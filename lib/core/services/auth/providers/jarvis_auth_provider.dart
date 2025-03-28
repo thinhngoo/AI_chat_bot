@@ -2,7 +2,6 @@ import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../models/user_model.dart';
 import '../auth_provider_interface.dart';
-import '../../../constants/api_constants.dart';
 import '../../api/jarvis_api_service.dart';
 
 /// Authentication provider using the Jarvis API service

@@ -1,53 +1,23 @@
 import 'package:flutter/material.dart';
-import '../../core/utils/validators/password_validator.dart';
 
-class AuthInputField extends StatelessWidget {
+/// Common widget for email field in authentication forms
+class EmailField extends StatelessWidget {
   final TextEditingController controller;
-  final String labelText;
-  final bool obscureText;
-  final TextInputType keyboardType;
   final Function(String)? onChanged;
-  final String? Function(String?)? validator;
+  final String? errorText;
+  final bool autofocus;
 
-  const AuthInputField({
+  const EmailField({
     super.key,
     required this.controller,
-    required this.labelText,
-    this.obscureText = false,
-    this.keyboardType = TextInputType.text,
     this.onChanged,
-    this.validator,
+    this.errorText,
+    this.autofocus = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextField(
-      controller: controller,
-      decoration: InputDecoration(labelText: labelText),
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      onChanged: onChanged,
-    );
-  }
-}
-
-class EmailField extends StatelessWidget {
-  final TextEditingController controller;
-  final String? errorText;
-  final Function(String)? onChanged;
-  final Function(String)? onSubmit;
-
-  const EmailField({
-    super.key,
-    required this.controller,
-    this.errorText,
-    this.onChanged,
-    this.onSubmit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
       controller: controller,
       keyboardType: TextInputType.emailAddress,
       decoration: InputDecoration(
@@ -57,46 +27,49 @@ class EmailField extends StatelessWidget {
         border: const OutlineInputBorder(),
         errorText: errorText,
       ),
+      autofocus: autofocus,
       onChanged: onChanged,
-      onFieldSubmitted: onSubmit,
     );
   }
 }
 
+/// Common widget for password field in authentication forms
 class PasswordField extends StatefulWidget {
   final TextEditingController controller;
-  final String? labelText;
-  final String? errorText;
+  final String labelText;
   final Function(String)? onChanged;
   final Function()? onSubmit;
+  final String? errorText;
 
   const PasswordField({
     super.key,
     required this.controller,
-    this.labelText,
-    this.errorText,
+    this.labelText = 'Mật khẩu',
     this.onChanged,
     this.onSubmit,
+    this.errorText,
   });
 
   @override
-  PasswordFieldState createState() => PasswordFieldState();
+  State<PasswordField> createState() => _PasswordFieldState();
 }
 
-class PasswordFieldState extends State<PasswordField> {
+class _PasswordFieldState extends State<PasswordField> {
   bool _obscureText = true;
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
+    return TextField(
       controller: widget.controller,
       obscureText: _obscureText,
       decoration: InputDecoration(
-        labelText: widget.labelText ?? 'Mật khẩu',
+        labelText: widget.labelText,
         hintText: 'Nhập mật khẩu của bạn',
         prefixIcon: const Icon(Icons.lock),
         suffixIcon: IconButton(
-          icon: Icon(_obscureText ? Icons.visibility : Icons.visibility_off),
+          icon: Icon(
+            _obscureText ? Icons.visibility_off : Icons.visibility,
+          ),
           onPressed: () {
             setState(() {
               _obscureText = !_obscureText;
@@ -107,26 +80,24 @@ class PasswordFieldState extends State<PasswordField> {
         errorText: widget.errorText,
       ),
       onChanged: widget.onChanged,
-      onFieldSubmitted: widget.onSubmit != null ? (_) => widget.onSubmit!() : null,
+      onSubmitted: widget.onSubmit != null ? (_) => widget.onSubmit!() : null,
     );
   }
 }
 
-/// A standardized submit button used across all authentication screens
+/// Common widget for submit buttons in authentication forms
 class SubmitButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
   final bool isLoading;
-  final Color? backgroundColor;
-  final Color? textColor;
+  final Color? color;
 
   const SubmitButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.isLoading = false,
-    this.backgroundColor,
-    this.textColor,
+    this.color,
   });
 
   @override
@@ -137,19 +108,15 @@ class SubmitButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? Theme.of(context).primaryColor,
-          foregroundColor: textColor ?? Colors.white,
-          disabledBackgroundColor: Colors.grey.shade300,
-          disabledForegroundColor: Colors.grey.shade600,
+          backgroundColor: color,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
-          elevation: 2,
         ),
         child: isLoading
             ? const SizedBox(
-                height: 24,
                 width: 24,
+                height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -167,56 +134,22 @@ class SubmitButton extends StatelessWidget {
   }
 }
 
-/// A standardized auth screen card container for consistent layout
-class AuthCard extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-  final EdgeInsetsGeometry padding;
-
-  const AuthCard({
-    super.key,
-    required this.title,
-    required this.children,
-    this.padding = const EdgeInsets.all(24.0),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 4.0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
-      ),
-      child: Padding(
-        padding: padding,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class GoogleSignInButton extends StatelessWidget {
+/// Widget for social login buttons
+class SocialLoginButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
   final VoidCallback onPressed;
+  final Color backgroundColor;
+  final Color textColor;
   final bool isLoading;
 
-  const GoogleSignInButton({
+  const SocialLoginButton({
     super.key,
+    required this.label,
+    required this.icon,
     required this.onPressed,
+    required this.backgroundColor,
+    this.textColor = Colors.white,
     this.isLoading = false,
   });
 
@@ -224,59 +157,30 @@ class GoogleSignInButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 50,
-      child: OutlinedButton.icon(
+      height: 45,
+      child: ElevatedButton.icon(
+        onPressed: isLoading ? null : onPressed,
         icon: isLoading
             ? const SizedBox(
-                height: 20,
                 width: 20,
+                height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : Image.asset(
-                'assets/images/google_logo.png',
-                height: 24,
-              ),
-        label: const Text('Đăng nhập với Google'),
-        onPressed: isLoading ? null : onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.black87,
-          backgroundColor: Colors.white,
-          side: const BorderSide(color: Colors.grey),
+            : Icon(icon, color: textColor),
+        label: Text(
+          label,
+          style: TextStyle(color: textColor),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: backgroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),
     );
-  }
-}
-
-// Helper validators - simplified to delegate to PasswordValidator
-class AuthValidators {
-  // Email validation - delegate to PasswordValidator
-  static bool isValidEmail(String email) {
-    return PasswordValidator.isValidEmail(email);
-  }
-
-  // Password validation - delegate to PasswordValidator
-  static bool isValidPassword(String password) {
-    return PasswordValidator.isValidPassword(password);
-  }
-
-  // Password strength evaluation - delegate to PasswordValidator
-  static String getPasswordStrength(String password) {
-    return PasswordValidator.getPasswordStrength(password);
-  }
-
-  // Get color for password strength indicator - delegate to PasswordValidator
-  static Color getPasswordStrengthColor(String strength) {
-    return PasswordValidator.getPasswordStrengthColor(strength);
-  }
-
-  // Get ratio for password strength progress indicator - delegate to PasswordValidator
-  static double getPasswordStrengthRatio(String strength) {
-    return PasswordValidator.getPasswordStrengthRatio(strength);
   }
 }

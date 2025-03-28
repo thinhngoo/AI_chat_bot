@@ -107,7 +107,7 @@ class GeminiApiService {
       _logger.i('Checking Gemini API status');
       
       // Simple test query to check API status
-      final response = await generateContent('Hello, are you available?');
+      await generateContent('Hello, are you available?');
       
       _logger.i('Gemini API check successful');
       return true;
