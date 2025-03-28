@@ -33,41 +33,32 @@ class AuthInputField extends StatelessWidget {
 
 class EmailField extends StatelessWidget {
   final TextEditingController controller;
-  final String? labelText;
-  final String? hintText;
   final String? errorText;
   final Function(String)? onChanged;
-  final bool autofocus;
-  final String? Function(String?)? validator;
+  final Function(String)? onSubmit;
 
   const EmailField({
     super.key,
     required this.controller,
-    this.labelText = 'Email',
-    this.hintText,
     this.errorText,
     this.onChanged,
-    this.autofocus = false,
-    this.validator,
+    this.onSubmit,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      decoration: InputDecoration(
-        labelText: labelText,
-        hintText: hintText,
-        errorText: errorText,
-        prefixIcon: const Icon(Icons.email),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
       keyboardType: TextInputType.emailAddress,
-      autofocus: autofocus,
+      decoration: InputDecoration(
+        labelText: 'Email',
+        hintText: 'Nhập địa chỉ email của bạn',
+        prefixIcon: const Icon(Icons.email),
+        border: const OutlineInputBorder(),
+        errorText: errorText,
+      ),
       onChanged: onChanged,
-      validator: validator,
+      onFieldSubmitted: onSubmit,
     );
   }
 }
@@ -75,20 +66,16 @@ class EmailField extends StatelessWidget {
 class PasswordField extends StatefulWidget {
   final TextEditingController controller;
   final String? labelText;
-  final String? hintText;
   final String? errorText;
   final Function(String)? onChanged;
-  final String? Function(String?)? validator;
-  final VoidCallback? onSubmit;
+  final Function()? onSubmit;
 
   const PasswordField({
     super.key,
     required this.controller,
-    this.labelText = 'Mật khẩu',
-    this.hintText,
+    this.labelText,
     this.errorText,
     this.onChanged,
-    this.validator,
     this.onSubmit,
   });
 
@@ -103,31 +90,24 @@ class PasswordFieldState extends State<PasswordField> {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: widget.controller,
+      obscureText: _obscureText,
       decoration: InputDecoration(
-        labelText: widget.labelText,
-        hintText: widget.hintText,
-        errorText: widget.errorText,
+        labelText: widget.labelText ?? 'Mật khẩu',
+        hintText: 'Nhập mật khẩu của bạn',
         prefixIcon: const Icon(Icons.lock),
         suffixIcon: IconButton(
-          icon: Icon(_obscureText ? Icons.visibility_off : Icons.visibility),
+          icon: Icon(_obscureText ? Icons.visibility : Icons.visibility_off),
           onPressed: () {
             setState(() {
               _obscureText = !_obscureText;
             });
           },
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: const OutlineInputBorder(),
+        errorText: widget.errorText,
       ),
-      obscureText: _obscureText,
       onChanged: widget.onChanged,
-      validator: widget.validator,
-      onFieldSubmitted: (value) {
-        if (widget.onSubmit != null) {
-          widget.onSubmit!();
-        }
-      },
+      onFieldSubmitted: widget.onSubmit != null ? (_) => widget.onSubmit!() : null,
     );
   }
 }

@@ -4,32 +4,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:logger/logger.dart';
 
-/// Utility class for managing user data on Windows
+/// Helper class for Windows-specific user data operations
 class WindowsUserDataTool {
   static final Logger _logger = Logger();
   
-  /// Get SharedPreferences path on Windows
+  /// Get the path to the SharedPreferences file
   static Future<String?> getSharedPreferencesPath() async {
     try {
-      if (Platform.isWindows) {
-        // On Windows, SharedPreferences are typically stored in AppData\Roaming
-        // The exact path depends on the app's package name
-        final appDataDir = Platform.environment['APPDATA'];
-        if (appDataDir != null) {
-          return '$appDataDir\\AI_Chat_Bot\\SharedPreferences';
-        }
-      } else {
-        // For other platforms, try to get application documents directory
-        final appDocDir = await getApplicationDocumentsDirectory();
-        return '${appDocDir.path}/SharedPreferences';
+      if (!Platform.isWindows) {
+        return 'Not running on Windows';
       }
+      
+      final appDataDir = await getApplicationSupportDirectory();
+      return appDataDir.path;
     } catch (e) {
       _logger.e('Error getting SharedPreferences path: $e');
+      return null;
     }
-    return null;
   }
   
-  /// Get all users stored in SharedPreferences
+  /// Get list of stored users
   static Future<List<Map<String, dynamic>>> getStoredUsers() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -79,7 +73,7 @@ class WindowsUserDataTool {
     }
   }
   
-  /// Remove a user from SharedPreferences
+  /// Remove a specific user by email
   static Future<bool> removeUser(String email) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -90,11 +84,8 @@ class WindowsUserDataTool {
       }
       
       List<dynamic> users = jsonDecode(usersJson);
-      
-      // Remove user with matching email
       users.removeWhere((user) => user['email'] == email);
       
-      // Save updated users list
       await prefs.setString('users', jsonEncode(users));
       return true;
     } catch (e) {
@@ -103,14 +94,14 @@ class WindowsUserDataTool {
     }
   }
   
-  /// Clear all users from SharedPreferences
+  /// Clear all stored users
   static Future<bool> clearAllUsers() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('users', '[]');
       return true;
     } catch (e) {
-      _logger.e('Error clearing users: $e');
+      _logger.e('Error clearing all users: $e');
       return false;
     }
   }

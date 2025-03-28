@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../../../core/models/chat/chat_session.dart';
-import '../../../core/services/auth/auth_service.dart';
 import '../../../core/services/chat/jarvis_chat_service.dart';
-import '../../auth/presentation/login_page.dart';
+import '../../../widgets/ai/model_selector_widget.dart';
 import '../../settings/presentation/settings_page.dart';
 import 'chat_screen.dart';
 
@@ -11,31 +10,35 @@ class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  HomePageState createState() => HomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class HomePageState extends State<HomePage> {
-  final AuthService _authService = AuthService();
-  final JarvisChatService _chatService = JarvisChatService();
+class _HomePageState extends State<HomePage> {
   final Logger _logger = Logger();
+  final JarvisChatService _chatService = JarvisChatService();
   
   List<ChatSession> _chatSessions = [];
   bool _isLoading = true;
-  String? _errorMessage;
+  bool _hasError = false;
+  String _selectedModel = 'gemini-1.5-flash-latest';
   
   @override
   void initState() {
     super.initState();
     _loadChatSessions();
+    _loadSelectedModel();
   }
   
   Future<void> _loadChatSessions() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
+      _hasError = false;
     });
     
     try {
+      // Check if using direct Gemini API
+      final isUsingGemini = _chatService.isUsingDirectGeminiApi();
+      
       final sessions = await _chatService.getUserChatSessions();
       
       if (!mounted) return;
@@ -43,6 +46,15 @@ class HomePageState extends State<HomePage> {
       setState(() {
         _chatSessions = sessions;
         _isLoading = false;
+        // Show info message if using Gemini API directly
+        if (isUsingGemini) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Using Gemini API directly due to Jarvis API authentication issues'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       });
     } catch (e) {
       _logger.e('Error loading chat sessions: $e');
@@ -50,76 +62,65 @@ class HomePageState extends State<HomePage> {
       if (!mounted) return;
       
       setState(() {
-        _errorMessage = 'Không thể tải danh sách trò chuyện.';
+        _hasError = true;
         _isLoading = false;
       });
+      
+      // Check if it's an auth error and show appropriate message
+      if (e.toString().contains('Unauthorized') || 
+          e.toString().contains('Authentication failed') ||
+          e.toString().contains('401')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Authentication error. Please log in again.'),
+            action: SnackBarAction(
+              label: 'Login',
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/login');
+              },
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load chats: $e')),
+        );
+      }
+    }
+  }
+  
+  Future<void> _loadSelectedModel() async {
+    try {
+      final model = await _chatService.getSelectedModel();
+      if (model != null && mounted) {
+        setState(() {
+          _selectedModel = model;
+        });
+      }
+    } catch (e) {
+      _logger.e('Error loading selected model: $e');
     }
   }
   
   Future<void> _createNewChat() async {
-    setState(() {
-      _isLoading = true;
-    });
-    
     try {
-      final newSession = await _chatService.createChatSession('Cuộc trò chuyện mới');
+      final newChat = await _chatService.createChatSession('New Chat');
       
-      if (!mounted) return;
-      
-      if (newSession != null) {
+      if (newChat != null && mounted) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ChatScreen(chatSession: newSession),
+            builder: (context) => ChatScreen(chatSession: newChat),
           ),
         ).then((_) => _loadChatSessions());
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không thể tạo cuộc trò chuyện mới')),
-        );
       }
     } catch (e) {
-      _logger.e('Error creating new chat session: $e');
+      _logger.e('Error creating new chat: $e');
       
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: ${e.toString()}')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-  
-  Future<void> _logout() async {
-    setState(() {
-      _isLoading = true;
-    });
-    
-    try {
-      await _authService.signOut();
-      
-      if (!mounted) return;
-      
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-        (route) => false,
-      );
-    } catch (e) {
-      _logger.e('Error logging out: $e');
-      
-      if (!mounted) return;
-      
-      setState(() {
-        _isLoading = false;
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi đăng xuất: ${e.toString()}')),
+        SnackBar(content: Text('Failed to create new chat: $e')),
       );
     }
   }
@@ -136,20 +137,44 @@ class HomePageState extends State<HomePage> {
         });
         
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã xóa cuộc trò chuyện')),
+          const SnackBar(content: Text('Chat deleted')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không thể xóa cuộc trò chuyện')),
+          const SnackBar(content: Text('Failed to delete chat')),
         );
       }
     } catch (e) {
-      _logger.e('Error deleting chat session: $e');
+      _logger.e('Error deleting chat: $e');
       
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: ${e.toString()}')),
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+  
+  Future<void> _updateSelectedModel(String model) async {
+    try {
+      setState(() {
+        _selectedModel = model;
+      });
+      
+      await _chatService.updateSelectedModel(model);
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Model updated to $model')),
+      );
+    } catch (e) {
+      _logger.e('Error updating model: $e');
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update model: $e')),
       );
     }
   }
@@ -160,49 +185,73 @@ class HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('AI Chat Bot'),
         actions: [
+          ModelSelectorWidget(
+            currentModel: _selectedModel,
+            onModelChanged: _updateSelectedModel,
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SettingsPage()),
-              );
+                MaterialPageRoute(
+                  builder: (context) => const SettingsPage(),
+                ),
+              ).then((_) => _loadChatSessions());
             },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(_errorMessage!),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadChatSessions,
-                        child: const Text('Thử lại'),
-                      ),
-                    ],
-                  ),
-                )
+          : _hasError
+              ? _buildErrorView()
               : _chatSessions.isEmpty
-                  ? _buildEmptyState()
+                  ? _buildEmptyView()
                   : _buildChatList(),
       floatingActionButton: FloatingActionButton(
         onPressed: _createNewChat,
-        tooltip: 'Trò chuyện mới',
+        tooltip: 'New Chat',
         child: const Icon(Icons.add),
       ),
     );
   }
   
-  Widget _buildEmptyState() {
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.error_outline,
+            size: 64,
+            color: Colors.red,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Đã xảy ra lỗi khi tải danh sách trò chuyện',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Vui lòng kiểm tra kết nối mạng và thử lại',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _loadChatSessions,
+            child: const Text('Thử lại'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildEmptyView() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

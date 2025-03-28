@@ -1,43 +1,44 @@
 import 'dart:async';
+import '../../models/user_model.dart';
 
-/// Interface that all auth providers must implement
+/// Interface for authentication providers
 abstract class AuthProviderInterface {
-  /// Get the current user
-  dynamic get currentUser;
+  /// Initialize the auth provider
+  Future<void> initialize();
   
-  /// Get stream of auth state changes
-  Stream<dynamic> authStateChanges();
+  /// Get the current authenticated user
+  UserModel? get currentUser;
   
-  /// Check if a user is currently logged in
+  /// Check if user is logged in
   Future<bool> isLoggedIn();
   
+  /// Check if email is verified
+  bool isEmailVerified();
+  
   /// Sign in with email and password
-  Future<void> signInWithEmailAndPassword(String email, String password);
+  Future<UserModel> signInWithEmailAndPassword(String email, String password);
   
   /// Sign up with email and password
-  Future<void> signUpWithEmailAndPassword(String email, String password, {String? name});
+  Future<UserModel> signUpWithEmailAndPassword(String email, String password, {String? name});
   
   /// Sign out the current user
   Future<void> signOut();
   
-  /// Send a password reset email
+  /// Send password reset email
   Future<void> sendPasswordResetEmail(String email);
   
-  /// Confirm password reset with code and new password
-  Future<void> confirmPasswordReset(String code, String newPassword);
+  /// Refresh the auth tokens
+  Future<bool> refreshToken();
   
-  /// Update user password
-  Future<void> updatePassword(String currentPassword, String newPassword);
-  
-  /// Reload the current user data
+  /// Refresh the user information
   Future<void> reloadUser();
   
-  /// Check if the current user's email is verified
-  bool isEmailVerified();
+  /// Confirm password reset
+  Future<void> confirmPasswordReset(String code, String newPassword);
   
-  /// Resend verification email to current user
-  Future<void> resendVerificationEmail();
+  /// Manually verify email
+  Future<bool> manuallySetEmailVerified();
   
-  /// Sign in with Google
-  Future<void> signInWithGoogle();
+  /// Update user profile
+  Future<bool> updateUserProfile(Map<String, dynamic> userData);
 }

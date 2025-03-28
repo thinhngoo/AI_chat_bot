@@ -1,130 +1,160 @@
 import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logger/logger.dart';
+import '../../../core/constants/api_constants.dart';
 
-/// Utility class to check configuration settings
+/// Utility class for checking and validating application configuration
 class ConfigChecker {
   static final Logger _logger = Logger();
+  
+  /// Check if the essential API configuration is available and valid
+  static Map<String, bool> checkApiConfig() {
+    final results = <String, bool>{};
 
-  /// Check Jarvis API configuration from .env file
-  static Future<bool> checkJarvisApiConfig() async {
-    _logger.i('Checking Jarvis API Configuration...');
-    _logger.i('------------------------------------');
-    
-    // Load environment variables from .env file
-    bool envLoaded = false;
+    // Check Jarvis API URL and key
+    results['hasJarvisApiUrl'] = ApiConstants.jarvisApiUrl.isNotEmpty;
+    results['hasJarvisApiKey'] = ApiConstants.defaultApiKey.isNotEmpty;
+
+    // Check Stack Auth configuration
+    results['hasStackProjectId'] = ApiConstants.stackProjectId.isNotEmpty;
+    results['hasStackPublishableClientKey'] = ApiConstants.stackPublishableClientKey.isNotEmpty;
+
+    // Load from env if available
     try {
-      await dotenv.load(fileName: '.env');
-      _logger.i('✓ .env file loaded successfully');
-      envLoaded = true;
+      if (dotenv.isInitialized) {
+        final envJarvisApiUrl = dotenv.env['JARVIS_API_URL'];
+        if (envJarvisApiUrl != null && envJarvisApiUrl.isNotEmpty) {
+          results['hasJarvisApiUrl'] = true;
+        }
+
+        final envJarvisApiKey = dotenv.env['JARVIS_API_KEY'];
+        if (envJarvisApiKey != null && envJarvisApiKey.isNotEmpty) {
+          results['hasJarvisApiKey'] = true;
+        }
+
+        final envStackProjectId = dotenv.env['STACK_PROJECT_ID'];
+        if (envStackProjectId != null && envStackProjectId.isNotEmpty) {
+          results['hasStackProjectId'] = true;
+        }
+
+        final envStackClientKey = dotenv.env['STACK_PUBLISHABLE_CLIENT_KEY'];
+        if (envStackClientKey != null && envStackClientKey.isNotEmpty) {
+          results['hasStackClientKey'] = true;
+        }
+      }
     } catch (e) {
-      _logger.e('✗ Failed to load .env file: $e');
-      _logger.i('\nMake sure you have created a .env file in the project root directory.');
-      _logger.i('You can copy .env.example to .env and fill in your API keys.');
+      _logger.e('Error checking env configuration: $e');
     }
-    
-    if (!envLoaded) return false;
-    
-    // Check Jarvis API configuration
-    final authApiUrl = dotenv.env['AUTH_API_URL'];
-    final jarvisApiUrl = dotenv.env['JARVIS_API_URL'];
-    final jarvisApiKey = dotenv.env['JARVIS_API_KEY'];
-    final stackProjectId = dotenv.env['STACK_PROJECT_ID'];
-    
-    _logger.i('\nJarvis API Configuration:');
-    _logger.i('------------------------------------');
-    
-    // Check Auth API URL
-    if (authApiUrl == null || authApiUrl.isEmpty) {
-      _logger.e('✗ AUTH_API_URL is missing');
-      _logger.i('  Required for authentication with Jarvis API');
-    } else {
-      _logger.i('✓ AUTH_API_URL is configured');
-    }
-    
-    // Check Jarvis API URL
-    if (jarvisApiUrl == null || jarvisApiUrl.isEmpty) {
-      _logger.e('✗ JARVIS_API_URL is missing');
-      _logger.i('  Required for chat functionality with Jarvis API');
-    } else {
-      _logger.i('✓ JARVIS_API_URL is configured');
-    }
-    
-    // Check Jarvis API Key
-    if (jarvisApiKey == null || jarvisApiKey.isEmpty) {
-      _logger.e('✗ JARVIS_API_KEY is missing');
-      _logger.i('  Required for API authentication');
-    } else if (jarvisApiKey == 'your_jarvis_api_key_here') {
-      _logger.e('✗ JARVIS_API_KEY contains placeholder value');
-      _logger.i('  Please replace with your actual API key');
-    } else {
-      _logger.i('✓ JARVIS_API_KEY is configured');
-    }
-    
-    // Check Stack Project ID
-    if (stackProjectId == null || stackProjectId.isEmpty) {
-      _logger.e('✗ STACK_PROJECT_ID is missing');
-      _logger.i('  Required for authentication with Jarvis API');
-    } else {
-      _logger.i('✓ STACK_PROJECT_ID is configured');
-    }
-    
-    _logger.i('\nConfiguration Summary:');
-    _logger.i('------------------------------------');
-    final bool jarvisConfigOk = (authApiUrl != null && 
-                               authApiUrl.isNotEmpty &&
-                               jarvisApiUrl != null && 
-                               jarvisApiUrl.isNotEmpty &&
-                               jarvisApiKey != null &&
-                               jarvisApiKey.isNotEmpty &&
-                               jarvisApiKey != 'your_jarvis_api_key_here' &&
-                               stackProjectId != null &&
-                               stackProjectId.isNotEmpty);
-    
-    if (jarvisConfigOk) {
-      _logger.i('✓ All configuration looks good! Your application should work correctly.');
-      return true;
-    } else {
-      _logger.w('⚠ There are configuration issues that need to be fixed.');
-      _logger.i('\nPlease update your .env file with the correct values.');
+
+    // Add overall status - fixed nullable value issue
+    final hasJarvisApiUrl = results['hasJarvisApiUrl'] ?? false;
+    final hasJarvisApiKey = results['hasJarvisApiKey'] ?? false;
+    final hasStackProjectId = results['hasStackProjectId'] ?? false;
+    final hasStackPublishableClientKey = results['hasStackPublishableClientKey'] ?? false;
+
+    results['isApiConfigValid'] = 
+        hasJarvisApiUrl &&
+        hasJarvisApiKey &&
+        hasStackProjectId &&
+        hasStackPublishableClientKey;
+
+    final isApiConfigValid = results['isApiConfigValid'] ?? false;
+    _logger.i('API configuration check: ${isApiConfigValid ? 'Valid' : 'Invalid'}');
+
+    return results;
+  }
+
+  
+  /// Check if the Jarvis API configuration is valid
+  static Future<bool> checkJarvisApiConfig() async {
+    try {
+      final config = checkApiConfig();
+      final isApiConfigValid = config['isApiConfigValid'] ?? false;
+      _logger.i('Jarvis API config check result: $isApiConfigValid');
+      return isApiConfigValid;
+    } catch (e) {
+      _logger.e('Error checking Jarvis API config: $e');
       return false;
     }
   }
   
-  /// Validate the Jarvis API configuration
-  static Future<Map<String, bool>> validateJarvisApiConfig() async {
+  /// Check if .env file is properly loaded
+  static bool isEnvFileLoaded() {
     try {
-      await dotenv.load(fileName: '.env');
+      final isLoaded = dotenv.isInitialized;
       
-      final authApiUrl = dotenv.env['AUTH_API_URL'];
-      final jarvisApiUrl = dotenv.env['JARVIS_API_URL'];
-      final jarvisApiKey = dotenv.env['JARVIS_API_KEY'];
-      final stackProjectId = dotenv.env['STACK_PROJECT_ID'];
+      if (!isLoaded) {
+        _logger.e('.env file is not loaded properly');
+      } else {
+        final varsCount = dotenv.env.length;
+        _logger.i('.env file loaded successfully with $varsCount variables');
+      }
       
-      final bool validAuthApiUrl = authApiUrl != null && authApiUrl.isNotEmpty;
-      final bool validJarvisApiUrl = jarvisApiUrl != null && jarvisApiUrl.isNotEmpty;
-      final bool validJarvisApiKey = jarvisApiKey != null && 
-                                    jarvisApiKey.isNotEmpty && 
-                                    jarvisApiKey != 'your_jarvis_api_key_here';
-      final bool validStackProjectId = stackProjectId != null && stackProjectId.isNotEmpty;
-      
-      return {
-        'validAuthApiUrl': validAuthApiUrl,
-        'validJarvisApiUrl': validJarvisApiUrl,
-        'validJarvisApiKey': validJarvisApiKey,
-        'validStackProjectId': validStackProjectId,
-        'configValid': validAuthApiUrl && validJarvisApiUrl && validJarvisApiKey && validStackProjectId,
-      };
+      return isLoaded;
     } catch (e) {
-      return {
-        'validAuthApiUrl': false,
-        'validJarvisApiUrl': false,
-        'validJarvisApiKey': false,
-        'validStackProjectId': false,
-        'configValid': false,
-        'error': true,
-      };
+      _logger.e('Error checking .env file: $e');
+      return false;
     }
+  }
+  
+  /// Get a guide for fixing API configuration issues
+  static String getApiConfigGuide() {
+    return '''
+To fix API configuration issues:
+
+1. Create a .env file at the project root (copy from .env.example)
+2. Add your Jarvis API credentials:
+   JARVIS_API_URL=https://api.jarvis.cx
+   JARVIS_API_KEY=your_jarvis_api_key_here
+   
+3. Add your Stack authentication credentials:
+   STACK_PROJECT_ID=your_stack_project_id
+   STACK_PUBLISHABLE_CLIENT_KEY=your_stack_client_key
+   
+4. Restart the application to apply the changes
+
+Alternatively, you can use the hardcoded values in ApiConstants class for development purposes.
+''';
+  }
+  
+  /// Get a diagnostic report of the application configuration
+  static Map<String, dynamic> getDiagnosticReport() {
+    final report = <String, dynamic>{};
+    
+    // API config
+    final apiConfig = checkApiConfig();
+    report['apiConfigStatus'] = apiConfig['isApiConfigValid'] == true ? 'Valid' : 'Invalid';
+    report['apiConfigDetails'] = apiConfig;
+    
+    // .env file
+    report['envFileLoaded'] = isEnvFileLoaded();
+    
+    // Add API constants info (mask sensitive data)
+    report['jarvisApiUrl'] = ApiConstants.jarvisApiUrl;
+    report['stackProjectId'] = ApiConstants.stackProjectId.isNotEmpty 
+        ? '${ApiConstants.stackProjectId.substring(0, 8)}...'
+        : 'Not set';
+    report['stackClientKeySet'] = ApiConstants.stackPublishableClientKey.isNotEmpty;
+    report['defaultModel'] = ApiConstants.defaultModel;
+    report['availableModels'] = ApiConstants.modelNames.length;
+    
+    return report;
+  }
+  
+  /// Log the diagnostic report to the console
+  static void logDiagnosticReport() {
+    final report = getDiagnosticReport();
+    _logger.i('Diagnostic Report:');
+    report.forEach((key, value) {
+      if (value is Map) {
+        _logger.i('  $key:');
+        value.forEach((k, v) {
+          _logger.i('    $k: $v');
+        });
+      } else {
+        _logger.i('  $key: $value');
+      }
+    });
   }
 }
 

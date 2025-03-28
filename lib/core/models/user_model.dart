@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class UserModel {
   final String uid;
   final String email;
@@ -39,6 +41,10 @@ class UserModel {
     );
   }
 
+  String toJson() => json.encode(toMap());
+
+  factory UserModel.fromJson(String source) => UserModel.fromMap(json.decode(source));
+
   UserModel copyWith({
     String? uid,
     String? email,
@@ -55,5 +61,10 @@ class UserModel {
       isEmailVerified: isEmailVerified ?? this.isEmailVerified,
       selectedModel: selectedModel ?? this.selectedModel, // Include in copy
     );
+  }
+
+  @override
+  String toString() {
+    return 'UserModel(uid: $uid, email: $email, name: $name, isEmailVerified: $isEmailVerified)';
   }
 }

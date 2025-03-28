@@ -3,17 +3,47 @@ import 'package:logger/logger.dart';
 import 'jarvis_api_service.dart';
 import '../../constants/api_constants.dart';
 
+/// Base API service interface for standardizing API service implementations
+abstract class ApiService {
+  /// Initialize the API service
+  Future<void> initialize();
+  
+  /// Check if the API is reachable and responding
+  Future<bool> checkApiStatus();
+  
+  /// Get the current API configuration
+  Map<String, String> getApiConfig();
+}
+
+/// Factory for creating API service instances
+class ApiServiceFactory {
+  static final Logger _logger = Logger();
+  
+  /// Create an API service instance based on the service type
+  static ApiService createService(ApiServiceType type) {
+    _logger.i('Creating API service of type: $type');
+    
+    // Return ApiServiceImpl which implements ApiService
+    return ApiServiceImpl();
+  }
+}
+
+/// Enum for the types of API services available
+enum ApiServiceType {
+  jarvis,
+}
+
 /// API Service that wraps JarvisApiService to maintain compatibility with existing code
-class ApiService {
+class ApiServiceImpl implements ApiService {
   final Logger _logger = Logger();
   final JarvisApiService _jarvisApi = JarvisApiService();
   
   // Singleton pattern
-  static final ApiService _instance = ApiService._internal();
-  factory ApiService() => _instance;
+  static final ApiServiceImpl _instance = ApiServiceImpl._internal();
+  factory ApiServiceImpl() => _instance;
   
-  ApiService._internal() {
-    _initialize();
+  ApiServiceImpl._internal() {
+    // Initialize without a method call
   }
   
   // Current model settings
@@ -22,12 +52,14 @@ class ApiService {
   
   // Model names are now in ApiConstants
   
-  Future<void> _initialize() async {
+  @override
+  Future<void> initialize() async {
     await _jarvisApi.initialize();
   }
   
   // API Health check
-  Future<bool> checkApiAvailability() async {
+  @override
+  Future<bool> checkApiStatus() async {
     try {
       // Create a simple test conversation
       final testSession = await _jarvisApi.createConversation('Test Session');
@@ -147,5 +179,13 @@ class ApiService {
   void resetFallbackMode() {
     _useFallbackResponses = false;
     _logger.i('API fallback mode reset. Will try to connect to API on next request');
+  }
+
+  @override
+  Map<String, String> getApiConfig() {
+    return {
+      'currentModel': _currentModel,
+      'useFallbackResponses': _useFallbackResponses.toString(),
+    };
   }
 }

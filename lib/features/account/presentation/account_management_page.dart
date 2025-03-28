@@ -161,7 +161,12 @@ class AccountManagementPageState extends State<AccountManagementPage> {
                           children: [
                             const Icon(Icons.email),
                             const SizedBox(width: 8),
-                            Expanded(child: Text(_emailAddress)),
+                            Expanded(
+                              child: Text(
+                                'Email: $_emailAddress',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -170,16 +175,14 @@ class AccountManagementPageState extends State<AccountManagementPage> {
                             const Icon(Icons.verified_user),
                             const SizedBox(width: 8),
                             Text(
-                              'Email: ${_isEmailVerified ? 'Đã xác minh' : 'Chưa xác minh'}',
-                              style: TextStyle(
-                                color: _isEmailVerified ? Colors.green : Colors.red,
-                              ),
+                              'Trạng thái: ${_isEmailVerified ? 'Đã xác minh' : 'Chưa xác minh'}',
+                              style: const TextStyle(fontSize: 16),
                             ),
                             if (!_isEmailVerified) ...[
                               const SizedBox(width: 8),
                               TextButton(
                                 onPressed: _resendVerificationEmail,
-                                child: const Text('Gửi lại email xác minh'),
+                                child: const Text('Gửi lại email'),
                               ),
                             ],
                           ],

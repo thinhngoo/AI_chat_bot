@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 
 class ErrorInfo {
@@ -14,8 +17,85 @@ class ErrorInfo {
   });
 }
 
+/// Utility class for handling and formatting errors
 class ErrorUtils {
   static final Logger _logger = Logger();
+  
+  /// Format API errors into user-friendly messages
+  static String formatApiError(dynamic error) {
+    _logger.e('API Error: $error');
+    
+    // Handle network errors
+    if (error is SocketException) {
+      return 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet của bạn và thử lại.';
+    }
+    
+    // Handle timeout errors
+    if (error is TimeoutException) {
+      return 'Yêu cầu đã hết thời gian chờ. Vui lòng thử lại sau.';
+    }
+    
+    // Handle authentication errors
+    if (error.toString().contains('unauthorized') || 
+        error.toString().contains('invalid_token') ||
+        error.toString().contains('401')) {
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+    }
+    
+    // Handle common API errors
+    if (error.toString().contains('invalid_credentials') || 
+        error.toString().contains('wrong password') ||
+        error.toString().contains('user not found')) {
+      return 'Email hoặc mật khẩu không đúng. Vui lòng thử lại.';
+    }
+    
+    if (error.toString().contains('email-already-in-use') || 
+        error.toString().contains('Email already exists')) {
+      return 'Email đã được sử dụng. Vui lòng sử dụng email khác.';
+    }
+    
+    // Default error message
+    return 'Đã xảy ra lỗi: ${error.toString()}';
+  }
+  
+  /// Get user-friendly message for common chat errors
+  static String getChatErrorMessage(dynamic error) {
+    if (error.toString().contains('rate_limit') || 
+        error.toString().contains('too_many_requests')) {
+      return 'Bạn đã gửi quá nhiều tin nhắn trong thời gian ngắn. Vui lòng đợi một lát và thử lại.';
+    }
+    
+    if (error.toString().contains('content_filter') || 
+        error.toString().contains('content_moderation')) {
+      return 'Tin nhắn của bạn không thể được xử lý do vi phạm quy định nội dung.';
+    }
+    
+    if (error.toString().contains('token_limit') || 
+        error.toString().contains('context_length')) {
+      return 'Cuộc trò chuyện này quá dài. Vui lòng bắt đầu cuộc trò chuyện mới.';
+    }
+    
+    return 'Không thể xử lý tin nhắn của bạn. Vui lòng thử lại sau.';
+  }
+  
+  /// Check if error is a network connectivity error
+  static bool isNetworkError(dynamic error) {
+    return error is SocketException || 
+           error.toString().contains('network') ||
+           error.toString().contains('connect') ||
+           error.toString().contains('connection');
+  }
+  
+  /// Check if error is an authentication error
+  static bool isAuthError(dynamic error) {
+    return error.toString().contains('unauthorized') || 
+           error.toString().contains('unauthenticated') ||
+           error.toString().contains('invalid_token') ||
+           error.toString().contains('auth') && error.toString().contains('invalid') ||
+           error.toString().contains('permission_denied') ||
+           error.toString().contains('403') ||
+           error.toString().contains('401');
+  }
 
   /// Gets user-friendly error information from authentication errors
   static ErrorInfo getAuthErrorInfo(String error) {
@@ -135,14 +215,5 @@ class ErrorUtils {
     error = error.replaceAll('FirebaseAuthException: ', '');
     
     return error;
-  }
-  
-  // Fixed utility method to log errors consistently
-  static void logError(String source, dynamic error, [StackTrace? stackTrace]) {
-    if (stackTrace != null) {
-      _logger.e('[$source] Error: $error');
-    } else {
-      _logger.e('[$source] Error: $error');
-    }
   }
 }

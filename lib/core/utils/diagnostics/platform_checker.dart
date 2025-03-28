@@ -1,96 +1,82 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:logger/logger.dart';
 
-/// Utility class to check platform compatibility
+/// Utility class for checking platform information
 class PlatformChecker {
   static final Logger _logger = Logger();
-
-  /// Check and print platform compatibility information
-  static void checkPlatform() {
-    _logger.i('Checking platform compatibility...');
-    _logger.i('------------------------------------');
-    
-    // Detect platform
-    final bool isWeb = kIsWeb;
-    
-    if (isWeb) {
-      _logger.i('✓ Platform: Web (compatible)');
-    } else {
-      try {
-        final String os = Platform.operatingSystem;
-        final String osVersion = Platform.operatingSystemVersion;
-        
-        _logger.i('Platform: $os ($osVersion)');
-        
-        // Check compatibility
-        if (Platform.isAndroid) {
-          _logger.i('✓ Android is fully supported');
-        } else if (Platform.isIOS) {
-          _logger.i('✓ iOS is fully supported');
-        } else if (Platform.isWindows) {
-          _logger.i('✓ Windows is supported with limited Google authentication');
-          _logger.i('  - Google Sign-In requires special configuration');
-          _logger.i('  - Firebase desktop plugins are supported');
-        } else if (Platform.isMacOS) {
-          _logger.i('✓ macOS is supported with some limitations');
-        } else if (Platform.isLinux) {
-          _logger.w('⚠ Linux support is experimental');
-          _logger.w('  - Some Firebase features may not work correctly');
-        } else {
-          _logger.w('⚠ Unknown platform: $os');
-          _logger.w('  - Compatibility cannot be guaranteed');
-        }
-      } catch (e) {
-        _logger.e('Error detecting platform: $e');
+  
+  /// Returns true if the app is running on a mobile platform (Android or iOS)
+  static bool get isMobile {
+    try {
+      return !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    } catch (e) {
+      _logger.e('Error checking platform: $e');
+      return false;
+    }
+  }
+  
+  /// Returns true if the app is running on a desktop platform (Windows, macOS, or Linux)
+  static bool get isDesktop {
+    try {
+      return !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
+    } catch (e) {
+      _logger.e('Error checking platform: $e');
+      return false;
+    }
+  }
+  
+  /// Returns true if the app is running on a web platform
+  static bool get isWeb {
+    return kIsWeb;
+  }
+  
+  /// Returns a map containing platform information
+  static Map<String, dynamic> getPlatformInfo() {
+    try {
+      if (kIsWeb) {
+        return {
+          'platform': 'web',
+          'isWeb': true,
+          'isMobile': false,
+          'isDesktop': false,
+        };
+      } else {
+        return {
+          'platform': Platform.operatingSystem,
+          'platformVersion': Platform.operatingSystemVersion,
+          'isWeb': false,
+          'isMobile': Platform.isAndroid || Platform.isIOS,
+          'isDesktop': Platform.isWindows || Platform.isMacOS || Platform.isLinux,
+          'isAndroid': Platform.isAndroid,
+          'isIOS': Platform.isIOS,
+          'isWindows': Platform.isWindows,
+          'isMacOS': Platform.isMacOS,
+          'isLinux': Platform.isLinux,
+          'localHostname': Platform.localHostname,
+          'numberOfProcessors': Platform.numberOfProcessors,
+        };
       }
+    } catch (e) {
+      _logger.e('Error getting platform info: $e');
+      return {
+        'error': e.toString(),
+        'isWeb': kIsWeb,
+      };
     }
-    
-    _logger.i('\nEnvironment variables check:');
-    _logger.i('------------------------------------');
-    
-    // Check for Dart and Flutter versions
-    _logger.i('Dart SDK: ${Platform.version}');
-    
-    _logger.i('\nSummary:');
-    _logger.i('------------------------------------');
-    if (isWeb || Platform.isAndroid || Platform.isIOS || Platform.isWindows) {
-      _logger.i('✓ Your platform is supported by this application.');
-    } else {
-      _logger.w('⚠ Your platform has limited support. Some features may not work correctly.');
-    }
-    _logger.i('For more details, refer to the README.md file.');
   }
   
-  /// Determine if the current platform is fully supported
-  static bool isFullySupported() {
-    if (kIsWeb) return true;
-    return Platform.isAndroid || Platform.isIOS || Platform.isWindows;
-  }
-  
-  /// Get platform details as a Map
-  static Map<String, dynamic> getPlatformDetails() {
-    final Map<String, dynamic> details = {
-      'isWeb': kIsWeb,
-      'isFullySupported': isFullySupported(),
-      'dartVersion': Platform.version,
-    };
-    
-    if (!kIsWeb) {
-      details['operatingSystem'] = Platform.operatingSystem;
-      details['operatingSystemVersion'] = Platform.operatingSystemVersion;
-      details['isAndroid'] = Platform.isAndroid;
-      details['isIOS'] = Platform.isIOS;
-      details['isWindows'] = Platform.isWindows;
-      details['isMacOS'] = Platform.isMacOS;
-      details['isLinux'] = Platform.isLinux;
-    }
-    
-    return details;
+  /// Logs platform information to the console
+  static void logPlatformInfo() {
+    final info = getPlatformInfo();
+    _logger.i('Platform information:');
+    info.forEach((key, value) {
+      _logger.i('  $key: $value');
+    });
   }
 }
 
 /// Run this script directly with: dart lib/core/utils/diagnostics/platform_checker.dart
 void main() {
-  PlatformChecker.checkPlatform();
+  PlatformChecker.logPlatformInfo();
 }

@@ -37,11 +37,28 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'AI Chat Bot',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        primarySwatch: Colors.blue,
         useMaterial3: true,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const AuthCheckPage(),
+      home: _getLandingPage(),
+      routes: {
+        '/home': (context) => const HomePage(),
+        '/login': (context) => const LoginPage(),
+      },
     );
+  }
+  
+  Widget _getLandingPage() {
+    // Check if user is already logged in
+    final authService = AuthService();
+    final isLoggedIn = authService.currentUser != null;
+    
+    if (isLoggedIn) {
+      return const HomePage();
+    } else {
+      return const LoginPage();
+    }
   }
 }
 

@@ -25,19 +25,28 @@ class ConfigValidator {
     
     // Check for placeholder values that weren't replaced
     if (results['hasJarvisApiKey'] == true) {
-      if (jarvisApiKey == 'your_jarvis_api_key_here' || 
-          jarvisApiKey == 'your_api_key_here') {
-        _logger.w('JARVIS_API_KEY contains a placeholder value');
-        results['hasJarvisApiKey'] = false;
+      final key = jarvisApiKey!;
+      if (key.contains('your_jarvis_api_key') || 
+          key.contains('placeholder') || 
+          key.startsWith('dev_') || 
+          key.startsWith('test_')) {
+        _logger.w('Jarvis API key appears to be a placeholder or test value');
+        results['hasValidJarvisApiKey'] = false;
+      } else {
+        results['hasValidJarvisApiKey'] = true;
       }
+    } else {
+      results['hasValidJarvisApiKey'] = false;
     }
     
     // Add overall status
     results['isJarvisApiConfigValid'] = 
-        results['hasAuthApiUrl'] == true && 
-        results['hasJarvisApiUrl'] == true && 
+        results['hasAuthApiUrl'] == true &&
+        results['hasJarvisApiUrl'] == true &&
         results['hasJarvisApiKey'] == true &&
-        results['hasStackProjectId'] == true;
+        results['hasValidJarvisApiKey'] == true &&
+        results['hasStackProjectId'] == true &&
+        results['hasStackClientKey'] == true;
     
     return results;
   }
@@ -49,8 +58,7 @@ class ConfigValidator {
     if (!isLoaded) {
       _logger.e('.env file is not loaded properly');
     } else {
-      final jarvisApiKey = dotenv.env['JARVIS_API_KEY'];
-      _logger.i('.env file is loaded, Jarvis API key exists: ${jarvisApiKey != null && jarvisApiKey.isNotEmpty}');
+      _logger.i('.env file loaded successfully');
     }
     
     return isLoaded;
@@ -64,12 +72,19 @@ class ConfigValidator {
     final geminiApiKey = dotenv.env['GEMINI_API_KEY'];
     results['hasGeminiApiKey'] = geminiApiKey != null && geminiApiKey.isNotEmpty;
     
-    if (results['hasGeminiApiKey'] == true) {
-      if (geminiApiKey == 'your_gemini_api_key_here') {
-        _logger.w('GEMINI_API_KEY contains a placeholder value');
-        results['hasGeminiApiKey'] = false;
-      }
-    }
+    // Check Claude API key
+    final claudeApiKey = dotenv.env['CLAUDE_API_KEY'];
+    results['hasClaudeApiKey'] = claudeApiKey != null && claudeApiKey.isNotEmpty;
+    
+    // Check OpenAI API key
+    final openaiApiKey = dotenv.env['OPENAI_API_KEY'];
+    results['hasOpenaiApiKey'] = openaiApiKey != null && openaiApiKey.isNotEmpty;
+    
+    // Check if at least one AI API key is available
+    results['hasAnyAiApiKey'] = 
+        results['hasGeminiApiKey'] == true || 
+        results['hasClaudeApiKey'] == true || 
+        results['hasOpenaiApiKey'] == true;
     
     return results;
   }

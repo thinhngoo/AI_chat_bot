@@ -7,8 +7,9 @@ import '../../models/user_model.dart';
 import '../../models/chat/chat_session.dart';
 import '../../models/chat/message.dart';
 import '../../constants/api_constants.dart';
+import 'api_service.dart';
 
-class JarvisApiService {
+class JarvisApiService implements ApiService {
   static final JarvisApiService _instance = JarvisApiService._internal();
   factory JarvisApiService() => _instance;
 
@@ -214,9 +215,20 @@ class JarvisApiService {
       
       _logger.i('Attempting to refresh auth token');
       
-      // Create headers with refresh token
-      final headers = _getAuthHeaders(includeAuth: false);
-      headers['X-Stack-Refresh-Token'] = _refreshToken!;
+      // Create headers with all required Stack headers
+      final headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Stack-Access-Type': 'client',
+        'X-Stack-Project-Id': _stackProjectId ?? ApiConstants.stackProjectId,
+        'X-Stack-Publishable-Client-Key': _stackPublishableClientKey ?? ApiConstants.stackPublishableClientKey,
+        'X-Stack-Refresh-Token': _refreshToken!,
+      };
+      
+      // Add API key if available
+      if (_apiKey != null && _apiKey!.isNotEmpty) {
+        headers['X-API-KEY'] = _apiKey!;
+      }
       
       final response = await http.post(
         Uri.parse('$_authApiUrl${ApiConstants.authSessionRefresh}'),
@@ -226,25 +238,51 @@ class JarvisApiService {
       _logger.i('Token refresh response status code: ${response.statusCode}');
       
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        
-        if (data['access_token'] != null) {
-          // Save the new access token, but keep the existing refresh token
-          await _saveAuthToken(
-            data['access_token'], 
-            _refreshToken,  // Keep existing refresh token
-            _userId        // Keep existing user ID
-          );
-          _logger.i('Access token refreshed successfully');
-          return true;
-        } else {
-          _logger.w('No access token in refresh response');
+        try {
+          final data = jsonDecode(response.body);
+          
+          if (data['access_token'] != null) {
+            // Save the new access token, but keep the existing refresh token
+            await _saveAuthToken(
+              data['access_token'], 
+              _refreshToken,  // Keep existing refresh token
+              _userId        // Keep existing user ID
+            );
+            _logger.i('Access token refreshed successfully');
+            return true;
+          } else {
+            _logger.w('No access token in refresh response');
+            return false;
+          }
+        } catch (e) {
+          _logger.e('Error parsing refresh token response: $e');
+          _logger.e('Response body: ${response.body}');
           return false;
         }
       } else {
-        final data = jsonDecode(response.body);
-        _logger.e('Token refresh failed: ${data['message'] ?? response.reasonPhrase}');
-        return false;
+        try {
+          final responseText = response.body;
+          _logger.e('Token refresh failed with status ${response.statusCode}: $responseText');
+          
+          // Try to parse error if possible
+          try {
+            final data = jsonDecode(responseText);
+            _logger.e('Token refresh error details: ${data['message'] ?? data['error'] ?? responseText}');
+          } catch (_) {
+            // If we can't parse JSON, just log the raw response
+          }
+          
+          // If token is expired or invalid, clear the tokens to force a new login
+          if (response.statusCode == 400 || response.statusCode == 401 || response.statusCode == 403) {
+            _logger.i('Clearing invalid tokens due to authentication error');
+            await _clearAuthToken();
+          }
+          
+          return false;
+        } catch (e) {
+          _logger.e('Error processing token refresh error: $e');
+          return false;
+        }
       }
     } catch (e) {
       _logger.e('Token refresh error: $e');
@@ -300,8 +338,9 @@ class JarvisApiService {
   // Chat conversations
   Future<List<ChatSession>> getConversations() async {
     try {
+      // Fix the URL to use correct API path
       final response = await http.get(
-        Uri.parse('$_jarvisApiUrl${ApiConstants.conversations}'),
+        Uri.parse('$_jarvisApiUrl/api/v1/ai-chat/conversations'),
         headers: _getHeaders(),
       );
       
@@ -309,16 +348,57 @@ class JarvisApiService {
         final data = jsonDecode(response.body);
         List<ChatSession> conversations = [];
         
-        for (var item in data['data'] ?? []) {
+        // Update parsing based on actual API response structure
+        for (var item in data['items'] ?? []) {
           conversations.add(ChatSession(
-            id: item['id'],
+            id: item['id'] ?? '',
             title: item['title'] ?? 'New Chat',
-            createdAt: item['created_at'] != null ? DateTime.parse(item['created_at']) : DateTime.now(),
+            createdAt: item['createdAt'] != null ? 
+                       DateTime.fromMillisecondsSinceEpoch(item['createdAt'] * 1000) : 
+                       DateTime.now(),
           ));
         }
         
         return conversations;
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        _logger.w('Authentication error (${response.statusCode}) when getting conversations, attempting token refresh');
+        
+        // Try to refresh the token and retry
+        final refreshSuccess = await refreshToken();
+        if (refreshSuccess) {
+          _logger.i('Token refreshed successfully, retrying get conversations');
+          
+          // Retry the request with the new token
+          final retryResponse = await http.get(
+            Uri.parse('$_jarvisApiUrl/api/v1/ai-chat/conversations'),
+            headers: _getHeaders(),
+          );
+          
+          if (retryResponse.statusCode == 200) {
+            final data = jsonDecode(retryResponse.body);
+            List<ChatSession> conversations = [];
+            
+            for (var item in data['items'] ?? []) {
+              conversations.add(ChatSession(
+                id: item['id'] ?? '',
+                title: item['title'] ?? 'New Chat',
+                createdAt: item['createdAt'] != null ? 
+                           DateTime.fromMillisecondsSinceEpoch(item['createdAt'] * 1000) : 
+                           DateTime.now(),
+              ));
+            }
+            
+            _logger.i('Successfully retrieved conversations after token refresh');
+            return conversations;
+          }
+        }
+        
+        _logger.e('Failed to get conversations: ${response.statusCode}, ${response.reasonPhrase}');
+        _logger.e('Response body: ${response.body}');
+        throw 'Unauthorized';
       } else {
+        _logger.e('Failed to get conversations: ${response.statusCode}, ${response.reasonPhrase}');
+        _logger.e('Response body: ${response.body}');
         final data = jsonDecode(response.body);
         throw data['message'] ?? 'Error fetching conversations';
       }
@@ -330,8 +410,9 @@ class JarvisApiService {
   
   Future<List<Message>> getConversationHistory(String conversationId) async {
     try {
+      // Fix the URL to use correct API path
       final response = await http.get(
-        Uri.parse('$_jarvisApiUrl/conversations/$conversationId/messages'),
+        Uri.parse('$_jarvisApiUrl/api/v1/ai-chat/conversations/$conversationId/messages'),
         headers: _getHeaders(),
       );
       
@@ -339,16 +420,57 @@ class JarvisApiService {
         final data = jsonDecode(response.body);
         List<Message> messages = [];
         
-        for (var item in data['data'] ?? []) {
+        // Update parsing based on actual API response structure
+        for (var item in data['items'] ?? []) {
           messages.add(Message(
-            text: item['content'] ?? '',
-            isUser: item['role'] == 'user',
-            timestamp: item['created_at'] != null ? DateTime.parse(item['created_at']) : DateTime.now(),
+            text: item['query'] ?? item['answer'] ?? '',
+            isUser: item.containsKey('query'),
+            timestamp: item['createdAt'] != null ? 
+                      DateTime.fromMillisecondsSinceEpoch(item['createdAt'] * 1000) : 
+                      DateTime.now(),
           ));
         }
         
         return messages;
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        _logger.w('Authentication error (${response.statusCode}) when getting conversation history, attempting token refresh');
+        
+        // Try to refresh the token and retry
+        final refreshSuccess = await refreshToken();
+        if (refreshSuccess) {
+          _logger.i('Token refreshed successfully, retrying get conversation history');
+          
+          // Retry the request with the new token
+          final retryResponse = await http.get(
+            Uri.parse('$_jarvisApiUrl/api/v1/ai-chat/conversations/$conversationId/messages'),
+            headers: _getHeaders(),
+          );
+          
+          if (retryResponse.statusCode == 200) {
+            final data = jsonDecode(retryResponse.body);
+            List<Message> messages = [];
+            
+            for (var item in data['items'] ?? []) {
+              messages.add(Message(
+                text: item['query'] ?? item['answer'] ?? '',
+                isUser: item.containsKey('query'),
+                timestamp: item['createdAt'] != null ? 
+                          DateTime.fromMillisecondsSinceEpoch(item['createdAt'] * 1000) : 
+                          DateTime.now(),
+              ));
+            }
+            
+            _logger.i('Successfully retrieved conversation history after token refresh');
+            return messages;
+          }
+        }
+        
+        _logger.e('Failed to get conversation history: ${response.statusCode}, ${response.reasonPhrase}');
+        _logger.e('Response body: ${response.body}');
+        throw 'Unauthorized';
       } else {
+        _logger.e('Failed to get conversation history: ${response.statusCode}, ${response.reasonPhrase}');
+        _logger.e('Response body: ${response.body}');
         final data = jsonDecode(response.body);
         throw data['message'] ?? 'Error fetching conversation history';
       }
@@ -360,25 +482,39 @@ class JarvisApiService {
   
   Future<Message> sendMessage(String conversationId, String text) async {
     try {
+      // Fix the URL to use correct API path
       final response = await http.post(
-        Uri.parse('$_jarvisApiUrl/conversations/$conversationId/messages'),
+        Uri.parse('$_jarvisApiUrl/api/v1/ai-chat/messages'),
         headers: _getHeaders(),
         body: jsonEncode({
           'content': text,
-          'role': 'user'
+          'files': [],
+          'metadata': {
+            'conversation': {
+              'id': conversationId,
+              'messages': [] // The API will fetch previous messages from the server
+            }
+          },
+          'assistant': {
+            'id': 'gemini-1.5-flash-latest', // Default model ID
+            'model': 'dify',
+            'name': 'Gemini 1.5 Flash' // Default model name
+          }
         }),
       );
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         
-        // Return user message from response data
+        // Return user message
         return Message(
-          text: data['data']['content'] ?? text,
+          text: text,
           isUser: true,
           timestamp: DateTime.now(),
         );
       } else {
+        _logger.e('Failed to send message: ${response.statusCode}, ${response.reasonPhrase}');
+        _logger.e('Response body: ${response.body}');
         final errorData = jsonDecode(response.body);
         throw errorData['message'] ?? 'Error sending message';
       }
@@ -390,24 +526,46 @@ class JarvisApiService {
   
   Future<ChatSession> createConversation(String title) async {
     try {
+      // Create a new conversation by sending the first message
+      final initialMessage = "Hello";
+      
       final response = await http.post(
-        Uri.parse('$_jarvisApiUrl/conversations'),
+        Uri.parse('$_jarvisApiUrl/api/v1/ai-chat/messages'),
         headers: _getHeaders(),
         body: jsonEncode({
-          'title': title,
-          'model': 'gemini-2.0-flash', // Default model
+          'content': initialMessage,
+          'files': [],
+          'metadata': {
+            'conversation': {
+              'messages': []
+            }
+          },
+          'assistant': {
+            'id': 'gemini-1.5-flash-latest', // Default model ID
+            'model': 'dify',
+            'name': 'Gemini 1.5 Flash' // Default model name
+          }
         }),
       );
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         
+        // Extract conversation ID from response
+        final String conversationId = data['conversationId'] ?? '';
+        
+        if (conversationId.isEmpty) {
+          throw 'No conversation ID returned from API';
+        }
+        
         return ChatSession(
-          id: data['data']['id'],
-          title: data['data']['title'] ?? 'New Chat',
-          createdAt: data['data']['created_at'] != null ? DateTime.parse(data['data']['created_at']) : DateTime.now(),
+          id: conversationId,
+          title: title.isEmpty ? 'New Chat' : title,
+          createdAt: DateTime.now(),
         );
       } else {
+        _logger.e('Failed to create conversation: ${response.statusCode}, ${response.reasonPhrase}');
+        _logger.e('Response body: ${response.body}');
         final data = jsonDecode(response.body);
         throw data['message'] ?? 'Error creating conversation';
       }
@@ -419,59 +577,50 @@ class JarvisApiService {
   
   Future<bool> deleteConversation(String conversationId) async {
     try {
+      // Fix the URL to use correct API path
       final response = await http.delete(
-        Uri.parse('$_jarvisApiUrl/conversations/$conversationId'),
+        Uri.parse('$_jarvisApiUrl/api/v1/ai-chat/conversations/$conversationId'),
         headers: _getHeaders(),
       );
       
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        return true;
-      } else {
-        final data = jsonDecode(response.body);
-        throw data['message'] ?? 'Error deleting conversation';
-      }
+      return (response.statusCode == 200 || response.statusCode == 204);
     } catch (e) {
       _logger.e('Delete conversation error: $e');
       return false;
     }
   }
   
-  // User profile
+  // Get current user profile
   Future<UserModel?> getCurrentUser() async {
     try {
-      _logger.i('Attempting to get current user profile');
-      
-      // Check if we have an access token
-      if (_accessToken == null || _accessToken!.isEmpty) {
-        _logger.w('No access token available, cannot get user profile');
+      // First check if we have authentication
+      if (!isAuthenticated()) {
+        _logger.w('Cannot get current user: Not authenticated');
         return null;
       }
       
+      _logger.i('Getting current user profile');
+      
+      // Call the API to get the current user profile
       final response = await http.get(
-        Uri.parse('$_jarvisApiUrl${ApiConstants.userProfile}'),
+        Uri.parse('$_jarvisApiUrl/user/profile'),
         headers: _getHeaders(),
       );
-      
-      _logger.i('Get current user response status code: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final userData = data['data'] ?? data;
         
-        // Check if the profile data makes sense
-        if (userData == null || !userData.containsKey('id') || !userData.containsKey('email')) {
-          _logger.w('Invalid user profile data received from API');
-          return null;
-        }
-        
-        _logger.i('Successfully retrieved user profile for: ${userData['email']}');
+        _logger.i('Successfully retrieved user profile');
         
         return UserModel(
-          uid: userData['id'] ?? '',
+          uid: userData['id'] ?? _userId ?? '',
           email: userData['email'] ?? '',
           name: userData['name'],
-          createdAt: userData['created_at'] != null ? DateTime.parse(userData['created_at']) : DateTime.now(),
-          isEmailVerified: userData['email_verified'] ?? false,
+          createdAt: userData['created_at'] != null ? 
+                    DateTime.parse(userData['created_at']) : 
+                    DateTime.now(),
+          isEmailVerified: userData['email_verified'] ?? true,
           selectedModel: userData['selected_model'] ?? ApiConstants.defaultModel,
         );
       } else if (response.statusCode == 401 || response.statusCode == 403) {
@@ -495,55 +644,19 @@ class JarvisApiService {
             _logger.i('Successfully retrieved user profile after token refresh');
             
             return UserModel(
-              uid: userData['id'] ?? '',
+              uid: userData['id'] ?? _userId ?? '',
               email: userData['email'] ?? '',
               name: userData['name'],
-              createdAt: userData['created_at'] != null ? DateTime.parse(userData['created_at']) : DateTime.now(),
-              isEmailVerified: userData['email_verified'] ?? false,
-              selectedModel: userData['selected_model'] ?? 'gemini-2.0-flash',
+              createdAt: userData['created_at'] != null ? 
+                        DateTime.parse(userData['created_at']) : 
+                        DateTime.now(),
+              isEmailVerified: userData['email_verified'] ?? true,
+              selectedModel: userData['selected_model'] ?? ApiConstants.defaultModel,
             );
           }
         }
         
         _logger.w('Token refresh failed or retry failed, user may need to re-authenticate');
-        return null;
-      } else if (response.statusCode == 404) {
-        // Handle 404 errors specifically - this might be due to email verification issues
-        _logger.w('User profile not found (404) - This may be due to pending email verification');
-        
-        // Try explicit verification check
-        final verificationStatus = await checkEmailVerificationStatus();
-        
-        if (verificationStatus != null) {
-          _logger.i('Retrieved verification status directly: ${verificationStatus['is_verified']}');
-          
-          // Create a placeholder user model with the received verification status
-          final String? userId = _userId;
-          if (userId != null) {
-            return UserModel(
-              uid: userId,
-              email: verificationStatus['email'] ?? '',
-              createdAt: DateTime.now(),
-              isEmailVerified: verificationStatus['is_verified'] ?? false,
-            );
-          }
-        } else {
-          _logger.w('Could not get verification status, falling back to default behavior');
-          
-          // Create a placeholder user model with verification flag set to true
-          // This is a workaround for when the status check fails but user has verified
-          final String? userId = _userId;
-          if (userId != null) {
-            _logger.i('Creating placeholder user model for unverified user with ID: $userId');
-            return UserModel(
-              uid: userId,
-              email: '', // We don't know the email, it will be updated later
-              createdAt: DateTime.now(),
-              isEmailVerified: true, // Assume verified to resolve the issue
-            );
-          }
-        }
-        
         return null;
       } else {
         _logger.w('Failed to get current user: ${response.statusCode}');
@@ -555,6 +668,17 @@ class JarvisApiService {
         } catch (e) {
           // Response body might not be valid JSON
           _logger.w('Could not parse error response: ${response.body}');
+        }
+        
+        // Handle fallback for common cases - create a minimal user from stored ID
+        if (_userId != null) {
+          _logger.i('Creating fallback user model with stored user ID: $_userId');
+          return UserModel(
+            uid: _userId!,
+            email: '',
+            createdAt: DateTime.now(),
+            isEmailVerified: true, // Assume verified for fallback
+          );
         }
         
         return null;
@@ -622,6 +746,32 @@ class JarvisApiService {
       return await refreshToken();
     } catch (e) {
       _logger.e('Force token refresh error: $e');
+      return false;
+    }
+  }
+  
+  // Add a method to verify token is valid
+  Future<bool> verifyTokenValid() async {
+    try {
+      if (_accessToken == null) {
+        return false;
+      }
+      
+      // Try a lightweight API call to verify token
+      final response = await http.get(
+        Uri.parse('$_jarvisApiUrl/status'),
+        headers: _getHeaders(),
+      ).timeout(const Duration(seconds: 3));
+      
+      if (response.statusCode == 200) {
+        return true;
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        return await refreshToken();
+      } else {
+        return false;
+      }
+    } catch (e) {
+      _logger.e('Token verification error: $e');
       return false;
     }
   }

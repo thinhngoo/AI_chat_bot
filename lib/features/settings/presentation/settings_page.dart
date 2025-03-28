@@ -1,294 +1,282 @@
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import '../../../core/services/api/jarvis_api_service.dart';
 import '../../../core/services/chat/jarvis_chat_service.dart';
+import '../../../core/services/auth/auth_service.dart';
+import '../../../features/support/presentation/help_feedback_page.dart';
 import '../../../features/account/presentation/account_management_page.dart';
 import '../../../features/debug/presentation/user_data_viewer_page.dart';
+import '../../auth/presentation/login_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  SettingsPageState createState() => SettingsPageState();
+  State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends State<SettingsPage> {
+  final Logger _logger = Logger();
+  final AuthService _authService = AuthService();
+  final JarvisApiService _apiService = JarvisApiService();
   final JarvisChatService _chatService = JarvisChatService();
-  bool _isDarkMode = false;
+  
+  bool _isLoading = false;
+  bool _isSendingTestMessage = false;
+  String? _userEmail;
+  String? _userName;
   
   @override
   void initState() {
     super.initState();
-    // Removed the call to _loadUserModel()
-  }
-
-  Widget _buildAccountSection() {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Tài khoản',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Quản lý tài khoản'),
-              subtitle: const Text('Thay đổi mật khẩu, thông tin cá nhân'),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AccountManagementPage()),
-                );
-              },
-            ),
-            // Add new item for user data viewer
-            ListTile(
-              leading: const Icon(Icons.data_usage),
-              title: const Text('Xem dữ liệu người dùng'),
-              subtitle: const Text('Kiểm tra thông tin và trạng thái đăng nhập'),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const UserDataViewerPage()),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAppearanceSection() {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Giao diện',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              title: const Text('Chế độ tối'),
-              subtitle: const Text('Thay đổi giao diện sang màu tối'),
-              value: _isDarkMode,
-              onChanged: (value) {
-                setState(() {
-                  _isDarkMode = value;
-                });
-                // Implement dark mode functionality in a real app
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.font_download),
-              title: const Text('Kích thước chữ'),
-              subtitle: const Text('Điều chỉnh kích thước chữ hiển thị'),
-              onTap: () {
-                // Font size selection would be implemented here
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStorageSection() {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Lưu trữ & Dữ liệu',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.delete),
-              title: const Text('Xóa lịch sử trò chuyện'),
-              subtitle: const Text('Xóa tất cả các cuộc trò chuyện'),
-              onTap: () {
-                _showClearHistoryDialog();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildApiSection() {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'API & Tích hợp',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.api),
-              title: const Text('Cài đặt API'),
-              subtitle: const Text('Xem và quản lý cài đặt API'),
-              onTap: () {
-                // Navigate to API settings
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildApiSettingsCard() {
-    final JarvisApiService apiService = JarvisApiService();
-    final apiConfig = apiService.getApiConfig();
-    
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Thông tin API',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.cloud),
-              title: const Text('Jarvis API URL'),
-              subtitle: Text(apiConfig['jarvisApiUrl'] ?? 'Not configured'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.security),
-              title: const Text('API Authentication'),
-              subtitle: Text('Status: ${apiConfig['isAuthenticated']}'),
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: () => _testApiConnection(context),
-              child: const Text('Test API Connection'),
-            ),
-          ],
-        ),
-      ),
-    );
+    _loadUserInfo();
   }
   
-  // New method to test API connection with proper context handling
-  Future<void> _testApiConnection(BuildContext context) async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+  Future<void> _loadUserInfo() async {
+    try {
+      final user = await _apiService.getCurrentUser();
+      
+      if (mounted) {
+        setState(() {
+          _userEmail = user?.email;
+          _userName = user?.name;
+        });
+      }
+    } catch (e) {
+      _logger.e('Error loading user info: $e');
+    }
+  }
+  
+  Future<void> _logout() async {
+    setState(() {
+      _isLoading = true;
+    });
     
     try {
-      // Show loading indicator
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Testing API connection...')),
-      );
+      await _authService.signOut();
       
-      final apiService = JarvisApiService();
-      final isConnected = await apiService.checkApiStatus();
-      
-      // Only proceed if the widget is still mounted
       if (!mounted) return;
       
-      // Show result
-      scaffoldMessenger.hideCurrentSnackBar();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(isConnected 
-              ? 'API connection successful!' 
-              : 'API connection failed. Check your API configuration.'),
-          backgroundColor: isConnected ? Colors.green : Colors.red,
-        ),
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
       );
     } catch (e) {
-      // Only proceed if the widget is still mounted
+      _logger.e('Error signing out: $e');
+      
       if (!mounted) return;
       
-      // Show error
-      scaffoldMessenger.hideCurrentSnackBar();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Error testing API connection: $e'),
-          backgroundColor: Colors.red,
-        ),
+      setState(() {
+        _isLoading = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi đăng xuất: ${e.toString()}')),
       );
     }
   }
   
-  void _showClearHistoryDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Xóa lịch sử'),
-          content: const Text('Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Hủy'),
-            ),
-            TextButton(
-              onPressed: () {
-                // Clear chat history would be implemented here
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đã xóa lịch sử trò chuyện')),
-                );
-              },
-              child: const Text('Xóa'),
-            ),
-          ],
-        );
-      },
+  Future<void> _testAPIConnection() async {
+    setState(() {
+      _isSendingTestMessage = true;
+    });
+    
+    try {
+      final isConnected = await _apiService.checkApiStatus();
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isConnected
+                ? 'Kết nối API thành công!'
+                : 'Kết nối API thất bại. Vui lòng kiểm tra cấu hình.',
+          ),
+          backgroundColor: isConnected ? Colors.green : Colors.red,
+        ),
+      );
+    } catch (e) {
+      _logger.e('Test API connection error: $e');
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi kiểm tra kết nối: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingTestMessage = false;
+        });
+      }
+    }
+  }
+  
+  void _resetApiErrorState() {
+    _chatService.resetApiErrorState();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã đặt lại trạng thái lỗi API'),
+      ),
     );
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text('Cài đặt'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildAccountSection(),
-            _buildApiSection(),
-            _buildApiSettingsCard(),
-            _buildAppearanceSection(),
-            _buildStorageSection(),
-            
-            // Version info
-            const SizedBox(height: 20),
-            const Center(
-              child: Text(
-                'AI Chat Bot v1.0.0',
-                style: TextStyle(color: Colors.grey),
-              ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              children: [
+                // Account section
+                ListTile(
+                  title: const Text(
+                    'Tài khoản',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  leading: const Icon(Icons.person, color: Colors.blue),
+                ),
+                Divider(color: Colors.grey.shade300),
+                
+                ListTile(
+                  title: Text(_userName ?? 'Người dùng'),
+                  subtitle: Text(_userEmail ?? 'Không có thông tin'),
+                  leading: const Icon(Icons.account_circle),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AccountManagementPage(),
+                      ),
+                    ).then((_) => _loadUserInfo());
+                  },
+                ),
+                
+                ListTile(
+                  title: const Text('Đăng xuất'),
+                  leading: const Icon(Icons.logout),
+                  onTap: _logout,
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Support section
+                ListTile(
+                  title: const Text(
+                    'Hỗ trợ',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  leading: const Icon(Icons.help, color: Colors.blue),
+                ),
+                Divider(color: Colors.grey.shade300),
+                
+                ListTile(
+                  title: const Text('Trợ giúp & Phản hồi'),
+                  leading: const Icon(Icons.help_outline),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HelpFeedbackPage(),
+                      ),
+                    );
+                  },
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Diagnostics section
+                ListTile(
+                  title: const Text(
+                    'Chẩn đoán',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  leading: const Icon(Icons.bug_report, color: Colors.blue),
+                ),
+                Divider(color: Colors.grey.shade300),
+                
+                ListTile(
+                  title: const Text('Thông tin người dùng'),
+                  subtitle: const Text('Xem thông tin chi tiết về người dùng và cấu hình'),
+                  leading: const Icon(Icons.info_outline),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const UserDataViewerPage(),
+                      ),
+                    );
+                  },
+                ),
+                
+                ListTile(
+                  title: const Text('Kiểm tra kết nối API'),
+                  leading: const Icon(Icons.network_check),
+                  trailing: _isSendingTestMessage
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: _isSendingTestMessage ? null : _testAPIConnection,
+                ),
+                
+                ListTile(
+                  title: const Text('Đặt lại trạng thái lỗi API'),
+                  subtitle: const Text('Đặt lại trạng thái lỗi để thử kết nối lại'),
+                  leading: const Icon(Icons.refresh),
+                  onTap: _resetApiErrorState,
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // About section
+                ListTile(
+                  title: const Text(
+                    'Thông tin',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  leading: const Icon(Icons.info, color: Colors.blue),
+                ),
+                Divider(color: Colors.grey.shade300),
+                
+                const ListTile(
+                  title: Text('AI Chat Bot'),
+                  subtitle: Text('Phiên bản 1.0.0'),
+                  leading: Icon(Icons.app_settings_alt),
+                ),
+                
+                const SizedBox(height: 40),
+              ],
             ),
-          ],
-        ),
-      ),
     );
   }
 }

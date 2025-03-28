@@ -46,7 +46,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     });
     
     try {
-      _logger.i('Sending password reset email to: ${_emailController.text}');
+      _logger.i('Attempting to send password reset email to: ${_emailController.text}');
       
       // Call auth service to send password reset email
       await _authService.sendPasswordResetEmail(_emailController.text.trim());
@@ -56,28 +56,26 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _logger.i('Password reset email sent successfully');
       
       setState(() {
-        _isLoading = false;
         _isSuccess = true;
+        _isLoading = false;
       });
     } catch (e) {
-      _logger.e('Error sending password reset email: $e');
+      _logger.e('Password reset error: $e');
       
       if (!mounted) return;
       
       String errorMsg;
       
       // Check for common API errors
-      if (e.toString().contains('user not found') || 
-          e.toString().contains('not found') ||
-          e.toString().contains('no user')) {
-        errorMsg = 'Không tìm thấy tài khoản với email này. Vui lòng kiểm tra lại email.';
-      } else if (e.toString().contains('network') || e.toString().contains('connect')) {
+      if (e.toString().contains('user-not-found')) {
+        errorMsg = 'Không tìm thấy tài khoản với email này';
+      } else if (e.toString().contains('too-many-requests')) {
+        errorMsg = 'Quá nhiều yêu cầu, vui lòng thử lại sau';
+      } else if (e.toString().contains('network')) {
         errorMsg = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet của bạn.';
-      } else if (e.toString().contains('Not implemented')) {
-        errorMsg = 'Tính năng này hiện không khả dụng với Jarvis API. Vui lòng liên hệ quản trị viên để được hỗ trợ.';
       } else {
         // Use a more user-friendly error message
-        errorMsg = 'Đã xảy ra lỗi: ${e.toString()}';
+        errorMsg = 'Không thể gửi email đặt lại mật khẩu: ${e.toString()}';
       }
       
       setState(() {
@@ -93,30 +91,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       appBar: AppBar(
         title: const Text('Quên mật khẩu'),
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: _isSuccess ? _buildSuccessContent() : _buildRequestContent(),
-            ),
-          ),
-        ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: _isSuccess ? _buildSuccessContent() : _buildRequestContent(),
       ),
     );
   }
 
   Widget _buildRequestContent() {
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Khôi phục mật khẩu',
+          'Đặt lại mật khẩu',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -124,38 +111,22 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         ),
         const SizedBox(height: 16),
         const Text(
-          'Nhập địa chỉ email của bạn để nhận liên kết đặt lại mật khẩu',
-          textAlign: TextAlign.center,
+          'Nhập địa chỉ email của bạn để nhận liên kết đặt lại mật khẩu.',
+          style: TextStyle(
+            fontSize: 16,
+          ),
         ),
         const SizedBox(height: 24),
-        
         EmailField(
           controller: _emailController,
+          errorText: _errorMessage,
           onChanged: (_) => setState(() => _errorMessage = null),
         ),
-        
-        if (_errorMessage != null) ...[
-          const SizedBox(height: 12),
-          Text(
-            _errorMessage!,
-            style: const TextStyle(color: Colors.red),
-            textAlign: TextAlign.center,
-          ),
-        ],
-        
         const SizedBox(height: 24),
-        
         SubmitButton(
-          label: 'Gửi liên kết đặt lại',
+          label: 'Gửi yêu cầu đặt lại mật khẩu',
           onPressed: _resetPassword,
           isLoading: _isLoading,
-        ),
-        
-        const SizedBox(height: 16),
-        
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Quay lại đăng nhập'),
         ),
       ],
     );
@@ -163,45 +134,49 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   Widget _buildSuccessContent() {
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Icon(
           Icons.check_circle_outline,
-          size: 80,
+          size: 72,
           color: Colors.green,
         ),
         const SizedBox(height: 24),
         const Text(
-          'Email đặt lại mật khẩu đã được gửi!',
+          'Đã gửi email đặt lại mật khẩu',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
         Text(
-          'Chúng tôi đã gửi liên kết đặt lại mật khẩu tới ${_emailController.text}. '
-          'Vui lòng kiểm tra hộp thư đến của bạn và làm theo hướng dẫn.',
+          'Chúng tôi đã gửi liên kết đặt lại mật khẩu đến ${_emailController.text.trim()}',
+          style: const TextStyle(
+            fontSize: 16,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
         const Text(
-          'Nếu bạn không nhận được email, vui lòng kiểm tra hộp thư rác hoặc thử lại.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontStyle: FontStyle.italic),
-        ),
-        
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Quay lại đăng nhập'),
+          'Vui lòng kiểm tra hộp thư và làm theo hướng dẫn để đặt lại mật khẩu.',
+          style: TextStyle(
+            fontSize: 16,
           ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const LoginPage(),
+              ),
+            );
+          },
+          child: const Text('Quay lại đăng nhập'),
         ),
       ],
     );

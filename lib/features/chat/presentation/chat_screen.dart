@@ -9,30 +9,30 @@ class ChatScreen extends StatefulWidget {
   final ChatSession chatSession;
   
   const ChatScreen({
-    super.key,
+    super.key, 
     required this.chatSession,
   });
 
   @override
-  ChatScreenState createState() => ChatScreenState();
+  State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final JarvisChatService _chatService = JarvisChatService();
   final Logger _logger = Logger();
-  final ScrollController _scrollController = ScrollController();
   
   List<Message> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
-  String _currentModel = 'gemini-2.0-flash';
+  String _currentModel = 'gemini-1.5-flash-latest';
   
   @override
   void initState() {
     super.initState();
     _loadMessages();
-    _loadSelectedModel();
+    _loadModel();
   }
   
   Future<void> _loadMessages() async {
@@ -41,16 +41,15 @@ class ChatScreenState extends State<ChatScreen> {
     });
     
     try {
-      final messages = await _chatService.getMessages(widget.chatSession.id);
+      _messages = await _chatService.getMessages(widget.chatSession.id);
       
       if (!mounted) return;
       
       setState(() {
-        _messages = messages;
         _isLoading = false;
       });
       
-      // Scroll to bottom after messages are loaded
+      // Scroll to bottom after messages load
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToBottom();
       });
@@ -64,25 +63,21 @@ class ChatScreenState extends State<ChatScreen> {
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi tải tin nhắn: ${e.toString()}')),
+        SnackBar(content: Text('Failed to load messages: $e')),
       );
     }
   }
   
-  Future<void> _loadSelectedModel() async {
+  Future<void> _loadModel() async {
     try {
-      final selectedModel = await _chatService.getSelectedModel();
-      
-      if (!mounted) return;
-      
-      if (selectedModel != null) {
+      final model = await _chatService.getSelectedModel();
+      if (model != null && mounted) {
         setState(() {
-          _currentModel = selectedModel;
+          _currentModel = model;
         });
       }
     } catch (e) {
-      _logger.e('Error loading selected model: $e');
-      // Use default model if there's an error
+      _logger.e('Error loading model: $e');
     }
   }
   
@@ -92,7 +87,7 @@ class ChatScreenState extends State<ChatScreen> {
     
     _messageController.clear();
     
-    // Add user message immediately for better UX
+    // Optimistically add user message to UI
     setState(() {
       _messages.add(Message(
         text: text,
@@ -102,46 +97,83 @@ class ChatScreenState extends State<ChatScreen> {
       _isSending = true;
     });
     
-    _scrollToBottom();
+    // Scroll to bottom
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
     
     try {
-      // Add a typing indicator
+      // Add temporary "typing" message
       setState(() {
         _messages.add(Message(
-          text: '',
+          text: '...',
           isUser: false,
           timestamp: DateTime.now(),
           isTyping: true,
         ));
       });
       
-      _scrollToBottom();
+      // Scroll to bottom again
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom();
+      });
       
-      // Send message to API
-      final botResponse = await _chatService.sendMessage(widget.chatSession.id, text);
+      // Send message to service and get user message back
+      final userMessage = await _chatService.sendMessage(
+        widget.chatSession.id, 
+        text,
+      );
+      
+      // Get AI response - we need to wait for it separately
+      String aiResponse;
+      
+      // If using direct Gemini API, generate response directly
+      if (_chatService.isUsingDirectGeminiApi()) {
+        // Convert message history to format for Gemini API
+        final chatHistory = _messages
+            .where((m) => !m.isTyping)
+            .take(10)
+            .map((msg) => {
+                'role': msg.isUser ? 'user' : 'assistant',
+                'content': msg.text,
+              })
+            .toList();
+        
+        // Get response from Gemini directly
+        aiResponse = await _chatService.getDirectAIResponse(text, chatHistory);
+      } else {
+        // For Jarvis API, wait a moment and load new messages
+        await Future.delayed(const Duration(milliseconds: 800));
+        final freshMessages = await _chatService.getMessages(widget.chatSession.id);
+        
+        // Find the AI response message (most recent non-user message)
+        final aiMessages = freshMessages
+            .where((m) => !m.isUser)
+            .toList();
+        
+        if (aiMessages.isNotEmpty) {
+          aiResponse = aiMessages.last.text;
+        } else {
+          aiResponse = "Sorry, I couldn't generate a response at this time.";
+        }
+      }
       
       if (!mounted) return;
       
-      // Remove typing indicator
+      // Remove typing indicator and add real response
       setState(() {
+        // Remove typing indicator
         _messages.removeWhere((message) => message.isTyping);
+        
+        // Add AI response message
+        _messages.add(Message(
+          text: aiResponse,
+          isUser: false,
+          timestamp: DateTime.now(),
+        ));
+        
+        _isSending = false;
       });
-      
-      if (botResponse != null) {
-        setState(() {
-          _messages.add(botResponse);
-          _isSending = false;
-        });
-      } else {
-        setState(() {
-          _messages.add(Message(
-            text: 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này. Vui lòng thử lại sau.',
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
-          _isSending = false;
-        });
-      }
       
       _scrollToBottom();
     } catch (e) {

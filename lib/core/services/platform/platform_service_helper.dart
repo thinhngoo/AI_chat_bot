@@ -1,162 +1,125 @@
-import 'dart:io';
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:logger/logger.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../api/jarvis_api_service.dart';
+import '../../utils/diagnostics/platform_checker.dart';
 
+/// Helper class for platform-specific operations
 class PlatformServiceHelper {
   static final Logger _logger = Logger();
-  static final JarvisApiService _apiService = JarvisApiService();
+  static PlatformServiceHelper? _instance;
   
-  // Pre-calculate platform info immediately at class load time
-  static final Map<String, dynamic> _platformCache = _initPlatformCache();
+  String _appDataPath = '';
+  bool _isInitialized = false;
   
-  // Initialize platform cache once at startup with a safer approach
-  static Map<String, dynamic> _initPlatformCache() {
-    final Map<String, dynamic> cache = {};
+  /// Get the singleton instance
+  static PlatformServiceHelper get instance {
+    _instance ??= PlatformServiceHelper._internal();
+    return _instance!;
+  }
+  
+  PlatformServiceHelper._internal();
+  
+  /// Initialize the platform helper
+  Future<void> initialize() async {
+    if (_isInitialized) return;
     
     try {
-      // Detect platform with minimal overhead
-      final bool isWeb = kIsWeb;
-      String platform;
+      _logger.i('Initializing PlatformServiceHelper');
       
-      if (isWeb) {
-        platform = 'web';
+      // Log platform information
+      PlatformChecker.logPlatformInfo();
+      
+      // Get application data path based on platform
+      if (kIsWeb) {
+        _appDataPath = 'web-storage';
+        _logger.i('Running on web platform, using browser storage');
+      } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        final dir = await getApplicationSupportDirectory();
+        _appDataPath = dir.path;
+        _logger.i('Desktop platform detected, app data path: $_appDataPath');
+      } else if (Platform.isAndroid || Platform.isIOS) {
+        final dir = await getApplicationDocumentsDirectory();
+        _appDataPath = dir.path;
+        _logger.i('Mobile platform detected, app data path: $_appDataPath');
       } else {
-        try {
-          // Log platform details to help with debugging
-          // Avoid excessive logging that might slow down startup
-          final String operatingSystem = Platform.operatingSystem;
-          
-          if (operatingSystem == 'android') {
-            platform = 'android';
-          } else if (operatingSystem == 'ios') {
-            platform = 'ios';
-          } else if (operatingSystem == 'macos') {
-            platform = 'macos';
-          } else if (operatingSystem == 'windows') {
-            platform = 'windows';
-          } else if (operatingSystem == 'linux') {
-            platform = 'linux';
-          } else {
-            platform = 'unknown';
+        _logger.w('Unknown platform, using default storage');
+        _appDataPath = 'unknown-platform';
+      }
+      
+      _isInitialized = true;
+    } catch (e) {
+      _logger.e('Error initializing PlatformServiceHelper: $e');
+      throw Exception('Failed to initialize platform services: $e');
+    }
+  }
+  
+  /// Get application data path
+  String get appDataPath {
+    if (!_isInitialized) {
+      _logger.w('PlatformServiceHelper not initialized, returning empty path');
+      return '';
+    }
+    return _appDataPath;
+  }
+  
+  /// Check if the platform is mobile
+  bool get isMobile => PlatformChecker.isMobile;
+  
+  /// Check if the platform is desktop
+  bool get isDesktop => PlatformChecker.isDesktop;
+  
+  /// Check if the platform is web
+  bool get isWeb => PlatformChecker.isWeb;
+  
+  /// Get all stored preferences as a Map
+  Future<Map<String, dynamic>> getAllPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      final allPrefs = <String, dynamic>{};
+      
+      for (final key in keys) {
+        if (prefs.containsKey(key)) {
+          if (prefs.getString(key) != null) {
+            allPrefs[key] = prefs.getString(key);
+          } else if (prefs.getBool(key) != null) {
+            allPrefs[key] = prefs.getBool(key);
+          } else if (prefs.getInt(key) != null) {
+            allPrefs[key] = prefs.getInt(key);
+          } else if (prefs.getDouble(key) != null) {
+            allPrefs[key] = prefs.getDouble(key);
+          } else if (prefs.getStringList(key) != null) {
+            allPrefs[key] = prefs.getStringList(key);
           }
-          
-          Logger().i('Platform detection - OS: $operatingSystem');
-        } catch (e) {
-          // Fallback for any platform detection errors
-          Logger().e('Error detecting platform: $e');
-          platform = 'unknown';
         }
       }
       
-      // Cache platform information
-      cache['platform'] = platform;
-      cache['isWeb'] = isWeb;
-      cache['isDesktopWindows'] = !isWeb && platform == 'windows';
-      cache['isMobileOrWeb'] = isWeb || platform == 'android' || platform == 'ios';
-      
-      // Create platform info result map
-      final Map<String, dynamic> platformInfo = {
-        'platform': platform,
-        'isDesktop': platform == 'windows' || platform == 'macos' || platform == 'linux',
-        'isMobile': platform == 'android' || platform == 'ios',
-        'isWeb': isWeb,
-      };
-      
-      cache['platformInfo'] = platformInfo;
-      
+      return allPrefs;
     } catch (e) {
-      // Fallback in case of any error
-      Logger().e('Error in platform detection: $e');
-      cache['platform'] = 'unknown';
-      cache['isWeb'] = false;
-      cache['isDesktopWindows'] = false;
-      cache['isMobileOrWeb'] = false;
-      cache['platformInfo'] = {
-        'platform': 'unknown',
-        'isDesktop': false,
-        'isMobile': false,
-        'isWeb': false,
-        'error': true,
-      };
-    }
-    
-    return cache;
-  }
-
-  // Fast getters that use pre-calculated values  
-  static bool get isDesktopWindows => _platformCache['isDesktopWindows'] as bool;
-  static bool get isMobileOrWeb => _platformCache['isMobileOrWeb'] as bool;
-  
-  // Return the cached platform info immediately
-  static Map<String, dynamic> getPlatformInfo() {
-    return _platformCache['platformInfo'] as Map<String, dynamic>;
-  }
-  
-  // Helper method to determine which auth service to use
-  static String get authServiceImplementation {
-    return isDesktopWindows ? 'windows' : 'jarvis';
-  }
-  
-  // Helper method for loading platform-specific config
-  static Map<String, dynamic> getPlatformConfig() {
-    return {
-      'useJarvisApi': true,
-      'autoVerifyEmail': true,
-    };
-  }
-  
-  // Credentials are now managed by JarvisApiService
-  static Future<void> storeCredentials(String email, String password) async {
-    try {
-      // Login with Jarvis API to store credentials
-      await _apiService.signIn(email, password);
-      _logger.i('Credentials stored via Jarvis API login');
-    } catch (e) {
-      _logger.e('Error storing credentials: $e');
-      throw Exception('Failed to store credentials');
+      _logger.e('Error getting all preferences: $e');
+      return {};
     }
   }
-
-  static Future<bool> validateCredentials(String email, String password) async {
+  
+  /// Clear all stored preferences
+  Future<bool> clearAllPreferences() async {
     try {
-      // Validate by attempting to sign in
-      await _apiService.signIn(email, password);
-      return true;
+      final prefs = await SharedPreferences.getInstance();
+      return await prefs.clear();
     } catch (e) {
-      _logger.e('Error validating credentials: $e');
+      _logger.e('Error clearing preferences: $e');
       return false;
     }
   }
   
-  static Future<void> clearCredentials() async {
-    try {
-      // Log out of Jarvis API
-      await _apiService.logout();
-      _logger.i('All credentials cleared');
-    } catch (e) {
-      _logger.e('Error clearing credentials: $e');
-      throw Exception('Failed to clear credentials');
-    }
-  }
-  
-  // Get all users stored in local storage (Windows)
-  static Future<List<Map<String, dynamic>>> getUsers() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final usersJson = prefs.getString('users');
-      
-      if (usersJson == null || usersJson.isEmpty) {
-        return [];
-      }
-      
-      final List<dynamic> decoded = jsonDecode(usersJson);
-      return decoded.map((user) => Map<String, dynamic>.from(user)).toList();
-    } catch (e) {
-      _logger.e('Error getting users from local storage: $e');
-      return [];
-    }
+  /// Get platform diagnostics information
+  Map<String, dynamic> getDiagnosticInfo() {
+    return {
+      'appDataPath': _appDataPath,
+      'isInitialized': _isInitialized,
+      'platformInfo': PlatformChecker.getPlatformInfo(),
+    };
   }
 }

@@ -1,183 +1,117 @@
 import 'package:flutter/material.dart';
 
-/// Centralized password validation utility class
+/// Utility class for validating and evaluating passwords
 class PasswordValidator {
-  /// Define standard password requirements that will be used throughout the app
-  static const int minLength = 8;
-  static final RegExp upperCaseRegex = RegExp(r'[A-Z]');
-  static final RegExp lowerCaseRegex = RegExp(r'[a-z]');
-  static final RegExp digitRegex = RegExp(r'[0-9]');
-  static final RegExp specialCharRegex = RegExp(r'[!@#$%^&*(),.?":{}|<>]');
-
-  /// Check password strength and return score (0.0 to 1.0)
-  static double calculateStrength(String password) {
-    if (password.isEmpty) return 0.0;
-    
-    double strength = 0.0;
-    
-    // Length check
-    if (password.length >= minLength) strength += 0.25;
-    
-    // Contains uppercase and lowercase
-    if (password.contains(upperCaseRegex) && password.contains(lowerCaseRegex)) {
-      strength += 0.25;
+  /// Checks if a given password meets the security requirements
+  static bool isValidPassword(String password) {
+    if (password.length < 8) {
+      return false;
     }
     
-    // Contains numbers
-    if (password.contains(digitRegex)) strength += 0.25;
-    
-    // Contains special characters
-    if (password.contains(specialCharRegex)) strength += 0.25;
-    
-    return strength;
-  }
-
-  /// Get the strength label based on score
-  static String getStrengthText(double strength) {
-    if (strength <= 0.0) return 'Chưa nhập mật khẩu';
-    if (strength <= 0.25) return 'Yếu';
-    if (strength <= 0.5) return 'Trung bình';
-    if (strength <= 0.75) return 'Khá mạnh';
-    return 'Mạnh';
-  }
-
-  /// Check if a password meets all requirements (for validation)
-  static bool meetsAllRequirements(String password) {
-    return password.length >= minLength &&
-           password.contains(upperCaseRegex) &&
-           password.contains(lowerCaseRegex) &&
-           password.contains(digitRegex) &&
-           password.contains(specialCharRegex);
-  }
-
-  /// Get list of requirements that are not met
-  static List<String> getUnmetRequirements(String password) {
-    final List<String> unmetRequirements = [];
-    
-    if (password.length < minLength) {
-      unmetRequirements.add('Mật khẩu phải có ít nhất $minLength ký tự');
+    // Check for at least one uppercase letter
+    if (!password.contains(RegExp(r'[A-Z]'))) {
+      return false;
     }
     
-    if (!password.contains(upperCaseRegex) || !password.contains(lowerCaseRegex)) {
-      unmetRequirements.add('Mật khẩu phải có chữ hoa và chữ thường');
+    // Check for at least one lowercase letter
+    if (!password.contains(RegExp(r'[a-z]'))) {
+      return false;
     }
     
-    if (!password.contains(digitRegex)) {
-      unmetRequirements.add('Mật khẩu phải có ít nhất một chữ số');
+    // Check for at least one digit
+    if (!password.contains(RegExp(r'[0-9]'))) {
+      return false;
     }
     
-    if (!password.contains(specialCharRegex)) {
-      unmetRequirements.add('Mật khẩu phải có ít nhất một ký tự đặc biệt');
+    // Check for at least one special character
+    if (!password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+      return false;
     }
     
-    return unmetRequirements;
-  }
-
-  /// Validate password against requirements
-  static Map<String, dynamic> validate(String password, {String? confirmPassword}) {
-    final Map<String, dynamic> result = {
-      'isValid': true,
-      'errorMessage': null,
-      'confirmErrorMessage': null,
-    };
-    
-    // Check if password is empty
-    if (password.isEmpty) {
-      result['isValid'] = false;
-      result['errorMessage'] = 'Vui lòng nhập mật khẩu';
-      return result;
-    }
-    
-    // Check for all requirements
-    List<String> unmetRequirements = getUnmetRequirements(password);
-    if (unmetRequirements.isNotEmpty) {
-      result['isValid'] = false;
-      result['errorMessage'] = unmetRequirements.first; // Return first error
-      return result;
-    }
-    
-    // Check if passwords match (if confirmPassword is provided)
-    if (confirmPassword != null && password != confirmPassword) {
-      result['isValid'] = false;
-      result['confirmErrorMessage'] = 'Mật khẩu xác nhận không khớp';
-    }
-    
-    return result;
+    return true;
   }
   
-  /// Get standard password requirements text for UI displays
-  static List<String> getRequirementsText() {
-    return [
-      'Ít nhất $minLength ký tự',
-      'Có ít nhất 1 chữ hoa và 1 chữ thường',
-      'Có ít nhất 1 chữ số',
-      'Có ít nhất 1 ký tự đặc biệt (@, !, #, v.v.)',
-    ];
+  /// Checks if a given email is valid
+  static bool isValidEmail(String email) {
+    // Simple regex for basic email validation
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    return emailRegex.hasMatch(email);
   }
-
-  /// Checks if a password meets all security requirements
-  static bool isValidPassword(String password) {
-    return password.length >= 8 &&
-        password.contains(RegExp(r'[A-Z]')) &&
-        password.contains(RegExp(r'[a-z]')) &&
-        password.contains(RegExp(r'[0-9]')) &&
-        password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
-  }
-
-  /// Gets a text description of password strength
+  
+  /// Evaluates password strength and returns a string description
   static String getPasswordStrength(String password) {
-    if (password.isEmpty) return '';
-
-    int score = 0;
+    if (password.isEmpty) {
+      return 'Chưa nhập';
+    }
+    
+    int strength = 0;
     
     // Length check
-    if (password.length >= 8) score++;
-    if (password.length >= 12) score++;
+    if (password.length >= 8) {
+      strength++;
+    }
+    if (password.length >= 12) {
+      strength++;
+    }
     
-    // Character type checks
-    if (password.contains(RegExp(r'[A-Z]'))) score++;
-    if (password.contains(RegExp(r'[a-z]'))) score++;
-    if (password.contains(RegExp(r'[0-9]'))) score++;
-    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) score++;
+    // Character variety checks
+    if (password.contains(RegExp(r'[A-Z]'))) {
+      strength++;
+    }
+    if (password.contains(RegExp(r'[a-z]'))) {
+      strength++;
+    }
+    if (password.contains(RegExp(r'[0-9]'))) {
+      strength++;
+    }
+    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+      strength++;
+    }
     
-    switch (score) {
+    // Convert strength score to descriptive string
+    switch (strength) {
       case 0:
       case 1:
         return 'Rất yếu';
       case 2:
-      case 3:
         return 'Yếu';
-      case 4:
+      case 3:
         return 'Trung bình';
-      case 5:
+      case 4:
         return 'Mạnh';
+      case 5:
       case 6:
-      default:
         return 'Rất mạnh';
+      default:
+        return 'Không xác định';
     }
   }
-
-  /// Gets a color corresponding to password strength
+  
+  /// Returns an appropriate color for displaying password strength
   static Color getPasswordStrengthColor(String strength) {
     switch (strength) {
       case 'Rất yếu':
-        return Colors.red.shade800;
+        return Colors.red;
       case 'Yếu':
         return Colors.orange;
       case 'Trung bình':
         return Colors.yellow.shade800;
       case 'Mạnh':
-        return Colors.green;
+        return Colors.lightGreen;
       case 'Rất mạnh':
-        return Colors.green.shade700;
+        return Colors.green;
       default:
         return Colors.grey;
     }
   }
   
-  /// Gets a ratio (0.0 to 1.0) for password strength progress indicator
+  /// Returns a ratio (0.0 to 1.0) representing password strength for progress indicators
   static double getPasswordStrengthRatio(String strength) {
     switch (strength) {
+      case 'Chưa nhập':
+        return 0.0;
       case 'Rất yếu':
         return 0.2;
       case 'Yếu':
@@ -192,25 +126,14 @@ class PasswordValidator {
         return 0.0;
     }
   }
-
-  /// Email validation
-  static bool isValidEmail(String email) {
-    // Kiểm tra chuỗi email rỗng
-    if (email.isEmpty) {
-      return false;
-    }
-    
-    try {
-      final RegExp emailRegExp = RegExp(
-        r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$",
-      );
-      return emailRegExp.hasMatch(email);
-    } catch (e) {
-      // Nếu có lỗi xảy ra, trả về false (hoặc ghi log lỗi nếu cần)
-      return false;
-    }
+  
+  /// Get a list of password requirements as string descriptions
+  static List<String> getRequirementsText() {
+    return [
+      'Ít nhất 8 ký tự',
+      'Ít nhất 1 chữ hoa và 1 chữ thường',
+      'Ít nhất 1 chữ số',
+      'Ít nhất 1 ký tự đặc biệt (!@#\$%^&*...)'
+    ];
   }
 }
-
-// For backward compatibility with code using AuthValidators
-class AuthValidators extends PasswordValidator {}

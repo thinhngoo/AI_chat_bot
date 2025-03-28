@@ -59,7 +59,7 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
       
       if (email == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cannot delete: No email found')),
+          const SnackBar(content: Text('Cannot delete user: email is missing')),
         );
         return;
       }
@@ -67,8 +67,8 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Delete User Data'),
-          content: Text('Are you sure you want to delete user data for $email?'),
+          title: const Text('Delete User'),
+          content: Text('Are you sure you want to delete user $email?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -77,7 +77,6 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Delete'),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
             ),
           ],
         ),
@@ -91,12 +90,12 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
       
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('User data for $email deleted')),
+          SnackBar(content: Text('User $email deleted successfully')),
         );
         _loadUsers(); // Refresh the list
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete user data for $email')),
+          const SnackBar(content: Text('Failed to delete user')),
         );
       }
     } catch (e) {
@@ -115,11 +114,8 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Clear All User Data'),
-          content: const Text(
-            'Are you sure you want to delete ALL user data? '
-            'This action cannot be undone.',
-          ),
+          title: const Text('Clear All Users'),
+          content: const Text('Are you sure you want to delete all stored users? This cannot be undone.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -128,7 +124,6 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Clear All'),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
             ),
           ],
         ),
@@ -142,12 +137,12 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
       
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All user data cleared')),
+          const SnackBar(content: Text('All users cleared successfully')),
         );
         _loadUsers(); // Refresh the list
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to clear user data')),
+          const SnackBar(content: Text('Failed to clear users')),
         );
       }
     } catch (e) {
@@ -170,31 +165,18 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadUsers,
-            tooltip: 'Refresh',
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'SharedPreferences Path:',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      Text(_prefsPath ?? 'Unknown'),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Stored Users (${_users.length}):',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
+                  child: Text(
+                    'SharedPreferences Path: ${_prefsPath ?? "Unknown"}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
                 Expanded(
@@ -204,49 +186,19 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
                           itemCount: _users.length,
                           itemBuilder: (context, index) {
                             final user = _users[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                                vertical: 4.0,
-                              ),
-                              child: ExpansionTile(
-                                title: Text(user['email'] ?? 'Unknown email'),
-                                subtitle: Text('UID: ${user['uid'] ?? 'No UID'}'),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete),
-                                  onPressed: () => _deleteUser(index),
-                                  tooltip: 'Delete user data',
-                                ),
+                            return ListTile(
+                              title: Text(user['email'] ?? 'Unknown email'),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: user.entries.map((entry) {
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                          child: Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              SizedBox(
-                                                width: 120,
-                                                child: Text(
-                                                  '${entry.key}:',
-                                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                                ),
-                                              ),
-                                              Expanded(
-                                                child: Text(
-                                                  entry.value?.toString() ?? 'null',
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      }).toList(),
-                                    ),
-                                  ),
+                                  Text('UID: ${user['uid'] ?? 'No UID'}'),
+                                  if (user['lastLogin'] != null)
+                                    Text('Last Login: ${user['lastLogin']}'),
                                 ],
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete),
+                                onPressed: () => _deleteUser(index),
                               ),
                             );
                           },
@@ -260,12 +212,14 @@ class _WindowsUserDataViewerState extends State<WindowsUserDataViewer> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${_users.length} users'),
+              Text('${_users.length} users found'),
               TextButton.icon(
                 icon: const Icon(Icons.delete_forever),
                 label: const Text('Clear All'),
                 onPressed: _users.isEmpty ? null : _clearAllUsers,
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.red,
+                ),
               ),
             ],
           ),

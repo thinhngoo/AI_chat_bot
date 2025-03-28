@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/api/jarvis_api_service.dart';
 import '../../../core/services/auth/auth_service.dart';
-import '../../../tools/windows_user_data_tool.dart';
+import '../../../core/utils/diagnostics/platform_checker.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../tools/windows_user_data_tool.dart';
+import 'windows_user_data_viewer.dart';
 
 class UserDataViewerPage extends StatefulWidget {
   const UserDataViewerPage({super.key});
@@ -14,21 +16,23 @@ class UserDataViewerPage extends StatefulWidget {
   State<UserDataViewerPage> createState() => _UserDataViewerPageState();
 }
 
-class _UserDataViewerPageState extends State<UserDataViewerPage> {
+class _UserDataViewerPageState extends State<UserDataViewerPage> with SingleTickerProviderStateMixin {
   final Logger _logger = Logger();
   final AuthService _authService = AuthService();
   final JarvisApiService _apiService = JarvisApiService();
   
-  bool _isLoading = true;
+  late TabController _tabController;
   Map<String, dynamic> _userData = {};
   Map<String, dynamic> _apiConfig = {};
   Map<String, dynamic> _envConfig = {};
   List<Map<String, dynamic>> _storedUsers = [];
   String _prefsPath = '';
+  bool _isLoading = true;
   
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     _loadUserData();
   }
   
@@ -58,7 +62,7 @@ class _UserDataViewerPageState extends State<UserDataViewerPage> {
       setState(() {
         if (user != null) {
           if (user is Map) {
-            _userData = Map<String, dynamic>.from(user);
+            _userData = Map<String, dynamic>.from(user as Map);
           } else {
             _userData = user.toMap();
           }
@@ -88,32 +92,36 @@ class _UserDataViewerPageState extends State<UserDataViewerPage> {
     final result = <String, dynamic>{};
     
     try {
-      // Get environment variables but mask sensitive data
-      result['AUTH_API_URL'] = dotenv.env['AUTH_API_URL'] ?? 'Not set';
-      result['JARVIS_API_URL'] = dotenv.env['JARVIS_API_URL'] ?? 'Not set';
-      
-      // Mask API key
-      final apiKey = dotenv.env['JARVIS_API_KEY'];
-      if (apiKey != null && apiKey.isNotEmpty) {
-        result['JARVIS_API_KEY'] = '${apiKey.substring(0, 4)}...${apiKey.length} chars';
+      if (dotenv.isInitialized) {
+        // Get environment variables but mask sensitive data
+        result['AUTH_API_URL'] = dotenv.env['AUTH_API_URL'] ?? 'Not set';
+        result['JARVIS_API_URL'] = dotenv.env['JARVIS_API_URL'] ?? 'Not set';
+        
+        // Mask API key
+        final apiKey = dotenv.env['JARVIS_API_KEY'];
+        if (apiKey != null && apiKey.isNotEmpty) {
+          result['JARVIS_API_KEY'] = '${apiKey.substring(0, 4)}...${apiKey.length} chars';
+        } else {
+          result['JARVIS_API_KEY'] = 'Not set';
+        }
+        
+        // Mask Stack Project ID
+        final stackProjectId = dotenv.env['STACK_PROJECT_ID'];
+        if (stackProjectId != null && stackProjectId.isNotEmpty) {
+          result['STACK_PROJECT_ID'] = '${stackProjectId.substring(0, 6)}...';
+        } else {
+          result['STACK_PROJECT_ID'] = 'Not set';
+        }
+        
+        // Mask Stack Publishable Client Key
+        final stackKey = dotenv.env['STACK_PUBLISHABLE_CLIENT_KEY'];
+        if (stackKey != null && stackKey.isNotEmpty) {
+          result['STACK_PUBLISHABLE_CLIENT_KEY'] = '${stackKey.substring(0, 4)}...${stackKey.length} chars';
+        } else {
+          result['STACK_PUBLISHABLE_CLIENT_KEY'] = 'Not set';
+        }
       } else {
-        result['JARVIS_API_KEY'] = 'Not set';
-      }
-      
-      // Mask Stack Project ID
-      final stackProjectId = dotenv.env['STACK_PROJECT_ID'];
-      if (stackProjectId != null && stackProjectId.isNotEmpty) {
-        result['STACK_PROJECT_ID'] = '${stackProjectId.substring(0, 6)}...';
-      } else {
-        result['STACK_PROJECT_ID'] = 'Not set';
-      }
-      
-      // Mask Stack Publishable Client Key
-      final stackKey = dotenv.env['STACK_PUBLISHABLE_CLIENT_KEY'];
-      if (stackKey != null && stackKey.isNotEmpty) {
-        result['STACK_PUBLISHABLE_CLIENT_KEY'] = '${stackKey.substring(0, 4)}...${stackKey.length} chars';
-      } else {
-        result['STACK_PUBLISHABLE_CLIENT_KEY'] = 'Not set';
+        result['dotenv'] = 'Not initialized';
       }
     } catch (e) {
       _logger.e('Error getting env variables: $e');
@@ -343,5 +351,11 @@ class _UserDataViewerPageState extends State<UserDataViewerPage> {
         ),
       );
     }
+  }
+  
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 }
