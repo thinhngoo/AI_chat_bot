@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../../../core/models/chat/chat_session.dart';
 import '../../../core/services/chat/jarvis_chat_service.dart';
+import '../../../core/services/auth/auth_service.dart';
 import '../../../widgets/ai/model_selector_widget.dart';
 import '../../settings/presentation/settings_page.dart';
+import '../../account/presentation/account_management_page.dart';
+import '../../support/presentation/help_feedback_page.dart';
 import 'chat_screen.dart';
 
 class HomePage extends StatefulWidget {
@@ -16,17 +19,35 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final Logger _logger = Logger();
   final JarvisChatService _chatService = JarvisChatService();
+  final AuthService _authService = AuthService();
   
   List<ChatSession> _chatSessions = [];
   bool _isLoading = true;
   bool _hasError = false;
   String _selectedModel = 'gemini-1.5-flash-latest';
+  String _userEmail = '';
+  String _userName = '';
   
   @override
   void initState() {
     super.initState();
     _loadChatSessions();
     _loadSelectedModel();
+    _loadUserInfo();
+  }
+  
+  Future<void> _loadUserInfo() async {
+    try {
+      final user = _authService.currentUser;
+      if (user != null) {
+        setState(() {
+          _userEmail = user.email;
+          _userName = user.name ?? 'User';
+        });
+      }
+    } catch (e) {
+      _logger.e('Error loading user info: $e');
+    }
   }
   
   Future<void> _loadChatSessions() async {
@@ -36,9 +57,7 @@ class _HomePageState extends State<HomePage> {
     });
     
     try {
-      // Check if using direct Gemini API
       final isUsingGemini = _chatService.isUsingDirectGeminiApi();
-      
       final sessions = await _chatService.getUserChatSessions();
       
       if (!mounted) return;
@@ -46,7 +65,6 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _chatSessions = sessions;
         _isLoading = false;
-        // Show info message if using Gemini API directly
         if (isUsingGemini) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -66,7 +84,6 @@ class _HomePageState extends State<HomePage> {
         _isLoading = false;
       });
       
-      // Check if it's an auth error and show appropriate message
       if (e.toString().contains('Unauthorized') || 
           e.toString().contains('Authentication failed') ||
           e.toString().contains('401')) {
@@ -76,7 +93,9 @@ class _HomePageState extends State<HomePage> {
             action: SnackBarAction(
               label: 'Login',
               onPressed: () {
-                Navigator.pushReplacementNamed(context, '/login');
+                _authService.signOut().then((_) {
+                  Navigator.pushReplacementNamed(context, '/login');
+                });
               },
             ),
           ),
@@ -179,40 +198,173 @@ class _HomePageState extends State<HomePage> {
     }
   }
   
+  Future<void> _signOut() async {
+    try {
+      await _authService.signOut();
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/login');
+    } catch (e) {
+      _logger.e('Error signing out: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error signing out: $e')),
+      );
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Chat Bot'),
+        title: const Text('Chat History'),
         actions: [
           ModelSelectorWidget(
             currentModel: _selectedModel,
             onModelChanged: _updateSelectedModel,
           ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsPage(),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  child: Text(
+                    _userName.isNotEmpty ? _userName[0].toUpperCase() : 'U',
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ),
-              ).then((_) => _loadChatSessions());
-            },
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _userName.isNotEmpty ? _userName : 'User',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        _userEmail.isNotEmpty ? _userEmail : 'Not signed in',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const Divider(),
+          
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _hasError
+                    ? _buildErrorView()
+                    : _chatSessions.isEmpty
+                        ? _buildEmptyView()
+                        : _buildChatList(),
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _hasError
-              ? _buildErrorView()
-              : _chatSessions.isEmpty
-                  ? _buildEmptyView()
-                  : _buildChatList(),
+      
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).primaryColor.withOpacity(0.05),
+          border: Border(
+            top: BorderSide(
+              color: Colors.grey.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildNavButton(
+              icon: Icons.account_circle,
+              label: 'Account',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AccountManagementPage(),
+                  ),
+                );
+              },
+            ),
+            _buildNavButton(
+              icon: Icons.settings,
+              label: 'Settings',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsPage(),
+                  ),
+                ).then((_) => _loadChatSessions());
+              },
+            ),
+            _buildNavButton(
+              icon: Icons.help_outline,
+              label: 'Help',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HelpFeedbackPage(),
+                  ),
+                );
+              },
+            ),
+            _buildNavButton(
+              icon: Icons.logout,
+              label: 'Sign Out',
+              onTap: _signOut,
+            ),
+          ],
+        ),
+      ),
+      
       floatingActionButton: FloatingActionButton(
         onPressed: _createNewChat,
         tooltip: 'New Chat',
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+  
+  Widget _buildNavButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -231,7 +383,6 @@ class _HomePageState extends State<HomePage> {
           const Text(
             'Đã xảy ra lỗi khi tải danh sách trò chuyện',
             style: TextStyle(
-              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
@@ -265,7 +416,6 @@ class _HomePageState extends State<HomePage> {
           const Text(
             'Chưa có cuộc trò chuyện nào',
             style: TextStyle(
-              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
