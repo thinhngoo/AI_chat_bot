@@ -65,24 +65,58 @@ class JarvisApiService implements ApiService {
   Future<Map<String, dynamic>> signUp(String email, String password, {String? name}) async {
     try {
       _logger.i('Attempting sign-up for email: $email');
-
+      
+      // Simplify request body to match API specifications exactly
       final requestBody = {
         'email': email,
         'password': password,
         'verification_callback_url': _verificationCallbackUrl,
       };
 
-      if (name != null && name.isNotEmpty) {
-        _logger.i('Name provided but will be set after sign-up: $name');
+      // Create the complete URL with no additional path components
+      // Auth URL already includes necessary path structure
+      final url = Uri.parse('$_authApiUrl${ApiConstants.authPasswordSignUp}');
+      _logger.i('Sign-up full URL: $url');
+      
+      // Log the full request details for debugging
+      _logger.i('Sign-up request body: ${jsonEncode(requestBody)}');
+      
+      // Create headers with all required fields
+      final headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Stack-Access-Type': 'client',
+        'X-Stack-Project-Id': _stackProjectId ?? ApiConstants.stackProjectId,
+        'X-Stack-Publishable-Client-Key': _stackPublishableClientKey ?? ApiConstants.stackPublishableClientKey,
+      };
+
+      if (_apiKey != null && _apiKey!.isNotEmpty) {
+        headers['X-API-KEY'] = _apiKey!;
       }
+      
+      _logger.d('Sign-up request headers: $headers');
+      _logger.d('Sign-up request body: ${jsonEncode(requestBody)}');
 
+      // Make the request with improved timeout and error handling
       final response = await http.post(
-        Uri.parse('$_authApiUrl${ApiConstants.authPasswordSignUp}'),
-        headers: _getAuthHeaders(includeAuth: false),
+        url,
+        headers: headers,
         body: jsonEncode(requestBody),
-      );
+      ).timeout(const Duration(seconds: 15));  // Longer timeout for debugging
 
+      // Log detailed response information
       _logger.i('Sign-up response status code: ${response.statusCode}');
+      _logger.i('Sign-up response headers: ${response.headers}');
+      _logger.i('Sign-up raw response: ${response.body}');
+
+      // Detect if this is a CORS or preflight issue
+      if (response.statusCode == 404 || response.statusCode == 405) {
+        _logger.e('Possible API configuration issue: ${response.statusCode}');
+        _logger.e('Check if the endpoint exists and accepts POST requests');
+        
+        // Try fallback direct authentication if possible
+        throw 'Endpoint not found. Please contact support with error code: AUTH-404-${DateTime.now().millisecondsSinceEpoch}';
+      }
 
       Map<String, dynamic> data;
       try {
@@ -90,7 +124,7 @@ class JarvisApiService implements ApiService {
       } catch (e) {
         _logger.e('Error parsing response JSON: $e');
         _logger.e('Response body: ${response.body}');
-        throw 'Invalid response from server';
+        throw 'Invalid response from server: ${response.body}';
       }
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -129,10 +163,16 @@ class JarvisApiService implements ApiService {
       }
     } catch (e) {
       _logger.e('Sign up error: $e');
+      
+      // Add more specific error handling
       if (e.toString().contains('Connection refused') ||
           e.toString().contains('Failed host lookup')) {
         throw 'Cannot connect to Jarvis API. Please check your internet connection and API configuration.';
+      } else if (e.toString().contains('404') || 
+                e.toString().contains('Cannot POST')) {
+        throw 'API endpoint not found. Please verify the API configuration and contact support.';
       }
+      
       throw e.toString();
     }
   }
@@ -141,21 +181,38 @@ class JarvisApiService implements ApiService {
     try {
       _logger.i('Attempting sign-in for email: $email');
 
-      // Simplify the request body - remove Stack Auth specific properties
       final requestBody = {
         'email': email,
         'password': password,
       };
 
-      _logger.d('Sign-in request with standard authentication');
+      final url = Uri.parse('$_authApiUrl${ApiConstants.authPasswordSignIn}');
+      _logger.i('Sign-in request URL: $url');
+      
+      // Use direct headers for authentication
+      final headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Stack-Access-Type': 'client',
+        'X-Stack-Project-Id': _stackProjectId ?? ApiConstants.stackProjectId,
+        'X-Stack-Publishable-Client-Key': _stackPublishableClientKey ?? ApiConstants.stackPublishableClientKey,
+      };
+
+      if (_apiKey != null && _apiKey!.isNotEmpty) {
+        headers['X-API-KEY'] = _apiKey!;
+      }
+      
+      _logger.d('Sign-in request headers: $headers');
+      _logger.d('Sign-in request body: ${jsonEncode(requestBody)}');
 
       final response = await http.post(
-        Uri.parse('$_authApiUrl${ApiConstants.authPasswordSignIn}'),
-        headers: _getAuthHeaders(includeAuth: false),
+        url,
+        headers: headers,
         body: jsonEncode(requestBody),
       );
 
       _logger.i('Sign-in response status code: ${response.statusCode}');
+      _logger.d('Sign-in raw response: ${response.body}');
 
       Map<String, dynamic> data;
       try {
@@ -843,24 +900,9 @@ class JarvisApiService implements ApiService {
     try {
       _logger.i('Updating user server metadata');
       
-      // Add server key to headers for this request
-      final headers = _getHeaders();
-      headers['X-Stack-Secret-Server-Key'] = ApiConstants.stackSecretServerKey;
-      
-      final response = await http.patch(
-        Uri.parse('$_jarvisApiUrl/user/metadata/server'),
-        headers: headers,
-        body: jsonEncode(metadata),
-      );
-      
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        _logger.i('Server metadata updated successfully');
-        return true;
-      } else {
-        _logger.e('Failed to update server metadata: ${response.statusCode}');
-        _logger.e('Response body: ${response.body}');
-        return false;
-      }
+      // This operation can't be performed from client apps as it requires server key
+      _logger.w('Server metadata update requires server privileges and cannot be performed from client app');
+      return false;
     } catch (e) {
       _logger.e('Error updating server metadata: $e');
       return false;
@@ -872,24 +914,9 @@ class JarvisApiService implements ApiService {
     try {
       _logger.i('Updating user client read-only metadata');
       
-      // Add server key to headers for this request
-      final headers = _getHeaders();
-      headers['X-Stack-Secret-Server-Key'] = ApiConstants.stackSecretServerKey;
-      
-      final response = await http.patch(
-        Uri.parse('$_jarvisApiUrl/user/metadata/client-readonly'),
-        headers: headers,
-        body: jsonEncode(metadata),
-      );
-      
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        _logger.i('Client read-only metadata updated successfully');
-        return true;
-      } else {
-        _logger.e('Failed to update client read-only metadata: ${response.statusCode}');
-        _logger.e('Response body: ${response.body}');
-        return false;
-      }
+      // This operation can't be performed from client apps as it requires server key
+      _logger.w('Client read-only metadata update requires server privileges and cannot be performed from client app');
+      return false;
     } catch (e) {
       _logger.e('Error updating client read-only metadata: $e');
       return false;

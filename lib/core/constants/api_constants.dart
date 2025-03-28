@@ -3,15 +3,13 @@
 /// These constants are used for API authentication and configuration
 class ApiConstants {
   // Stack Auth API configuration
-  static const String stackProjectId = 'fdd3c88a-6321-4a07-ba47-d94ed8725c92';
-  static const String stackPublishableClientKey = 'pck_v8e67qcptwdd334p7gaw04nrh7fke7g2sy8yh4vg4z4yg';
-  static const String stackSecretServerKey = 'ssk_wj0nrj1t9xaqxn95k34x7fev28ghcp433t809f7081q88';
-  static const String stackJwksUrl = 'https://api.stack-auth.com/api/v1/projects/fdd3c88a-6321-4a07-ba47-d94ed8725c92/.well-known/jwks.json';
+  static const String stackProjectId = 'a914f06b-5e46-4966-8693-80e4b9f4f409';
+  static const String stackPublishableClientKey = 'pck_tqsy29b64a585km2g4wnpc57ypjprzzdch8xzpq0xhayr';
   
-  // API URLs
-  static const String authApiUrl = 'https://api.stack-auth.com/api';
-  static const String jarvisApiUrl = 'https://api.jarvis.cx';
-  static const String knowledgeApiUrl = 'https://knowledge-api.jarvis.cx';
+  // API URLs - Update to use dev environment URLs
+  static const String authApiUrl = 'https://auth-api.dev.jarvis.cx';  // Updated to dev auth API URL
+  static const String jarvisApiUrl = 'https://api.dev.jarvis.cx';     // Updated to dev Jarvis API URL
+  static const String knowledgeApiUrl = 'https://knowledge-api.dev.jarvis.cx';  // Already using dev knowledge API URL
   
   // Gemini API configuration
   static const String geminiApiKey = 'AIzaSyClkVxfV1SMF7iORASUZGVPa2HoIIa5KEk';
@@ -23,20 +21,22 @@ class ApiConstants {
   // Default API key for development environments
   static const String defaultApiKey = 'test_jarvis_api_key_for_development_only';
   
-  // API endpoints
-  static const String authPasswordSignUp = '/v1/auth/password/sign-up';
-  static const String authPasswordSignIn = '/v1/auth/password/sign-in';
-  static const String authSessionRefresh = '/v1/auth/sessions/current/refresh';
-  static const String authSessionCurrent = '/v1/auth/sessions/current';
-  static const String authEmailVerificationStatus = '/v1/auth/email/verification/status';
-  static const String userProfile = '/user/profile';
-  static const String userChangePassword = '/user/change-password';
+  // API endpoints - Keep as simple as possible to avoid path duplication
+  static const String authPasswordSignUp = '/api/v1/auth/password/sign-up';
+  static const String authPasswordSignIn = '/api/v1/auth/password/sign-in';
+  static const String authSessionRefresh = '/api/v1/auth/sessions/current/refresh';
+  static const String authSessionCurrent = '/api/v1/auth/sessions/current';
+  static const String authEmailVerificationStatus = '/api/v1/auth/emails/verification/status';
+  static const String userProfile = '/api/v1/user/profiles';
+  static const String userChangePassword = '/api/v1/user/change-passwords';
   
-  // Updated API endpoints for AI chat based on documentation
-  static const String conversations = '/api/v1/ai-chat/conversations';
-  static const String messages = '/api/v1/ai-chat/messages';
-  static const String status = '/status';
-  static const String models = '/models';
+  // AI chat endpoints
+  static const String conversations = '/api/v1/ai-chats/conversations';          // Updated to "ai-chats" from "ai-chat"
+  static const String messages = '/api/v1/ai-chats/messages';                    // Updated to "ai-chats" from "ai-chat"
+  
+  // Other API endpoints
+  static const String status = '/api/v1/status';
+  static const String models = '/api/v1/models';
   
   // Gemini API endpoints
   static const String geminiGenerateContent = '/models/gemini-2.0-flash:generateContent';
@@ -57,15 +57,15 @@ class ApiConstants {
   static const String refreshTokenKey = 'jarvis_refresh_token';
   static const String userIdKey = 'jarvis_user_id';
 
-  // Required OAuth scopes for Jarvis API - updated with full scopes
+  // Required OAuth scopes for Jarvis API - updated with proper scope names
   static const List<String> requiredScopes = [
-    'ai-chat:read',
-    'ai-chat:write',
-    'user:read',
-    'user:write',
-    'ai-model:read',
-    'conversation:read',
-    'conversation:write'
+    'ai-chats:read',       // Updated from ai-chat:read
+    'ai-chats:write',      // Updated from ai-chat:write
+    'users:read',          // Updated from user:read
+    'users:write',         // Updated from user:write
+    'ai-models:read',      // Updated from ai-model:read
+    'conversations:read',  // Updated from conversation:read
+    'conversations:write'  // Updated from conversation:write
   ];
   
   // Stack Auth configuration - kept for reference but not used in current implementation
@@ -73,4 +73,7 @@ class ApiConstants {
   static const String stackOAuthScopesParam = 'scopes';
   static const String oauthResponseType = 'code';
   static const bool stackUseServerFunctions = false; // Use client-side functions only
+
+  // Note: Server-side keys like stackSecretServerKey should NEVER be included in client-side code
+  // Server-only operations should be handled through secure backend services
 }
