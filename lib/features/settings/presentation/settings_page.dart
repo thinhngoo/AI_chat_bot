@@ -247,6 +247,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   );
                 },
               ),
+            
+            const Divider(height: 32),
+            
+            _buildDiagnosticSection(),
           ],
         ),
       ),
@@ -342,6 +346,74 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         ),
       ),
+    );
+  }
+  
+  Widget _buildDiagnosticSection() {
+    return ExpansionTile(
+      title: const Text('API Diagnostics', style: TextStyle(fontWeight: FontWeight.bold)),
+      children: [
+        FutureBuilder(
+          future: Future.value(_chatService.getDiagnosticInfo()),
+          builder: (context, AsyncSnapshot<Map<String, dynamic>> snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            
+            if (snapshot.hasError) {
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text('Error loading diagnostics: ${snapshot.error}'),
+              );
+            }
+            
+            final data = snapshot.data ?? {};
+            
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('API Status', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('Using offline mode: ${data['isUsingDirectGeminiApi'] ?? 'unknown'}'),
+                  Text('Selected model: ${data['selectedModel'] ?? 'default'}'),
+                  Text('Has API errors: ${data['hasApiError'] ?? 'false'}'),
+                  Text('Last API failure: ${data['lastApiFailure'] ?? 'none'}'),
+                  
+                  const SizedBox(height: 16),
+                  const Text('Authentication', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('API authenticated: ${data['apiServiceAuthenticated'] ?? 'unknown'}'),
+                  
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final success = await _chatService.forceAuthStateUpdate();
+                      if (mounted) {
+                        setState(() {});
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Auth token refreshed successfully')),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Failed to refresh auth token')),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Refresh Auth Token'),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
   

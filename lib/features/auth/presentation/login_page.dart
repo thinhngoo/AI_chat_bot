@@ -40,15 +40,32 @@ class _LoginPageState extends State<LoginPage> {
     try {
       _logger.i('Attempting to log in user: ${_emailController.text}');
       
-      // Call auth service to log in
-      await _authService.signInWithEmailAndPassword(
+      // Call auth service to log in with standard authentication
+      final user = await _authService.signInWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text,
       );
       
       if (!mounted) return;
       
-      _logger.i('Login successful, navigating to home page');
+      _logger.i('Login successful, verifying token validity');
+      
+      // Verify token validity after login
+      final isTokenValid = await _authService.isLoggedIn();
+      
+      if (!isTokenValid) {
+        _logger.w('Token validation failed after login, forcing auth state update');
+        
+        // Force auth state update if token validation fails
+        final updateSuccess = await _authService.forceAuthStateUpdate();
+        
+        if (!updateSuccess) {
+          _logger.e('Auth state update failed, showing error');
+          throw 'Authentication failed. Please try again.';
+        }
+      }
+      
+      _logger.i('Authentication verified, navigating to home page');
       
       // Navigate to home page
       Navigator.pushReplacement(
@@ -72,6 +89,9 @@ class _LoginPageState extends State<LoginPage> {
       } else if (e.toString().contains('network') || 
                 e.toString().contains('connect')) {
         errorMsg = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet của bạn.';
+      } else if (e.toString().toLowerCase().contains('scope') || 
+                 e.toString().toLowerCase().contains('permission')) {
+        errorMsg = 'Không thể đăng nhập với đầy đủ quyền truy cập. Vui lòng thử lại.';
       } else {
         // Use a more user-friendly error message
         errorMsg = 'Lỗi đăng nhập: ${e.toString()}';

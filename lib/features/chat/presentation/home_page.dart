@@ -31,22 +31,102 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _loadChatSessions();
-    _loadSelectedModel();
-    _loadUserInfo();
+    _checkAuthAndLoadData();
+  }
+  
+  Future<void> _checkAuthAndLoadData() async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+    
+    try {
+      // Check authentication status and force update if needed
+      final isLoggedIn = await _authService.isLoggedIn();
+      
+      if (!isLoggedIn) {
+        _logger.w('User not logged in, trying to refresh authentication state');
+        final refreshed = await _authService.forceAuthStateUpdate();
+        
+        if (!refreshed) {
+          _logger.w('Authentication refresh failed, navigating to login');
+          
+          if (!mounted) return;
+          
+          // Navigate back to login page
+          Navigator.of(context).pushReplacementNamed('/login');
+          return;
+        }
+      }
+      
+      // Load user info and chat sessions
+      await _loadUserInfo();
+      await _loadChatSessions();
+      await _loadSelectedModel();
+      
+    } catch (e) {
+      _logger.e('Error in initial data loading: $e');
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _hasError = true;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading data: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
   
   Future<void> _loadUserInfo() async {
     try {
       final user = _authService.currentUser;
-      if (user != null) {
+      
+      if (user == null) {
+        _logger.w('No user found in AuthService');
+        
+        // Try to force auth state update
+        await _authService.forceAuthStateUpdate();
+        
+        // Check again after update
+        final refreshedUser = _authService.currentUser;
+        
+        if (refreshedUser == null) {
+          _logger.w('Still no user after auth state update');
+          setState(() {
+            _userEmail = 'Not signed in';
+            _userName = 'Guest';
+          });
+          return;
+        }
+        
+        // Use refreshed user
+        setState(() {
+          _userEmail = refreshedUser.email;
+          _userName = refreshedUser.name ?? 'User';
+        });
+      } else {
+        // Use current user
         setState(() {
           _userEmail = user.email;
           _userName = user.name ?? 'User';
         });
       }
+      
+      _logger.i('User info loaded: $_userName ($_userEmail)');
     } catch (e) {
       _logger.e('Error loading user info: $e');
+      setState(() {
+        _userEmail = 'Error loading user';
+        _userName = 'Unknown';
+      });
     }
   }
   
@@ -57,6 +137,20 @@ class _HomePageState extends State<HomePage> {
     });
     
     try {
+      // Check if token needs refreshing first
+      final authService = AuthService();
+      if (!await authService.isLoggedIn()) {
+        _logger.w('User not logged in or token expired, forcing authentication update');
+        final refreshed = await authService.forceAuthStateUpdate();
+        if (!refreshed) {
+          _logger.w('Failed to refresh authentication, redirecting to login');
+          if (mounted) {
+            Navigator.of(context).pushReplacementNamed('/login');
+          }
+          return;
+        }
+      }
+      
       final isUsingGemini = _chatService.isUsingDirectGeminiApi();
       final sessions = await _chatService.getUserChatSessions();
       
@@ -65,8 +159,10 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _chatSessions = sessions;
         _isLoading = false;
-        if (isUsingGemini) {
-          // ScaffoldMessenger code here if needed
+        if (isUsingGemini && sessions.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Using offline mode. Some features may be limited.')),
+          );
         }
       });
     } catch (e) {
@@ -74,26 +170,40 @@ class _HomePageState extends State<HomePage> {
       
       if (!mounted) return;
       
-      setState(() {
-        _hasError = true;
-        _isLoading = false;
-      });
-      
-      if (e.toString().contains('Unauthorized') || 
-          e.toString().contains('Authentication failed') ||
+      // Check if it's an authentication error
+      if (e.toString().contains('Authentication failed') || 
+          e.toString().contains('Unauthorized') ||
           e.toString().contains('401')) {
-        // Handle this case
-        if (mounted) {
+        
+        _logger.w('Authentication error, attempting to refresh token');
+        final refreshed = await _authService.forceAuthStateUpdate();
+        
+        if (!refreshed && mounted) {
+          _logger.w('Token refresh failed, redirecting to login');
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Authentication error')),
+            const SnackBar(content: Text('Session expired. Please log in again.')),
           );
+          Navigator.of(context).pushReplacementNamed('/login');
+          return;
         }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to load chats: $e')),
-          );
+        
+        // Try loading sessions again after successful token refresh
+        if (refreshed && mounted) {
+          _logger.i('Token refreshed, retrying loading sessions');
+          _loadChatSessions();
+          return;
         }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load chats: $e')),
+        );
       }
     }
   }

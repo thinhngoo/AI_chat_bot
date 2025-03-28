@@ -41,29 +41,83 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     
     try {
-      _messages = await _chatService.getMessages(widget.chatSession.id);
+      // Check if we're using a local session (fallback mode)
+      final isLocalSession = widget.chatSession.id.startsWith('local_');
+      final isUsingGemini = _chatService.isUsingDirectGeminiApi();
+      
+      if (isLocalSession || isUsingGemini) {
+        // In fallback mode, we don't have persistent history
+        setState(() {
+          _isLoading = false;
+          if (_messages.isEmpty) {
+            // Show an informative message for the user
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Using offline mode. Chat history is not available.'),
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+        });
+        return;
+      }
+      
+      // Get messages from API
+      final messages = await _chatService.getMessages(widget.chatSession.id);
       
       if (!mounted) return;
       
+      if (messages.isEmpty && !isUsingGemini) {
+        // Check for diagnostic info to help user
+        final diagnostics = _chatService.getDiagnosticInfo();
+        _logger.i('Chat diagnostics: $diagnostics');
+        
+        // If API is having auth issues but we're not in fallback mode yet
+        if (diagnostics['hasApiError'] == true && !isUsingGemini) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to load chat history. There might be an authentication issue.'),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+      
       setState(() {
+        _messages = messages;
         _isLoading = false;
       });
       
-      // Scroll to bottom after messages load
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
-      });
+      // Scroll to bottom after loading messages
+      if (_messages.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
     } catch (e) {
       _logger.e('Error loading messages: $e');
       
       if (!mounted) return;
       
+      // Check for specific error types
+      final errorMessage = e.toString().toLowerCase();
+      String userMessage;
+      
+      if (errorMessage.contains('scope') || errorMessage.contains('permission')) {
+        userMessage = 'Unable to load chat history. Your account may not have the required permissions.';
+      } else if (errorMessage.contains('unauthorized') || errorMessage.contains('auth')) {
+        userMessage = 'Session expired. Please try logging out and back in.';
+      } else {
+        userMessage = 'Error loading chat history. Please try again later.';
+      }
+      
       setState(() {
         _isLoading = false;
+        // Add empty state or error state UI
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load messages: $e')),
+        SnackBar(content: Text(userMessage)),
       );
     }
   }
@@ -300,6 +354,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
   
   Widget _buildMessageBubble(Message message) {
+    // Renders each message in the history
     final isUser = message.isUser;
     
     if (message.isTyping) {

@@ -47,16 +47,35 @@ class JarvisAuthProvider implements AuthProviderInterface {
     
     // Check if we have a valid token
     if (!_apiService.isAuthenticated()) {
-      return false;
+      _logger.w('No access token found, attempting to refresh token');
+      
+      // Try refreshing token if we have a refresh token
+      final refreshed = await refreshToken();
+      if (!refreshed) {
+        _logger.w('Token refresh failed, user is not logged in');
+        return false;
+      }
+      
+      _logger.i('Token refreshed successfully, user is logged in');
+      return true;
     }
     
     // If we don't have the current user, try to refresh
     if (_currentUser == null) {
       try {
         await _refreshUserData();
+        _logger.i('User data refreshed successfully, user is logged in');
         return _currentUser != null;
       } catch (e) {
         _logger.e('Error refreshing user data: $e');
+        
+        // Try refreshing token as a fallback
+        final refreshed = await refreshToken();
+        if (refreshed) {
+          await _refreshUserData();
+          return _currentUser != null;
+        }
+        
         return false;
       }
     }
@@ -163,15 +182,30 @@ class JarvisAuthProvider implements AuthProviderInterface {
     if (!_isInitialized) await initialize();
     
     try {
-      _logger.i('Refreshing auth token');
+      _logger.i('Refreshing auth token from provider');
       
       // Call API service to refresh token
       final result = await _apiService.refreshToken();
       
+      if (result) {
+        _logger.i('Token refresh succeeded, updating user data');
+        
+        // After successful token refresh, update user data
+        try {
+          await _refreshUserData();
+          _logger.i('User data updated after token refresh');
+        } catch (e) {
+          _logger.w('Failed to refresh user data after token refresh: $e');
+          // Even if we fail to get user data, token refresh was successful
+        }
+      } else {
+        _logger.w('Token refresh failed in provider');
+      }
+      
       _logger.i('Token refresh result: $result');
       return result;
     } catch (e) {
-      _logger.e('Token refresh error: $e');
+      _logger.e('Token refresh error in provider: $e');
       return false;
     }
   }
@@ -261,18 +295,95 @@ class JarvisAuthProvider implements AuthProviderInterface {
     }
   }
   
+  /// Update the user's client metadata
+  Future<bool> updateClientMetadata(Map<String, dynamic> metadata) async {
+    if (!_isInitialized) await initialize();
+    
+    try {
+      _logger.i('Updating client metadata: $metadata');
+      
+      // Call API service to update client metadata
+      final success = await _apiService.updateUserClientMetadata(metadata);
+      
+      if (success) {
+        // Update cached user data
+        if (_currentUser != null) {
+          final updatedMetadata = {...(_currentUser!.clientMetadata ?? {}), ...metadata};
+          _currentUser = _currentUser!.copyWith(clientMetadata: updatedMetadata);
+          await _saveUserToPrefs(_currentUser!);
+        }
+        
+        _logger.i('Client metadata updated successfully');
+      } else {
+        _logger.w('Failed to update client metadata');
+      }
+      
+      return success;
+    } catch (e) {
+      _logger.e('Error updating client metadata: $e');
+      return false;
+    }
+  }
+  
+  /// Get the user's client metadata
+  Map<String, dynamic>? getClientMetadata() {
+    if (_currentUser == null) {
+      _logger.w('Cannot get client metadata: No current user');
+      return null;
+    }
+    
+    return _currentUser!.clientMetadata;
+  }
+  
+  /// Get the user's client read-only metadata
+  Map<String, dynamic>? getClientReadOnlyMetadata() {
+    if (_currentUser == null) {
+      _logger.w('Cannot get client read-only metadata: No current user');
+      return null;
+    }
+    
+    return _currentUser!.clientReadOnlyMetadata;
+  }
+  
   /// Check if the current token is valid
   Future<bool> isTokenValid() async {
     if (!_isInitialized) await initialize();
     return await _apiService.verifyTokenValid();
   }
   
-  // Helper method to refresh user data from API
+  /// Check if the current token has all required scopes
+  Future<bool> verifyTokenScopes(List<String> requiredScopes) async {
+    try {
+      _logger.i('Verifying token has required scopes: $requiredScopes');
+      
+      // Call API service to verify token scopes
+      final hasScopes = await _apiService.verifyTokenHasScopes(requiredScopes);
+      
+      if (!hasScopes) {
+        _logger.w('Token is missing required scopes');
+      } else {
+        _logger.i('Token has all required scopes');
+      }
+      
+      return hasScopes;
+    } catch (e) {
+      _logger.e('Error verifying token scopes: $e');
+      return false;
+    }
+  }
+  
+  // Helper method to refresh user data from API with better error handling
   Future<void> _refreshUserData() async {
     try {
       _logger.i('Refreshing user data from API');
       
-      // Attempt to get user profile 
+      // Verify token is valid before making the request
+      if (!_apiService.isAuthenticated()) {
+        _logger.w('Cannot refresh user data: Not authenticated');
+        throw 'Not authenticated';
+      }
+      
+      // Attempt to get user profile
       final user = await _apiService.getCurrentUser();
       
       if (user != null) {
@@ -289,6 +400,7 @@ class JarvisAuthProvider implements AuthProviderInterface {
           _logger.i('Loaded user data from preferences: ${_currentUser!.email}');
         } else {
           _logger.w('No user data in preferences');
+          throw 'Failed to get user data';
         }
       }
     } catch (e) {

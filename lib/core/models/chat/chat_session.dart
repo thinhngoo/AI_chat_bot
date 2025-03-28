@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'message.dart';
 
+// Chat session model that may contain a list of messages
 class ChatSession {
   final String id;
   final String title;

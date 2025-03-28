@@ -5,23 +5,27 @@ import 'core/services/auth/auth_service.dart';
 import 'features/auth/presentation/login_page.dart';
 import 'features/chat/presentation/home_page.dart';
 import 'core/constants/api_constants.dart';  // Import constants
+import 'core/services/platform/platform_service_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   final logger = Logger();
   
-  // We still load environment variables for other settings like API keys
+  // Load .env file if available
   try {
     await dotenv.load(fileName: '.env');
     logger.i('Environment variables loaded');
   } catch (e) {
-    logger.w('Failed to load .env file: $e');
+    logger.w('Could not load .env file: $e');
     logger.i('Using default constants for API configuration');
   }
   
   // Log that we're using hardcoded constants for Stack Auth
   logger.i('Using Stack Project ID: ${ApiConstants.stackProjectId.substring(0, 8)}...');
+  
+  // Initialize platform services
+  await PlatformServiceHelper.instance.initialize();
   
   // Initialize the auth service (now using Jarvis)
   await AuthService().initializeService();

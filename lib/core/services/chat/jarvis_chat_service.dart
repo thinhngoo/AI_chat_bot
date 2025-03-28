@@ -17,6 +17,11 @@ class JarvisChatService {
   bool _hasApiError = false;
   bool _useDirectGeminiApi = false;
   String? _selectedModel;
+
+  // Circuit breaker to prevent infinite recursion in API calls
+  int _apiRecursionCount = 0;
+  static const int _maxApiRecursion = 2;
+  DateTime? _lastApiFailure;
   
   JarvisChatService._internal();
   
@@ -31,12 +36,10 @@ class JarvisChatService {
         _logger.w('User is not authenticated, attempting token refresh');
         final refreshed = await _apiService.refreshToken();
         if (!refreshed) {
-          if (_useDirectGeminiApi) {
-            // Return empty list when using Gemini API directly
-            _logger.i('Using Gemini API directly, returning empty sessions list');
-            return [];
-          }
-          throw 'Authentication failed. Please login again.';
+          // Switch to Gemini API fallback mode after failed refresh
+          _useDirectGeminiApi = true;
+          _logger.i('Authentication failed, switched to Gemini API fallback mode.');
+          return [];
         }
       }
       
@@ -45,38 +48,50 @@ class JarvisChatService {
         _logger.w('Previous API error detected, attempting to refresh token');
         final refreshed = await _apiService.refreshToken();
         if (!refreshed) {
-          // If token refresh fails and we're not using Gemini, try switching to it
-          if (!_useDirectGeminiApi) {
-            _logger.i('Token refresh failed, switching to direct Gemini API');
-            _useDirectGeminiApi = true;
-            return [];
-          }
-          throw 'Unable to refresh token after previous API error';
+          // Switch to Gemini API fallback mode
+          _useDirectGeminiApi = true;
+          _logger.i('Token refresh failed, switched to Gemini API fallback mode.');
+          return [];
         }
         _hasApiError = false;
       }
       
-      // Get conversations from API
-      final sessions = await _apiService.getConversations();
+      // If we're already using direct Gemini API, return empty list
+      if (_useDirectGeminiApi) {
+        _logger.i('Using Gemini API directly, returning empty sessions list');
+        return [];
+      }
       
-      _logger.i('Retrieved ${sessions.length} chat sessions');
-      return sessions;
+      // Get conversations from API
+      try {
+        final sessions = await _apiService.getConversations();
+        _logger.i('Retrieved ${sessions.length} chat sessions');
+        return sessions;
+      } catch (e) {
+        if (e.toString().contains('Authentication failed') || 
+            e.toString().contains('Unauthorized')) {
+          // API is having auth issues, switch to Gemini
+          _useDirectGeminiApi = true;
+          _logger.i('API authentication issues, switched to Gemini API fallback mode.');
+          _apiService.switchToFallbackMode();
+          return [];
+        }
+        throw e;
+      }
     } catch (e) {
       _logger.e('Error getting chat sessions: $e');
       
-      // If it's an auth error and we're not using Gemini, switch to it
-      if (e.toString().contains('Unauthorized') || 
-          e.toString().contains('Authentication failed') ||
-          e.toString().contains('401')) {
-        if (!_useDirectGeminiApi) {
-          _logger.i('Authorization error, switching to direct Gemini API');
-          _useDirectGeminiApi = true;
-          return [];
-        }
-      }
-      
       // Mark as having API error for future requests
       _hasApiError = true;
+      
+      // Check if we should switch to direct API
+      if (!_useDirectGeminiApi && 
+          (e.toString().contains('Unauthorized') || 
+           e.toString().contains('Authentication failed'))) {
+        _useDirectGeminiApi = true;
+        _logger.i('Switching to direct Gemini API due to auth errors');
+        return [];
+      }
       
       throw 'Failed to get chat sessions: ${e.toString()}';
     }
@@ -91,11 +106,26 @@ class JarvisChatService {
     );
   }
 
-  /// Get messages for a specific chat session
+  /// Get messages for a specific chat session with improved error handling
   Future<List<Message>> getMessages(String sessionId) async {
     try {
-      _logger.i('Getting messages for chat session: $sessionId');
-
+      // Prevent infinite recursion with circuit breaker
+      _apiRecursionCount++;
+      if (_apiRecursionCount > _maxApiRecursion) {
+        _logger.w('Max API recursion reached ($_maxApiRecursion), breaking to prevent infinite loop');
+        _apiRecursionCount = 0;
+        return [];
+      }
+      
+      _logger.i('Getting messages for chat session: $sessionId (attempt $_apiRecursionCount)');
+      
+      // Check for local session ID (used in fallback mode)
+      if (sessionId.startsWith('local_')) {
+        _logger.i('Local session ID detected, returning empty messages (fallback mode)');
+        _apiRecursionCount = 0;
+        return [];
+      }
+      
       // First check if the API service is authenticated
       final isAuthenticated = _apiService.isAuthenticated();
       if (!isAuthenticated) {
@@ -105,6 +135,7 @@ class JarvisChatService {
           // If using direct Gemini API, return empty messages list
           if (_useDirectGeminiApi) {
             _logger.i('Using Gemini API directly, returning empty messages list');
+            _apiRecursionCount = 0;
             return [];
           }
           throw 'Authentication failed. Please login again.';
@@ -120,6 +151,7 @@ class JarvisChatService {
           if (!_useDirectGeminiApi) {
             _logger.i('Token refresh failed, switching to direct Gemini API');
             _useDirectGeminiApi = true;
+            _apiRecursionCount = 0;
             return [];
           }
           throw 'Unable to refresh token after previous API error';
@@ -127,25 +159,50 @@ class JarvisChatService {
         _hasApiError = false;
       }
       
-      // If we're using direct Gemini API, return empty messages list for now
-      // (since we can't get history from Gemini API)
+      // If we're using direct Gemini API, return empty messages list
       if (_useDirectGeminiApi) {
         _logger.i('Using Gemini API directly, returning empty messages list');
+        _apiRecursionCount = 0;
         return [];
       }
       
       // Get conversation history from API
-      final messages = await _apiService.getConversationHistory(sessionId);
-      
-      _logger.i('Retrieved ${messages.length} messages');
-      return messages;
+      try {
+        final messages = await _apiService.getConversationHistory(sessionId);
+        _logger.i('Retrieved ${messages.length} messages');
+        _apiRecursionCount = 0;
+        return messages;
+      } catch (e) {
+        // Check for scope-related errors
+        if (e.toString().toLowerCase().contains('scope') || 
+            e.toString().toLowerCase().contains('permission')) {
+          _logger.e('Auth scope issue detected: $e');
+          _lastApiFailure = DateTime.now();
+          
+          // Display diagnostics
+          _logger.i('API configuration diagnostics:');
+          final config = _apiService.getApiConfig();
+          config.forEach((key, value) => _logger.i('- $key: $value'));
+          
+          // Switch to fallback mode on scope issues
+          _useDirectGeminiApi = true;
+          _logger.i('Switching to direct Gemini API due to scope issues');
+          _apiRecursionCount = 0;
+          return [];
+        }
+        
+        // Re-throw the error for other handling
+        throw e;
+      }
     } catch (e) {
+      _apiRecursionCount = 0; // Reset counter on error
       _logger.e('Error getting messages: $e');
       
       // If it's an auth error and we're not using Gemini, switch to it
       if (e.toString().contains('Unauthorized') || 
           e.toString().contains('Authentication failed') ||
-          e.toString().contains('401')) {
+          e.toString().contains('401') ||
+          e.toString().contains('403')) {
         if (!_useDirectGeminiApi) {
           _logger.i('Authorization error, switching to direct Gemini API');
           _useDirectGeminiApi = true;
@@ -442,5 +499,37 @@ class JarvisChatService {
   /// Get whether direct Gemini API is in use
   bool isUsingDirectGeminiApi() {
     return _useDirectGeminiApi;
+  }
+
+  /// Get diagnostic information for troubleshooting
+  Map<String, dynamic> getDiagnosticInfo() {
+    return {
+      'isUsingDirectGeminiApi': _useDirectGeminiApi,
+      'hasApiError': _hasApiError,
+      'selectedModel': _selectedModel,
+      'lastApiFailure': _lastApiFailure?.toString(),
+      'apiServiceAuthenticated': _apiService.isAuthenticated(),
+      'apiConfig': _apiService.getApiConfig(),
+    };
+  }
+  
+  /// Forces an authentication state update by refreshing the token
+  Future<bool> forceAuthStateUpdate() async {
+    try {
+      _logger.i('Forcing authentication state update');
+      final success = await _apiService.forceTokenRefresh();
+      
+      if (success) {
+        _hasApiError = false;
+        _logger.i('Authentication state updated successfully');
+      } else {
+        _logger.w('Authentication state update failed');
+      }
+      
+      return success;
+    } catch (e) {
+      _logger.e('Error during force auth state update: $e');
+      return false;
+    }
   }
 }

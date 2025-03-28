@@ -14,28 +14,32 @@ class ModelSelectorWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
+      icon: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.model_training),
+          const SizedBox(width: 4),
+          Text(
+            ApiConstants.modelNames[currentModel] ?? 'Unknown Model',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+      ),
       tooltip: 'Select AI Model',
-      icon: const Icon(Icons.auto_awesome),
       onSelected: onModelChanged,
       itemBuilder: (context) {
         return ApiConstants.modelNames.entries.map((entry) {
-          final modelId = entry.key;
-          final modelName = entry.value;
           return PopupMenuItem<String>(
-            value: modelId,
+            value: entry.key,
             child: Row(
               children: [
                 Icon(
-                  modelId == currentModel 
-                      ? Icons.check_circle
-                      : Icons.circle_outlined,
-                  color: modelId == currentModel 
-                      ? Theme.of(context).primaryColor
-                      : Colors.grey,
-                  size: 18,
+                  Icons.check,
+                  color: currentModel == entry.key ? Colors.blue : Colors.transparent,
+                  size: 16,
                 ),
                 const SizedBox(width: 8),
-                Text(modelName),
+                Text(entry.value),
               ],
             ),
           );

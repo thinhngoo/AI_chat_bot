@@ -6,7 +6,12 @@ class UserModel {
   final String? name;
   final DateTime createdAt;
   final bool isEmailVerified;
-  final String? selectedModel; // Add selected model field
+  final String? selectedModel;
+  
+  // Add Stack Auth metadata fields
+  final Map<String, dynamic>? clientMetadata;
+  final Map<String, dynamic>? clientReadOnlyMetadata;
+  final Map<String, dynamic>? serverMetadata;
 
   UserModel({
     required this.uid,
@@ -14,7 +19,10 @@ class UserModel {
     this.name,
     required this.createdAt,
     this.isEmailVerified = false,
-    this.selectedModel, // Add to constructor
+    this.selectedModel,
+    this.clientMetadata,
+    this.clientReadOnlyMetadata,
+    this.serverMetadata,
   });
 
   Map<String, dynamic> toMap() {
@@ -24,7 +32,10 @@ class UserModel {
       'name': name,
       'createdAt': createdAt.toIso8601String(),
       'isEmailVerified': isEmailVerified,
-      'selectedModel': selectedModel, // Add to map
+      'selectedModel': selectedModel,
+      'clientMetadata': clientMetadata,
+      'clientReadOnlyMetadata': clientReadOnlyMetadata,
+      'serverMetadata': serverMetadata,
     };
   }
 
@@ -37,7 +48,10 @@ class UserModel {
           ? DateTime.parse(map['createdAt']) 
           : DateTime.now(),
       isEmailVerified: map['isEmailVerified'] ?? false,
-      selectedModel: map['selectedModel'], // Get from map
+      selectedModel: map['selectedModel'],
+      clientMetadata: map['clientMetadata'],
+      clientReadOnlyMetadata: map['clientReadOnlyMetadata'],
+      serverMetadata: map['serverMetadata'],
     );
   }
 
@@ -51,7 +65,10 @@ class UserModel {
     String? name,
     DateTime? createdAt,
     bool? isEmailVerified,
-    String? selectedModel, // Add to copyWith
+    String? selectedModel,
+    Map<String, dynamic>? clientMetadata,
+    Map<String, dynamic>? clientReadOnlyMetadata,
+    Map<String, dynamic>? serverMetadata,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -59,7 +76,10 @@ class UserModel {
       name: name ?? this.name,
       createdAt: createdAt ?? this.createdAt,
       isEmailVerified: isEmailVerified ?? this.isEmailVerified,
-      selectedModel: selectedModel ?? this.selectedModel, // Include in copy
+      selectedModel: selectedModel ?? this.selectedModel,
+      clientMetadata: clientMetadata ?? this.clientMetadata,
+      clientReadOnlyMetadata: clientReadOnlyMetadata ?? this.clientReadOnlyMetadata,
+      serverMetadata: serverMetadata ?? this.serverMetadata,
     );
   }
 

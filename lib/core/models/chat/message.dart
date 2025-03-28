@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+// Message data model that represents individual messages in chat history
 class Message {
   final String text;
   final bool isUser;

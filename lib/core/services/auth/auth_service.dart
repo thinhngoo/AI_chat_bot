@@ -2,6 +2,7 @@ import 'package:logger/logger.dart';
 import 'auth_provider_interface.dart';
 import 'providers/jarvis_auth_provider.dart';
 import '../../models/user_model.dart';
+import '../../constants/api_constants.dart';  // Add this import
 
 /// Authentication service that delegates to the configured auth provider
 class AuthService {
@@ -46,6 +47,7 @@ class AuthService {
       // First check if logged in via provider
       final isLoggedIn = await _provider.isLoggedIn();
       if (!isLoggedIn) {
+        _logger.i('Provider reports user is not logged in');
         return false;
       }
       
@@ -55,13 +57,63 @@ class AuthService {
       final isTokenValid = await jarvisProvider.isTokenValid();
       
       if (!isTokenValid) {
-        _logger.w('Token is invalid, trying to refresh');
-        return await _provider.refreshToken();
+        _logger.w('Token is invalid or expired, attempting to refresh');
+        final refreshSuccess = await _provider.refreshToken();
+        
+        if (refreshSuccess) {
+          _logger.i('Token refreshed successfully, user is logged in');
+          
+          // Get fresh user data to ensure all components have current information
+          await _provider.reloadUser();
+          
+          return true;
+        } else {
+          _logger.w('Token refresh failed, user needs to log in again');
+          return false;
+        }
       }
       
+      _logger.i('User is logged in with valid token');
       return true;
     } catch (e) {
       _logger.e('Error checking login status: $e');
+      return false;
+    }
+  }
+
+  /// Force update of auth state - call this after token refresh with improved scope checking
+  Future<bool> forceAuthStateUpdate() async {
+    if (!_isInitialized) await initializeService();
+    
+    try {
+      _logger.i('Forcing authentication state update with scope verification');
+      
+      // Get JarvisAuthProvider for direct API access
+      final jarvisProvider = _provider as JarvisAuthProvider;
+      
+      // Refresh token with proper scopes
+      final refreshSuccess = await jarvisProvider.refreshToken();
+      if (!refreshSuccess) {
+        _logger.w('Failed to refresh token during force auth state update');
+        return false;
+      }
+      
+      // Check if token has required scopes
+      final hasRequiredScopes = await jarvisProvider.verifyTokenScopes(ApiConstants.requiredScopes);
+      if (!hasRequiredScopes) {
+        _logger.w('Token is missing required scopes, attempting to re-authenticate with proper scopes');
+        
+        // We should notify the user they need to re-login
+        return false;
+      }
+      
+      // Then reload user data
+      await _provider.reloadUser();
+      
+      _logger.i('Auth state successfully updated with proper scopes');
+      return true;
+    } catch (e) {
+      _logger.e('Error during force auth state update: $e');
       return false;
     }
   }
@@ -190,5 +242,45 @@ class AuthService {
       _logger.e('Update user profile error: $e');
       return false;
     }
+  }
+  
+  /// Update the user's client metadata
+  Future<bool> updateClientMetadata(Map<String, dynamic> metadata) async {
+    if (!_isInitialized) await initializeService();
+    
+    try {
+      _logger.i('Update client metadata request: $metadata');
+      
+      // Get JarvisAuthProvider for client metadata methods
+      final jarvisProvider = _provider as JarvisAuthProvider;
+      return await jarvisProvider.updateClientMetadata(metadata);
+    } catch (e) {
+      _logger.e('Update client metadata error: $e');
+      return false;
+    }
+  }
+  
+  /// Get the user's client metadata
+  Map<String, dynamic>? getClientMetadata() {
+    if (!_isInitialized) {
+      _logger.w('Auth Service not initialized, returning null for getClientMetadata');
+      return null;
+    }
+    
+    // Get JarvisAuthProvider for client metadata methods
+    final jarvisProvider = _provider as JarvisAuthProvider;
+    return jarvisProvider.getClientMetadata();
+  }
+  
+  /// Get the user's client read-only metadata
+  Map<String, dynamic>? getClientReadOnlyMetadata() {
+    if (!_isInitialized) {
+      _logger.w('Auth Service not initialized, returning null for getClientReadOnlyMetadata');
+      return null;
+    }
+    
+    // Get JarvisAuthProvider for client metadata methods
+    final jarvisProvider = _provider as JarvisAuthProvider;
+    return jarvisProvider.getClientReadOnlyMetadata();
   }
 }
