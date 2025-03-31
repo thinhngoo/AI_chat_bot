@@ -11,14 +11,6 @@ class ConfigChecker {
   static Map<String, bool> checkApiConfig() {
     final results = <String, bool>{};
 
-    // Check Jarvis API URL and key
-    results['hasJarvisApiUrl'] = ApiConstants.jarvisApiUrl.isNotEmpty;
-    results['hasJarvisApiKey'] = ApiConstants.defaultApiKey.isNotEmpty;
-
-    // Check Stack Auth configuration
-    results['hasStackProjectId'] = ApiConstants.stackProjectId.isNotEmpty;
-    results['hasStackPublishableClientKey'] = ApiConstants.stackPublishableClientKey.isNotEmpty;
-
     // Load from env if available
     try {
       if (dotenv.isInitialized) {
@@ -130,13 +122,11 @@ Alternatively, you can use the hardcoded values in ApiConstants class for develo
     report['envFileLoaded'] = isEnvFileLoaded();
     
     // Add API constants info (mask sensitive data)
-    report['jarvisApiUrl'] = ApiConstants.jarvisApiUrl;
+    report['jarvisApiUrl'] = ApiConstants.authApiUrl;
     report['stackProjectId'] = ApiConstants.stackProjectId.isNotEmpty 
         ? '${ApiConstants.stackProjectId.substring(0, 8)}...'
         : 'Not set';
     report['stackClientKeySet'] = ApiConstants.stackPublishableClientKey.isNotEmpty;
-    report['defaultModel'] = ApiConstants.defaultModel;
-    report['availableModels'] = ApiConstants.modelNames.length;
     
     return report;
   }

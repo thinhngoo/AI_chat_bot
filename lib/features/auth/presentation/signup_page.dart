@@ -4,7 +4,6 @@ import '../../../core/services/auth/auth_service.dart';
 import '../../../core/utils/validators/password_validator.dart';
 import '../../../widgets/auth/auth_widgets.dart';
 import '../../../widgets/auth/password_requirement_widget.dart';
-import 'email_verification_page.dart';
 import 'login_page.dart';
 
 class SignupPage extends StatefulWidget {
@@ -23,6 +22,7 @@ class _SignupPageState extends State<SignupPage> {
   final Logger _logger = Logger();
   
   bool _isLoading = false;
+  bool _isSuccess = false;
   String? _errorMessage;
   String _passwordStrength = '';
 
@@ -58,17 +58,13 @@ class _SignupPageState extends State<SignupPage> {
       
       if (!mounted) return;
       
-      _logger.i('Signup successful, navigating to email verification page');
+      _logger.i('Signup successful');
       
-      // Navigate to email verification page
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => EmailVerificationPage(
-            email: _emailController.text.trim(),
-          ),
-        ),
-      );
+      // Show success state
+      setState(() {
+        _isSuccess = true;
+        _isLoading = false;
+      });
     } catch (e) {
       _logger.e('Signup error: $e');
       
@@ -76,9 +72,9 @@ class _SignupPageState extends State<SignupPage> {
       
       String errorMsg;
       
-      // Check for common API errors
-      if (e.toString().contains('email-already-in-use') || 
-          e.toString().contains('Email already exists')) {
+      // Convert error message to user-friendly text
+      if (e.toString().contains('Email đã được sử dụng') ||
+          e.toString().contains('already exists')) {
         errorMsg = 'Email đã được sử dụng. Vui lòng sử dụng email khác.';
       } else if (e.toString().contains('weak-password')) {
         errorMsg = 'Mật khẩu quá yếu. Vui lòng chọn mật khẩu mạnh hơn.';
@@ -168,100 +164,158 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Đăng ký tài khoản',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        TextField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Họ và tên',
-                            hintText: 'Nhập họ và tên của bạn',
-                            prefixIcon: Icon(Icons.person),
-                            border: OutlineInputBorder(),
-                          ),
-                          onChanged: (_) => setState(() => _errorMessage = null),
-                        ),
-                        const SizedBox(height: 16),
-                        EmailField(
-                          controller: _emailController,
-                          onChanged: (_) => setState(() => _errorMessage = null),
-                        ),
-                        const SizedBox(height: 16),
-                        PasswordField(
-                          controller: _passwordController,
-                          labelText: 'Mật khẩu',
-                          onChanged: (value) {
-                            setState(() {
-                              _passwordStrength = PasswordValidator.getPasswordStrength(value);
-                              _errorMessage = null;
-                            });
-                          },
-                        ),
-                        Text(
-                          'Độ mạnh: $_passwordStrength',
-                          style: TextStyle(
-                            color: PasswordValidator.getPasswordStrengthColor(_passwordStrength),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        PasswordRequirementWidget(
-                          password: _passwordController.text,
-                          showTitle: true,
-                        ),
-                        const SizedBox(height: 16),
-                        PasswordField(
-                          controller: _confirmPasswordController,
-                          labelText: 'Xác nhận mật khẩu',
-                          errorText: _errorMessage,
-                          onChanged: (_) => setState(() => _errorMessage = null),
-                          onSubmit: _signup,
-                        ),
-                        const SizedBox(height: 24),
-                        SubmitButton(
-                          label: 'Đăng ký',
-                          onPressed: _signup,
-                          isLoading: _isLoading,
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('Đã có tài khoản?'),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const LoginPage(),
-                                  ),
-                                );
-                              },
-                              child: const Text('Đăng nhập ngay'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                _isSuccess 
+                    ? _buildSuccessCard()
+                    : _buildSignupCard(),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSignupCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Đăng ký tài khoản',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Họ và tên',
+                hintText: 'Nhập họ và tên của bạn',
+                prefixIcon: Icon(Icons.person),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() => _errorMessage = null),
+            ),
+            const SizedBox(height: 16),
+            EmailField(
+              controller: _emailController,
+              onChanged: (_) => setState(() => _errorMessage = null),
+            ),
+            const SizedBox(height: 16),
+            PasswordField(
+              controller: _passwordController,
+              labelText: 'Mật khẩu',
+              onChanged: (value) {
+                setState(() {
+                  _passwordStrength = PasswordValidator.getPasswordStrength(value);
+                  _errorMessage = null;
+                });
+              },
+            ),
+            Text(
+              'Độ mạnh: $_passwordStrength',
+              style: TextStyle(
+                color: PasswordValidator.getPasswordStrengthColor(_passwordStrength),
+              ),
+            ),
+            const SizedBox(height: 8),
+            PasswordRequirementWidget(
+              password: _passwordController.text,
+              showTitle: true,
+            ),
+            const SizedBox(height: 16),
+            PasswordField(
+              controller: _confirmPasswordController,
+              labelText: 'Xác nhận mật khẩu',
+              errorText: _errorMessage,
+              onChanged: (_) => setState(() => _errorMessage = null),
+              onSubmit: _signup,
+            ),
+            const SizedBox(height: 24),
+            SubmitButton(
+              label: 'Đăng ký',
+              onPressed: _signup,
+              isLoading: _isLoading,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Đã có tài khoản?'),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginPage(),
+                      ),
+                    );
+                  },
+                  child: const Text('Đăng nhập ngay'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuccessCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.check_circle_outline,
+              size: 80,
+              color: Colors.green,
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Đăng ký thành công!',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Tài khoản ${_emailController.text} đã được tạo thành công.',
+              style: const TextStyle(fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LoginPage(),
+                  ),
+                );
+              },
+              child: const Text('Đăng nhập ngay'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 45),
+              ),
+            ),
+          ],
         ),
       ),
     );

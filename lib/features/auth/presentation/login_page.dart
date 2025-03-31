@@ -3,8 +3,6 @@ import 'package:logger/logger.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/utils/validators/password_validator.dart';
 import '../../../widgets/auth/auth_widgets.dart';
-import '../../chat/presentation/home_page.dart';
-import 'forgot_password_page.dart';
 import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -41,7 +39,7 @@ class _LoginPageState extends State<LoginPage> {
       _logger.i('Attempting to log in user: ${_emailController.text}');
       
       // Call auth service to log in with standard authentication
-      final user = await _authService.signInWithEmailAndPassword(
+      await _authService.signInWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text,
       );
@@ -65,26 +63,33 @@ class _LoginPageState extends State<LoginPage> {
         }
       }
       
-      _logger.i('Authentication verified, navigating to home page');
+      _logger.i('Authentication verified, navigating to welcome screen');
       
-      // Navigate to home page
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HomePage(),
-        ),
-      );
+      // Navigate back to auth check which will redirect to welcome screen
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      }
     } catch (e) {
       _logger.e('Login error: $e');
       
       if (!mounted) return;
       
-      String errorMsg;
+      // Already formatted error messages from JarvisApiService
+      if (e.toString().contains('Email hoặc mật khẩu không đúng')) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+        return;
+      }
       
-      // Check for common API errors
+      // Handle other errors
+      String errorMsg;
       if (e.toString().contains('invalid_credentials') || 
           e.toString().contains('wrong password') ||
-          e.toString().contains('user not found')) {
+          e.toString().contains('user not found') ||
+          e.toString().contains('EMAIL_PASSWORD_MISMATCH') ||
+          e.toString().contains('Wrong e-mail or password')) {
         errorMsg = 'Email hoặc mật khẩu không đúng. Vui lòng thử lại.';
       } else if (e.toString().contains('network') || 
                 e.toString().contains('connect')) {
@@ -182,25 +187,6 @@ class _LoginPageState extends State<LoginPage> {
                           errorText: _errorMessage,
                           onChanged: (_) => setState(() => _errorMessage = null),
                           onSubmit: _login,
-                        ),
-                        
-                        const SizedBox(height: 8),
-                        
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const ForgotPasswordPage(),
-                                  ),
-                                );
-                              },
-                              child: const Text('Quên mật khẩu?'),
-                            ),
-                          ],
                         ),
                         
                         const SizedBox(height: 24),
