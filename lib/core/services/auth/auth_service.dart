@@ -82,4 +82,14 @@ class AuthService {
       return false;
     }
   }
+
+  Future<bool> refreshToken() async {
+    try {
+      _logger.i('Requesting token refresh');
+      return await _apiService.refreshToken();
+    } catch (e) {
+      _logger.e('Error during token refresh: $e');
+      return false;
+    }
+  }
 }

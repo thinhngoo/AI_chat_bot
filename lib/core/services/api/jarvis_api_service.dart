@@ -147,10 +147,102 @@ class JarvisApiService {
   Future<bool> signOut() async {
     try {
       _logger.i('Signing out user');
+      
+      // Only proceed with API call if we have an access token
+      if (_accessToken != null) {
+        final url = Uri.parse('$_authApiUrl${ApiConstants.authSessionCurrent}');
+        final headers = {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+          'X-Stack-Access-Type': 'client',
+          'X-Stack-Project-Id': ApiConstants.stackProjectId,
+          'X-Stack-Publishable-Client-Key': ApiConstants.stackPublishableClientKey,
+        };
+        
+        // Add refresh token if available
+        if (_refreshToken != null) {
+          headers['X-Stack-Refresh-Token'] = _refreshToken!;
+        }
+        
+        _logger.i('Sending logout request to: $url');
+        
+        // Send DELETE request to logout endpoint
+        final response = await http.delete(
+          url,
+          headers: headers,
+          body: '{}', // Empty JSON body
+        );
+        
+        _logger.i('Logout response status code: ${response.statusCode}');
+        
+        if (response.statusCode == 200 || response.statusCode == 204) {
+          _logger.i('Logout API call successful');
+        } else {
+          _logger.e('Logout API call failed: ${response.statusCode}');
+          _logger.e('Response body: ${response.body}');
+        }
+      } else {
+        _logger.i('No access token available, skipping API call');
+      }
+      
+      // Regardless of the API response, clear tokens locally
       await _clearAuthToken();
       return true;
     } catch (e) {
       _logger.e('Sign-out error: $e');
+      
+      // Even if the API call fails, clear tokens locally
+      await _clearAuthToken();
+      return true; // Return true since we've cleared local tokens
+    }
+  }
+
+  Future<bool> refreshToken() async {
+    try {
+      _logger.i('Attempting to refresh access token');
+      
+      if (_refreshToken == null) {
+        _logger.w('Cannot refresh token: No refresh token available');
+        return false;
+      }
+      
+      final url = Uri.parse('$_authApiUrl${ApiConstants.authSessionRefresh}');
+      final headers = {
+        'X-Stack-Access-Type': 'client',
+        'X-Stack-Project-Id': ApiConstants.stackProjectId,
+        'X-Stack-Publishable-Client-Key': ApiConstants.stackPublishableClientKey,
+        'X-Stack-Refresh-Token': _refreshToken!,
+      };
+      
+      final response = await http.post(url, headers: headers);
+      
+      _logger.i('Refresh token response status code: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        if (data['access_token'] != null) {
+          // Save only the new access token, keep the existing refresh token
+          await _saveAuthToken(data['access_token'], null);
+          _logger.i('Access token refreshed successfully');
+          return true;
+        } else {
+          _logger.w('No access token in refresh response');
+          return false;
+        }
+      } else {
+        _logger.e('Failed to refresh token: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          // Clear tokens if refresh fails due to authentication issues
+          await _clearAuthToken();
+        }
+        
+        return false;
+      }
+    } catch (e) {
+      _logger.e('Refresh token error: $e');
       return false;
     }
   }
