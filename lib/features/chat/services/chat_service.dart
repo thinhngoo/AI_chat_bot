@@ -5,8 +5,19 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../models/conversation_message.dart';
 
+/// A service class for handling chat operations, including fetching
+/// conversation history, retrieving a list of conversations, and sending
+/// messages to the AI chat service.
+///
+/// This service requires the user to be authenticated via [AuthService].
+/// It uses a singleton pattern to ensure a single instance is used
+/// throughout the application.
+///
+/// To use this service, access the singleton instance via [ChatService()].
 class ChatService {
   static final ChatService _instance = ChatService._internal();
+  
+  /// Returns the singleton instance of [ChatService].
   factory ChatService() => _instance;
 
   final Logger _logger = Logger();
@@ -14,6 +25,25 @@ class ChatService {
 
   ChatService._internal();
 
+  /// Fetches the conversation history for a specified conversation.
+  ///
+  /// Requires a [conversationId] to identify the conversation.
+  /// Optionally, you can specify:
+  /// - [assistantId]: Filters messages by a specific assistant.
+  /// - [cursor]: Used for pagination to fetch the next set of messages.
+  /// - [limit]: The maximum number of messages to retrieve (defaults to 20).
+  ///
+  /// Returns a [Future] that resolves to a [ConversationMessagesResponse]
+  /// containing the list of messages in the conversation.
+  ///
+  /// Throws an exception if:
+  /// - No access token is available (authentication required).
+  /// - The request fails due to network issues.
+  /// - The server returns:
+  ///   - 401: Authentication expired (attempts token refresh).
+  ///   - 404: Conversation not found (invalid [conversationId]).
+  ///   - 500: Server error (possibly invalid ID or server issues).
+  ///   - Other status codes: Generic failure with status code.
   Future<ConversationMessagesResponse> getConversationHistory(
     String conversationId, {
     String? assistantId,
@@ -100,19 +130,52 @@ class ChatService {
     }
   }
   
-  Future<List<Map<String, dynamic>>> getConversations() async {
+  /// Fetches a list of conversations for the current user.
+  ///
+  /// Optionally, you can specify:
+  /// - [cursor]: Used for pagination to fetch the next set of conversations.
+  /// - [limit]: The maximum number of conversations to retrieve (defaults to 20).
+  /// - [assistantId]: Filters conversations by assistant (defaults to 'gpt-4o-mini').
+  ///
+  /// Returns a [Future] that resolves to a list of conversation maps.
+  /// Each map represents a conversation and contains at least an 'id' key,
+  /// along with other metadata provided by the API.
+  ///
+  /// If the server returns a 500 error, returns an empty list instead of throwing.
+  ///
+  /// Throws an exception if:
+  /// - No access token is available (authentication required).
+  /// - The request fails due to network issues.
+  /// - The server returns:
+  ///   - 401: Authentication expired (attempts token refresh).
+  ///   - Other status codes: Generic failure with status code and request ID if available.
+  Future<List<Map<String, dynamic>>> getConversations({
+    String? cursor,
+    int limit = 20,
+    String assistantId = 'gpt-4o-mini',
+  }) async {
     try {
       _logger.i('Fetching conversations list');
       
-      // Build query parameters
+      // Build query parameters according to API documentation
       final queryParams = {
         'assistantModel': 'dify', // Required parameter
-        'limit': '20', // Optional parameter
       };
+      
+      // Add optional parameters if provided
+      if (cursor != null && cursor.isNotEmpty) {
+        queryParams['cursor'] = cursor;
+      }
+      
+      queryParams['limit'] = limit.toString();
+      
+      if (assistantId.isNotEmpty) {
+        queryParams['assistantId'] = assistantId;
+      }
       
       // Build URL with query parameters
       final baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.aiChatConversations;
+      final endpoint = '/api/v1/ai-chat/conversations';
       final uri = Uri.parse(baseUrl + endpoint).replace(queryParameters: queryParams);
       
       // Log request details for debugging
@@ -124,13 +187,7 @@ class ChatService {
         throw 'No access token available. Please log in again.';
       }
       
-      // Log partially masked token for debugging
-      final maskedToken = accessToken.length > 15 
-          ? '${accessToken.substring(0, 10)}...${accessToken.substring(accessToken.length - 5)}'
-          : '***masked***';
-      _logger.i('Using access token: $maskedToken');
-      
-      // Prepare headers
+      // Prepare headers according to API documentation
       final headers = {
         'Authorization': 'Bearer $accessToken',
         'x-jarvis-guid': generateGuid(),
@@ -143,9 +200,14 @@ class ChatService {
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final items = List<Map<String, dynamic>>.from(data['items'] ?? []);
         
-        _logger.i('Successfully fetched ${items.length} conversations');
+        // Parse response according to documented format
+        final items = List<Map<String, dynamic>>.from(data['items'] ?? []);
+        final hasMore = data['has_more'] ?? false;
+        final responseCursor = data['cursor'] ?? '';
+        final responseLimit = data['limit'] ?? 20;
+        
+        _logger.i('Successfully fetched ${items.length} conversations (has_more: $hasMore)');
         if (items.isEmpty) {
           _logger.i('No conversations found for this user');
         }
@@ -158,7 +220,11 @@ class ChatService {
         
         if (refreshSuccess) {
           // Retry with new token
-          return getConversations();
+          return getConversations(
+            cursor: cursor,
+            limit: limit,
+            assistantId: assistantId,
+          );
         } else {
           throw 'Authentication expired. Please log in again.';
         }
@@ -199,6 +265,30 @@ class ChatService {
     }
   }
   
+  /// Sends a message to the AI chat service.
+  ///
+  /// Requires:
+  /// - [content]: The message text to send.
+  /// - [assistantId]: The ID of the assistant to respond.
+  ///
+  /// Optionally, you can specify:
+  /// - [conversationId]: Continues an existing conversation if provided;
+  ///   starts a new conversation if null or empty.
+  /// - [files]: A list of file IDs to attach to the message.
+  ///
+  /// Returns a [Future] that resolves to a [Map<String, dynamic>] containing
+  /// the server response, including:
+  /// - 'conversationId': The ID of the conversation (new or existing).
+  /// - 'message': The AI's response message.
+  ///
+  /// Throws an exception if:
+  /// - No access token is available (authentication required).
+  /// - The request fails due to network issues.
+  /// - The server returns:
+  ///   - 401: Authentication expired (attempts token refresh).
+  ///   - 404: Conversation not found (invalid [conversationId]).
+  ///   - 500: Server error (suggests starting a new conversation).
+  ///   - Other status codes: Generic failure with detailed message if available.
   Future<Map<String, dynamic>> sendMessage({
     required String content,
     required String assistantId,
@@ -345,7 +435,405 @@ class ChatService {
     }
   }
   
-  // Helper method to get assistant name based on ID
+  /// Retrieves a list of all available assistants.
+  ///
+  /// Returns a [Future] that resolves to a list of assistant objects.
+  /// Each assistant contains details like ID, name, model, and capabilities.
+  ///
+  /// Throws an exception if:
+  /// - No access token is available (authentication required).
+  /// - The request fails due to network issues.
+  /// - The server returns an error status code.
+  Future<List<Map<String, dynamic>>> getAssistants() async {
+    try {
+      _logger.i('Fetching list of assistants');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'x-jarvis-guid': generateGuid(),
+      };
+      
+      // Build URL
+      final baseUrl = ApiConstants.jarvisApiUrl;
+      final endpoint = '/api/v1/ai-chat/assistants';
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Request URI: $uri');
+      
+      // Send request
+      final response = await http.get(uri, headers: headers);
+      
+      _logger.i('Get assistants response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final assistants = List<Map<String, dynamic>>.from(data['assistants'] ?? []);
+        _logger.i('Successfully fetched ${assistants.length} assistants');
+        return assistants;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return getAssistants();
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to fetch assistants: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        String errorMessage = 'Failed to fetch assistants: ${response.statusCode}';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['message'] != null) {
+            errorMessage = errorData['message'];
+          }
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
+        
+        throw errorMessage;
+      }
+    } catch (e) {
+      _logger.e('Error fetching assistants: $e');
+      rethrow;
+    }
+  }
+
+  /// Creates a new assistant with the specified parameters.
+  ///
+  /// Required parameters:
+  /// - [name]: The display name for the assistant.
+  /// - [model]: The AI model to use (e.g., 'gpt-4o', 'gemini-1.5-pro').
+  /// - [instructions]: Initial instructions/prompt for the assistant.
+  ///
+  /// Optional parameters:
+  /// - [description]: A description of the assistant's purpose.
+  /// - [metadata]: Additional metadata for the assistant.
+  /// - [tools]: List of tools the assistant can use.
+  ///
+  /// Returns a [Future] that resolves to the created assistant object.
+  ///
+  /// Throws an exception if:
+  /// - No access token is available (authentication required).
+  /// - The request fails due to network issues.
+  /// - The server returns an error status code.
+  Future<Map<String, dynamic>> createAssistant({
+    required String name,
+    required String model,
+    required String instructions,
+    String? description,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? tools,
+  }) async {
+    try {
+      _logger.i('Creating new assistant: $name (model: $model)');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'x-jarvis-guid': generateGuid(),
+        'Content-Type': 'application/json'
+      };
+      
+      // Build request body
+      final Map<String, dynamic> body = {
+        'name': name,
+        'model': model,
+        'instructions': instructions,
+      };
+      
+      if (description != null) {
+        body['description'] = description;
+      }
+      
+      if (metadata != null) {
+        body['metadata'] = metadata;
+      }
+      
+      if (tools != null) {
+        body['tools'] = tools;
+      }
+      
+      // Build URL
+      final baseUrl = ApiConstants.jarvisApiUrl;
+      final endpoint = '/api/v1/ai-chat/assistants';
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      _logger.d('Request body: ${jsonEncode(body)}');
+      
+      // Send request
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      
+      _logger.i('Create assistant response status: ${response.statusCode}');
+      
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _logger.i('Assistant created successfully, ID: ${data['id']}');
+        return data;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return createAssistant(
+            name: name,
+            model: model,
+            instructions: instructions,
+            description: description,
+            metadata: metadata,
+            tools: tools,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to create assistant: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        String errorMessage = 'Failed to create assistant: ${response.statusCode}';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['message'] != null) {
+            errorMessage = errorData['message'];
+          }
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
+        
+        throw errorMessage;
+      }
+    } catch (e) {
+      _logger.e('Error creating assistant: $e');
+      rethrow;
+    }
+  }
+  
+  /// Updates an existing assistant with new parameters.
+  ///
+  /// Required parameter:
+  /// - [assistantId]: The ID of the assistant to update.
+  ///
+  /// Optional parameters:
+  /// - [name]: New display name for the assistant.
+  /// - [model]: New AI model to use.
+  /// - [instructions]: New initial instructions/prompt.
+  /// - [description]: New description of the assistant's purpose.
+  /// - [metadata]: New additional metadata.
+  /// - [tools]: New list of tools the assistant can use.
+  ///
+  /// Returns a [Future] that resolves to the updated assistant object.
+  ///
+  /// Throws an exception if:
+  /// - No access token is available (authentication required).
+  /// - The request fails due to network issues.
+  /// - The server returns an error status code.
+  Future<Map<String, dynamic>> updateAssistant({
+    required String assistantId,
+    String? name,
+    String? model,
+    String? instructions,
+    String? description,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? tools,
+  }) async {
+    try {
+      _logger.i('Updating assistant: $assistantId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'x-jarvis-guid': generateGuid(),
+        'Content-Type': 'application/json'
+      };
+      
+      // Build request body - only include fields that are provided
+      final Map<String, dynamic> body = {};
+      
+      if (name != null) body['name'] = name;
+      if (model != null) body['model'] = model;
+      if (instructions != null) body['instructions'] = instructions;
+      if (description != null) body['description'] = description;
+      if (metadata != null) body['metadata'] = metadata;
+      if (tools != null) body['tools'] = tools;
+      
+      // Build URL
+      final baseUrl = ApiConstants.jarvisApiUrl;
+      final endpoint = '/api/v1/ai-chat/assistants/$assistantId';
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      _logger.d('Request body: ${jsonEncode(body)}');
+      
+      // Send request
+      final response = await http.patch(
+        uri,
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      
+      _logger.i('Update assistant response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _logger.i('Assistant updated successfully');
+        return data;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return updateAssistant(
+            assistantId: assistantId,
+            name: name,
+            model: model,
+            instructions: instructions,
+            description: description,
+            metadata: metadata,
+            tools: tools,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else if (response.statusCode == 404) {
+        throw 'Assistant not found. The assistant ID may be invalid.';
+      } else {
+        _logger.e('Failed to update assistant: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        String errorMessage = 'Failed to update assistant: ${response.statusCode}';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['message'] != null) {
+            errorMessage = errorData['message'];
+          }
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
+        
+        throw errorMessage;
+      }
+    } catch (e) {
+      _logger.e('Error updating assistant: $e');
+      rethrow;
+    }
+  }
+  
+  /// Deletes an assistant by ID.
+  ///
+  /// Required parameter:
+  /// - [assistantId]: The ID of the assistant to delete.
+  ///
+  /// Returns a [Future] that resolves to true if deletion was successful.
+  ///
+  /// Throws an exception if:
+  /// - No access token is available (authentication required).
+  /// - The request fails due to network issues.
+  /// - The server returns an error status code.
+  Future<bool> deleteAssistant(String assistantId) async {
+    try {
+      _logger.i('Deleting assistant: $assistantId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'x-jarvis-guid': generateGuid(),
+      };
+      
+      // Build URL
+      final baseUrl = ApiConstants.jarvisApiUrl;
+      final endpoint = '/api/v1/ai-chat/assistants/$assistantId';
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final response = await http.delete(
+        uri,
+        headers: headers,
+      );
+      
+      _logger.i('Delete assistant response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _logger.i('Assistant deleted successfully');
+        return true;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return deleteAssistant(assistantId);
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else if (response.statusCode == 404) {
+        throw 'Assistant not found. The assistant ID may be invalid.';
+      } else {
+        _logger.e('Failed to delete assistant: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        String errorMessage = 'Failed to delete assistant: ${response.statusCode}';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['message'] != null) {
+            errorMessage = errorData['message'];
+          }
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
+        
+        throw errorMessage;
+      }
+    } catch (e) {
+      _logger.e('Error deleting assistant: $e');
+      rethrow;
+    }
+  }
+  
+  /// Returns the display name for a given [assistantId].
+  ///
+  /// Maps known assistant IDs to human-readable names. If the ID is unknown,
+  /// returns the [assistantId] as-is.
   String _getAssistantName(String assistantId) {
     switch (assistantId) {
       case 'gpt-4o':
@@ -365,7 +853,11 @@ class ChatService {
     }
   }
   
-  // Generate a simple GUID for request tracking
+  /// Generates a simple GUID for request tracking.
+  ///
+  /// Combines the current timestamp with a random component.
+  /// Note: This is a simplified implementation; consider using a UUID library
+  /// in production for true uniqueness.
   String generateGuid() {
     // This is a simplified GUID generator - in production, use a proper UUID library
     final now = DateTime.now().millisecondsSinceEpoch;

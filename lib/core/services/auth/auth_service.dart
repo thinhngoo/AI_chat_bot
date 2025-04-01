@@ -63,6 +63,7 @@ class AuthService {
     } catch (e) {
       _logger.e('Error during sign in: $e');
       throw e.toString();
+
     }
   }
 
