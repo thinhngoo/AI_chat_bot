@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../../../core/services/auth/auth_service.dart';
-import '../../../core/utils/validators/password_validator.dart';
+import '../../../core/utils/validators/input_validator.dart';
 import '../../../widgets/auth/auth_widgets.dart';
 import '../../../widgets/auth/password_requirement_widget.dart';
 import 'login_page.dart';
@@ -23,13 +23,19 @@ class _SignupPageState extends State<SignupPage> {
   
   bool _isLoading = false;
   bool _isSuccess = false;
-  String? _errorMessage;
+  
+  // Add separate error messages for each field
+  String? _nameErrorMessage;
+  String? _emailErrorMessage;
+  String? _passwordErrorMessage;
+  String? _confirmPasswordErrorMessage;
+  
   String _passwordStrength = '';
 
   @override
   void initState() {
     super.initState();
-    _passwordStrength = PasswordValidator.getPasswordStrength('');
+    _passwordStrength = InputValidator.getPasswordStrength('');
   }
 
   Future<void> _signup() async {
@@ -43,7 +49,7 @@ class _SignupPageState extends State<SignupPage> {
     
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
+      _clearAllErrors();
     });
     
     try {
@@ -70,37 +76,53 @@ class _SignupPageState extends State<SignupPage> {
       
       if (!mounted) return;
       
-      String errorMsg;
+      String errorMsg = e.toString();
       
-      // Convert error message to user-friendly text
-      if (e.toString().contains('Email đã được sử dụng') ||
-          e.toString().contains('already exists')) {
-        errorMsg = 'Email đã được sử dụng. Vui lòng sử dụng email khác.';
-      } else if (e.toString().contains('weak-password')) {
-        errorMsg = 'Mật khẩu quá yếu. Vui lòng chọn mật khẩu mạnh hơn.';
-      } else if (e.toString().contains('network')) {
-        errorMsg = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet của bạn.';
+      // Convert error message to user-friendly text and assign to appropriate field
+      if (errorMsg.contains('Email đã được sử dụng') ||
+          errorMsg.contains('already exists') ||
+          errorMsg.contains('email')) {
+        setState(() {
+          _emailErrorMessage = 'Email đã được sử dụng. Vui lòng sử dụng email khác.';
+          _isLoading = false;
+        });
+      } else if (errorMsg.contains('weak-password') || 
+                 errorMsg.contains('mật khẩu')) {
+        setState(() {
+          _passwordErrorMessage = 'Mật khẩu quá yếu. Vui lòng chọn mật khẩu mạnh hơn.';
+          _isLoading = false;
+        });
+      } else if (errorMsg.contains('network')) {
+        setState(() {
+          _confirmPasswordErrorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet của bạn.';
+          _isLoading = false;
+        });
       } else {
         // Use a more user-friendly error message
-        errorMsg = 'Lỗi đăng ký: ${e.toString()}';
+        setState(() {
+          _confirmPasswordErrorMessage = 'Lỗi đăng ký: $errorMsg';
+          _isLoading = false;
+        });
       }
-      
-      setState(() {
-        _errorMessage = errorMsg;
-        _isLoading = false;
-      });
     }
+  }
+
+  void _clearAllErrors() {
+    _nameErrorMessage = null;
+    _emailErrorMessage = null;
+    _passwordErrorMessage = null;
+    _confirmPasswordErrorMessage = null;
   }
 
   bool _validateForm() {
     setState(() {
-      _errorMessage = null;
+      _clearAllErrors();
     });
     
     // Validate name
     if (_nameController.text.trim().isEmpty) {
       setState(() {
-        _errorMessage = 'Vui lòng nhập tên của bạn';
+        _nameErrorMessage = 'Vui lòng nhập tên của bạn';
       });
       return false;
     }
@@ -108,14 +130,14 @@ class _SignupPageState extends State<SignupPage> {
     // Validate email
     if (_emailController.text.trim().isEmpty) {
       setState(() {
-        _errorMessage = 'Vui lòng nhập email';
+        _emailErrorMessage = 'Vui lòng nhập email';
       });
       return false;
     }
     
-    if (!PasswordValidator.isValidEmail(_emailController.text.trim())) {
+    if (!InputValidator.isValidEmail(_emailController.text.trim())) {
       setState(() {
-        _errorMessage = 'Email không hợp lệ';
+        _emailErrorMessage = 'Email không hợp lệ';
       });
       return false;
     }
@@ -123,14 +145,14 @@ class _SignupPageState extends State<SignupPage> {
     // Validate password
     if (_passwordController.text.isEmpty) {
       setState(() {
-        _errorMessage = 'Vui lòng nhập mật khẩu';
+        _passwordErrorMessage = 'Vui lòng nhập mật khẩu';
       });
       return false;
     }
     
-    if (!PasswordValidator.isValidPassword(_passwordController.text)) {
+    if (!InputValidator.isValidPassword(_passwordController.text)) {
       setState(() {
-        _errorMessage = 'Mật khẩu không đáp ứng các yêu cầu bảo mật';
+        _passwordErrorMessage = 'Mật khẩu không đáp ứng các yêu cầu bảo mật';
       });
       return false;
     }
@@ -138,7 +160,7 @@ class _SignupPageState extends State<SignupPage> {
     // Validate confirm password
     if (_confirmPasswordController.text != _passwordController.text) {
       setState(() {
-        _errorMessage = 'Mật khẩu xác nhận không khớp';
+        _confirmPasswordErrorMessage = 'Mật khẩu xác nhận không khớp';
       });
       return false;
     }
@@ -196,34 +218,37 @@ class _SignupPageState extends State<SignupPage> {
             const SizedBox(height: 24),
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Họ và tên',
                 hintText: 'Nhập họ và tên của bạn',
-                prefixIcon: Icon(Icons.person),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.person),
+                border: const OutlineInputBorder(),
+                errorText: _nameErrorMessage,
               ),
-              onChanged: (_) => setState(() => _errorMessage = null),
+              onChanged: (_) => setState(() => _nameErrorMessage = null),
             ),
             const SizedBox(height: 16),
             EmailField(
               controller: _emailController,
-              onChanged: (_) => setState(() => _errorMessage = null),
+              errorText: _emailErrorMessage,
+              onChanged: (_) => setState(() => _emailErrorMessage = null),
             ),
             const SizedBox(height: 16),
             PasswordField(
               controller: _passwordController,
               labelText: 'Mật khẩu',
+              errorText: _passwordErrorMessage,
               onChanged: (value) {
                 setState(() {
-                  _passwordStrength = PasswordValidator.getPasswordStrength(value);
-                  _errorMessage = null;
+                  _passwordStrength = InputValidator.getPasswordStrength(value);
+                  _passwordErrorMessage = null;
                 });
               },
             ),
             Text(
               'Độ mạnh: $_passwordStrength',
               style: TextStyle(
-                color: PasswordValidator.getPasswordStrengthColor(_passwordStrength),
+                color: InputValidator.getPasswordStrengthColor(_passwordStrength),
               ),
             ),
             const SizedBox(height: 8),
@@ -235,8 +260,8 @@ class _SignupPageState extends State<SignupPage> {
             PasswordField(
               controller: _confirmPasswordController,
               labelText: 'Xác nhận mật khẩu',
-              errorText: _errorMessage,
-              onChanged: (_) => setState(() => _errorMessage = null),
+              errorText: _confirmPasswordErrorMessage,
+              onChanged: (_) => setState(() => _confirmPasswordErrorMessage = null),
               onSubmit: _signup,
             ),
             const SizedBox(height: 24),

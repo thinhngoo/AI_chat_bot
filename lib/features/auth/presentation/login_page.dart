@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../../../core/services/auth/auth_service.dart';
-import '../../../core/utils/validators/password_validator.dart';
+import '../../../core/utils/validators/input_validator.dart';  // Updated import
 import '../../../widgets/auth/auth_widgets.dart';
 import 'signup_page.dart';
 
@@ -19,7 +19,8 @@ class _LoginPageState extends State<LoginPage> {
   final Logger _logger = Logger();
   
   bool _isLoading = false;
-  String? _errorMessage;
+  String? _emailErrorMessage;
+  String? _passwordErrorMessage;
 
   Future<void> _login() async {
     // Hide keyboard
@@ -32,7 +33,8 @@ class _LoginPageState extends State<LoginPage> {
     
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
+      _emailErrorMessage = null;
+      _passwordErrorMessage = null;
     });
     
     try {
@@ -77,7 +79,7 @@ class _LoginPageState extends State<LoginPage> {
       // Already formatted error messages from JarvisApiService
       if (e.toString().contains('Email hoặc mật khẩu không đúng')) {
         setState(() {
-          _errorMessage = e.toString();
+          _passwordErrorMessage = e.toString();
           _isLoading = false;
         });
         return;
@@ -91,6 +93,11 @@ class _LoginPageState extends State<LoginPage> {
           e.toString().contains('EMAIL_PASSWORD_MISMATCH') ||
           e.toString().contains('Wrong e-mail or password')) {
         errorMsg = 'Email hoặc mật khẩu không đúng. Vui lòng thử lại.';
+        setState(() {
+          _passwordErrorMessage = errorMsg;
+          _isLoading = false;
+        });
+        return;
       } else if (e.toString().contains('network') || 
                 e.toString().contains('connect')) {
         errorMsg = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet của bạn.';
@@ -103,7 +110,7 @@ class _LoginPageState extends State<LoginPage> {
       }
       
       setState(() {
-        _errorMessage = errorMsg;
+        _passwordErrorMessage = errorMsg;
         _isLoading = false;
       });
     }
@@ -111,20 +118,21 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _validateForm() {
     setState(() {
-      _errorMessage = null;
+      _emailErrorMessage = null;
+      _passwordErrorMessage = null;
     });
     
     // Validate email
     if (_emailController.text.trim().isEmpty) {
       setState(() {
-        _errorMessage = 'Vui lòng nhập email';
+        _emailErrorMessage = 'Vui lòng nhập email';
       });
       return false;
     }
     
-    if (!PasswordValidator.isValidEmail(_emailController.text.trim())) {
+    if (!InputValidator.isValidEmail(_emailController.text.trim())) {  // Updated class name
       setState(() {
-        _errorMessage = 'Email không hợp lệ';
+        _emailErrorMessage = 'Email không hợp lệ';
       });
       return false;
     }
@@ -132,7 +140,7 @@ class _LoginPageState extends State<LoginPage> {
     // Validate password
     if (_passwordController.text.isEmpty) {
       setState(() {
-        _errorMessage = 'Vui lòng nhập mật khẩu';
+        _passwordErrorMessage = 'Vui lòng nhập mật khẩu';
       });
       return false;
     }
@@ -178,14 +186,15 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 24),
                         EmailField(
                           controller: _emailController,
-                          onChanged: (_) => setState(() => _errorMessage = null),
+                          errorText: _emailErrorMessage,
+                          onChanged: (_) => setState(() => _emailErrorMessage = null),
                         ),
                         const SizedBox(height: 16),
                         PasswordField(
                           controller: _passwordController,
                           labelText: 'Mật khẩu',
-                          errorText: _errorMessage,
-                          onChanged: (_) => setState(() => _errorMessage = null),
+                          errorText: _passwordErrorMessage,
+                          onChanged: (_) => setState(() => _passwordErrorMessage = null),
                           onSubmit: _login,
                         ),
                         
