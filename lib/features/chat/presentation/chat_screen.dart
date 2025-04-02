@@ -314,6 +314,15 @@ class _ChatScreenState extends State<ChatScreen> {
             tooltip: 'Manage Assistants',
           ),
           
+          // Bot management button (NEW)
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).pushNamed('/bots');
+            },
+            icon: const Icon(Icons.adb),
+            tooltip: 'Manage Bots',
+          ),
+          
           // Light/dark mode toggle
           IconButton(
             icon: Icon(

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 
-/// Common widget for email field in authentication forms
+/// Email field widget with standard validation and styling
 class EmailField extends StatelessWidget {
   final TextEditingController controller;
-  final Function(String)? onChanged;
   final String? errorText;
-  final bool autofocus;
+  final Function(String)? onChanged;
+  final Function(String)? onSubmit;
 
   const EmailField({
-    super.key,
+    super.key, 
     required this.controller,
-    this.onChanged,
     this.errorText,
-    this.autofocus = false,
+    this.onChanged,
+    this.onSubmit,
   });
 
   @override
@@ -20,6 +20,7 @@ class EmailField extends StatelessWidget {
     return TextField(
       controller: controller,
       keyboardType: TextInputType.emailAddress,
+      autocorrect: false,
       decoration: InputDecoration(
         labelText: 'Email',
         hintText: 'Nhập địa chỉ email của bạn',
@@ -27,27 +28,27 @@ class EmailField extends StatelessWidget {
         border: const OutlineInputBorder(),
         errorText: errorText,
       ),
-      autofocus: autofocus,
       onChanged: onChanged,
+      onSubmitted: onSubmit,
     );
   }
 }
 
-/// Common widget for password field in authentication forms
+/// Password field widget with standard styling and visibility toggle
 class PasswordField extends StatefulWidget {
   final TextEditingController controller;
   final String labelText;
+  final String? errorText;
   final Function(String)? onChanged;
   final Function()? onSubmit;
-  final String? errorText;
 
   const PasswordField({
-    super.key,
+    super.key, 
     required this.controller,
-    this.labelText = 'Mật khẩu',
+    required this.labelText,
+    this.errorText,
     this.onChanged,
     this.onSubmit,
-    this.errorText,
   });
 
   @override
@@ -64,20 +65,20 @@ class _PasswordFieldState extends State<PasswordField> {
       obscureText: _obscureText,
       decoration: InputDecoration(
         labelText: widget.labelText,
-        hintText: 'Nhập mật khẩu của bạn',
         prefixIcon: const Icon(Icons.lock),
+        border: const OutlineInputBorder(),
+        errorText: widget.errorText,
         suffixIcon: IconButton(
           icon: Icon(
-            _obscureText ? Icons.visibility_off : Icons.visibility,
+            _obscureText ? Icons.visibility : Icons.visibility_off,
           ),
           onPressed: () {
             setState(() {
               _obscureText = !_obscureText;
             });
           },
+          tooltip: _obscureText ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
         ),
-        border: const OutlineInputBorder(),
-        errorText: widget.errorText,
       ),
       onChanged: widget.onChanged,
       onSubmitted: widget.onSubmit != null ? (_) => widget.onSubmit!() : null,
@@ -85,19 +86,17 @@ class _PasswordFieldState extends State<PasswordField> {
   }
 }
 
-/// Common widget for submit buttons in authentication forms
+/// Submit button with loading state
 class SubmitButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
   final bool isLoading;
-  final Color? color;
 
   const SubmitButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.isLoading = false,
-    this.color,
   });
 
   @override
@@ -108,7 +107,8 @@ class SubmitButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: color,
+          foregroundColor: Colors.white,
+          backgroundColor: Theme.of(context).primaryColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -118,8 +118,8 @@ class SubmitButton extends StatelessWidget {
                 width: 24,
                 height: 24,
                 child: CircularProgressIndicator(
+                  color: Colors.white,
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
             : Text(
@@ -134,50 +134,44 @@ class SubmitButton extends StatelessWidget {
   }
 }
 
-/// Widget for social login buttons
+/// Social login button
 class SocialLoginButton extends StatelessWidget {
-  final String label;
+  final String text;
   final IconData icon;
   final VoidCallback onPressed;
   final Color backgroundColor;
   final Color textColor;
-  final bool isLoading;
 
   const SocialLoginButton({
     super.key,
-    required this.label,
+    required this.text,
     required this.icon,
     required this.onPressed,
-    required this.backgroundColor,
-    this.textColor = Colors.white,
-    this.isLoading = false,
+    this.backgroundColor = Colors.white,
+    this.textColor = Colors.black87,
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 45,
+      height: 50,
       child: ElevatedButton.icon(
-        onPressed: isLoading ? null : onPressed,
-        icon: isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Icon(icon, color: textColor),
+        onPressed: onPressed,
+        icon: Icon(icon, color: textColor),
         label: Text(
-          label,
-          style: TextStyle(color: textColor),
+          text,
+          style: TextStyle(
+            color: textColor,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: backgroundColor,
+          foregroundColor: textColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
+            side: BorderSide(color: Colors.grey.shade300),
           ),
         ),
       ),

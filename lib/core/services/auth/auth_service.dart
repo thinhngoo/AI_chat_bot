@@ -9,16 +9,17 @@ class AuthService {
 
   final Logger _logger = Logger();
   final JarvisApiService _apiService = JarvisApiService();
-  
+
   bool _isInitialized = false;
   String? _accessToken;
   String? _refreshToken;
+  String? _userId;
 
   AuthService._internal();
 
   Future<void> initializeService() async {
     if (_isInitialized) return;
-    
+
     _logger.i('Initializing Auth Service');
     await _loadAuthToken();
     await _apiService.initialize(this);
@@ -26,19 +27,20 @@ class AuthService {
   }
 
   Future<bool> signUpWithEmailAndPassword(
-    String email, 
-    String password, 
-    {String? name}
-  ) async {
+    String email,
+    String password, {
+    String? name,
+  }) async {
     try {
       _logger.i('Signing up user with email: $email');
       final response = await _apiService.signUp(email, password);
-      
-      if (response.containsKey('access_token') && response.containsKey('refresh_token')) {
+
+      if (response.containsKey('access_token') &&
+          response.containsKey('refresh_token')) {
         await _saveAuthToken(response['access_token'], response['refresh_token']);
         return true;
       }
-      
+
       throw 'Invalid signup response format';
     } catch (e) {
       _logger.e('Error during sign up: $e');
@@ -47,23 +49,23 @@ class AuthService {
   }
 
   Future<bool> signInWithEmailAndPassword(
-    String email, 
-    String password
+    String email,
+    String password,
   ) async {
     try {
       _logger.i('Signing in user with email: $email');
       final response = await _apiService.signIn(email, password);
-      
-      if (response.containsKey('access_token') && response.containsKey('refresh_token')) {
+
+      if (response.containsKey('access_token') &&
+          response.containsKey('refresh_token')) {
         await _saveAuthToken(response['access_token'], response['refresh_token']);
         return true;
       }
-      
+
       throw 'Invalid signin response format';
     } catch (e) {
       _logger.e('Error during sign in: $e');
       throw e.toString();
-
     }
   }
 
@@ -110,14 +112,14 @@ class AuthService {
         _logger.w('Cannot refresh token: No refresh token available');
         return false;
       }
-      
+
       final response = await _apiService.refreshToken(_refreshToken!);
-      
+
       if (response.containsKey('access_token')) {
         await _saveAuthToken(response['access_token'], null);
         return true;
       }
-      
+
       return false;
     } catch (e) {
       _logger.e('Error during token refresh: $e');
@@ -131,10 +133,10 @@ class AuthService {
       final prefs = await SharedPreferences.getInstance();
       _accessToken = prefs.getString(ApiConstants.accessTokenKey);
       _refreshToken = prefs.getString(ApiConstants.refreshTokenKey);
-      
-      if (_accessToken != null) {
-        _logger.i('Loaded access token from storage');
-      }
+      _userId = prefs.getString(ApiConstants.userIdKey);
+
+      _logger.i(
+          'Loaded tokens from storage: accessToken=${_accessToken != null}, userId=$_userId');
     } catch (e) {
       _logger.e('Error loading auth token: $e');
     }
@@ -145,12 +147,12 @@ class AuthService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(ApiConstants.accessTokenKey, accessToken);
       _accessToken = accessToken;
-      
+
       if (refreshToken != null) {
         await prefs.setString(ApiConstants.refreshTokenKey, refreshToken);
         _refreshToken = refreshToken;
       }
-      
+
       _logger.i('Saved auth tokens to storage');
     } catch (e) {
       _logger.e('Error saving auth token: $e');
@@ -162,8 +164,10 @@ class AuthService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(ApiConstants.accessTokenKey);
       await prefs.remove(ApiConstants.refreshTokenKey);
+      await prefs.remove(ApiConstants.userIdKey);
       _accessToken = null;
       _refreshToken = null;
+      _userId = null;
       _logger.i('Cleared auth tokens from storage');
     } catch (e) {
       _logger.e('Error clearing auth token: $e');
@@ -172,4 +176,9 @@ class AuthService {
 
   // Getter for access token - for JarvisApiService to use
   String? get accessToken => _accessToken;
+
+  // Added method to fix JarvisApiService initialization error
+  String? getUserId() {
+    return _userId;
+  }
 }

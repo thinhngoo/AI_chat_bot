@@ -335,10 +335,10 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                 );
               },
-              child: const Text('Đăng nhập ngay'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 45),
               ),
+              child: const Text('Đăng nhập ngay'),
             ),
           ],
         ),

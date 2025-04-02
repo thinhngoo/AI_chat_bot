@@ -54,10 +54,7 @@ class ChatService {
       _logger.i('Fetching conversation history for ID: $conversationId');
       
       // Build query parameters
-      final queryParams = {
-        'assistantModel': 'dify', // Required parameter
-        'limit': limit.toString(),
-      };
+      final queryParams = <String, String>{};
       
       if (assistantId != null) {
         queryParams['assistantId'] = assistantId;
@@ -67,8 +64,10 @@ class ChatService {
         queryParams['cursor'] = cursor;
       }
       
+      queryParams['limit'] = limit.toString();
+      
       // Build URL
-      final baseUrl = ApiConstants.jarvisApiUrl;
+      const baseUrl = ApiConstants.jarvisApiUrl;
       final endpoint = '/api/v1/ai-chat/conversations/$conversationId/messages';
       final uri = Uri.parse(baseUrl + endpoint).replace(queryParameters: queryParams);
       
@@ -158,7 +157,7 @@ class ChatService {
       _logger.i('Fetching conversations list');
       
       // Build query parameters according to API documentation
-      final queryParams = {
+      const queryParams = {
         'assistantModel': 'dify', // Required parameter
       };
       
@@ -174,8 +173,8 @@ class ChatService {
       }
       
       // Build URL with query parameters
-      final baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = '/api/v1/ai-chat/conversations';
+      const baseUrl = ApiConstants.jarvisApiUrl;
+      const endpoint = '/api/v1/ai-chat/conversations';
       final uri = Uri.parse(baseUrl + endpoint).replace(queryParameters: queryParams);
       
       // Log request details for debugging
@@ -204,8 +203,6 @@ class ChatService {
         // Parse response according to documented format
         final items = List<Map<String, dynamic>>.from(data['items'] ?? []);
         final hasMore = data['has_more'] ?? false;
-        final responseCursor = data['cursor'] ?? '';
-        final responseLimit = data['limit'] ?? 20;
         
         _logger.i('Successfully fetched ${items.length} conversations (has_more: $hasMore)');
         if (items.isEmpty) {
@@ -235,7 +232,8 @@ class ChatService {
           final errorData = jsonDecode(response.body);
           requestId = errorData['requestId'] ?? 'unknown';
         } catch (e) {
-          _logger.e('Error parsing server error response: $e');
+          // Ignore JSON parsing errors for error tracking
+          _logger.d('Could not parse error response for requestId: $e');
         }
         
         _logger.w('Server returned 500 error (Request ID: $requestId) - treating as empty conversations list');
@@ -254,7 +252,8 @@ class ChatService {
           final errorData = jsonDecode(response.body);
           requestId = errorData['requestId'] ?? '';
         } catch (e) {
-          // Parsing error, ignore
+          // Ignore JSON parsing errors for error tracking
+          _logger.d('Could not parse error response for requestId: $e');
         }
         
         throw 'Failed to fetch conversations: ${response.statusCode}${requestId.isNotEmpty ? ' (Request ID: $requestId)' : ''}';
@@ -317,8 +316,8 @@ class ChatService {
       };
       
       // Build URL
-      final baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = '/api/v1/ai-chat/messages';
+      const baseUrl = ApiConstants.jarvisApiUrl;
+      const endpoint = '/api/v1/ai-chat/messages';
       final uri = Uri.parse(baseUrl + endpoint);
       
       // Prepare request body based on API documentation
@@ -329,25 +328,21 @@ class ChatService {
           'model': 'dify',
           'name': _getAssistantName(assistantId),
         },
-        'files': [], // Always include empty files array
-        'type': 'regular', // Add type parameter which may be required
+        'files': [],
+        'type': 'regular',
       };
       
-      // Handle files properly for Dify 0.10.1
       if (files != null && files.isNotEmpty) {
-        // Format files with created_by_role property as required by Dify 0.10.1
         final formattedFiles = files.map((fileId) => {
           'id': fileId,
-          'created_by_role': 'user' // Required enum value in Dify 0.10.1
+          'created_by_role': 'user'
         }).toList();
         
         body['files'] = formattedFiles;
         _logger.i('Including ${files.length} files in the message with created_by_role property');
       }
       
-      // Only include metadata for existing conversations
       if (conversationId != null && conversationId.isNotEmpty) {
-        // For existing conversations, include the ID in metadata
         body['metadata'] = {
           'conversation': {
             'id': conversationId,
@@ -355,7 +350,6 @@ class ChatService {
         };
         _logger.i('Including conversation ID in metadata: $conversationId');
       }
-      // For new conversations, don't include metadata at all
       
       _logger.i('Sending message to: $uri');
       _logger.d('Request body: ${jsonEncode(body)}');
@@ -379,7 +373,6 @@ class ChatService {
         final refreshSuccess = await _authService.refreshToken();
         
         if (refreshSuccess) {
-          // Retry with new token
           return sendMessage(
             content: content,
             assistantId: assistantId,
@@ -390,11 +383,9 @@ class ChatService {
           throw 'Authentication expired. Please log in again.';
         }
       } else if (response.statusCode == 500) {
-        // Handle potential conversation ID issues
         _logger.e('Server returned 500 error - might be related to conversation handling');
         _logger.e('Response body: ${response.body}');
         
-        // Try to extract more detailed error information if available
         String errorMsg = 'Failed to send message (Server error 500)';
         try {
           final errorData = jsonDecode(response.body);
@@ -406,25 +397,25 @@ class ChatService {
             errorMsg += ' (Request ID: ${errorData['requestId']})';
           }
         } catch (e) {
-          // Ignore JSON parsing errors
+          // Ignore JSON parsing errors for error responses
+          _logger.d('Could not parse error response as JSON: $e');
         }
         
         throw 'Error sending message: $errorMsg. Try starting a new conversation.';
       } else {
-        // Handle other errors
         _logger.e('Failed to send message: ${response.statusCode}');
         _logger.e('Response body: ${response.body}');
         
         String errorMessage = 'Failed to send message: ${response.statusCode}';
         
-        // Try to parse error details
         try {
           final errorData = jsonDecode(response.body);
           if (errorData['message'] != null) {
             errorMessage = errorData['message'];
           }
         } catch (e) {
-          // Ignore JSON parsing errors
+          // Ignore JSON parsing errors for error responses
+          _logger.d('Could not parse error response as JSON: $e');
         }
         
         throw errorMessage;
@@ -461,8 +452,8 @@ class ChatService {
       };
       
       // Build URL
-      final baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = '/api/v1/ai-chat/assistants';
+      const baseUrl = ApiConstants.jarvisApiUrl;
+      const endpoint = '/api/v1/ai-chat/assistants';
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Request URI: $uri');
@@ -478,12 +469,10 @@ class ChatService {
         _logger.i('Successfully fetched ${assistants.length} assistants');
         return assistants;
       } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');
         final refreshSuccess = await _authService.refreshToken();
         
         if (refreshSuccess) {
-          // Retry with new token
           return getAssistants();
         } else {
           throw 'Authentication expired. Please log in again.';
@@ -499,7 +488,8 @@ class ChatService {
             errorMessage = errorData['message'];
           }
         } catch (e) {
-          // Ignore JSON parsing errors
+          // Ignore JSON parsing errors for error responses
+          _logger.d('Could not parse error response as JSON: $e');
         }
         
         throw errorMessage;
@@ -572,8 +562,8 @@ class ChatService {
       }
       
       // Build URL
-      final baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = '/api/v1/ai-chat/assistants';
+      const baseUrl = ApiConstants.jarvisApiUrl;
+      const endpoint = '/api/v1/ai-chat/assistants';
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -593,12 +583,10 @@ class ChatService {
         _logger.i('Assistant created successfully, ID: ${data['id']}');
         return data;
       } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');
         final refreshSuccess = await _authService.refreshToken();
         
         if (refreshSuccess) {
-          // Retry with new token
           return createAssistant(
             name: name,
             model: model,
@@ -621,7 +609,8 @@ class ChatService {
             errorMessage = errorData['message'];
           }
         } catch (e) {
-          // Ignore JSON parsing errors
+          // Ignore JSON parsing errors for error responses
+          _logger.d('Could not parse error response as JSON: $e');
         }
         
         throw errorMessage;
@@ -687,7 +676,7 @@ class ChatService {
       if (tools != null) body['tools'] = tools;
       
       // Build URL
-      final baseUrl = ApiConstants.jarvisApiUrl;
+      const baseUrl = ApiConstants.jarvisApiUrl;
       final endpoint = '/api/v1/ai-chat/assistants/$assistantId';
       final uri = Uri.parse(baseUrl + endpoint);
       
@@ -708,12 +697,10 @@ class ChatService {
         _logger.i('Assistant updated successfully');
         return data;
       } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');
         final refreshSuccess = await _authService.refreshToken();
         
         if (refreshSuccess) {
-          // Retry with new token
           return updateAssistant(
             assistantId: assistantId,
             name: name,
@@ -739,7 +726,8 @@ class ChatService {
             errorMessage = errorData['message'];
           }
         } catch (e) {
-          // Ignore JSON parsing errors
+          // Ignore JSON parsing errors for error responses
+          _logger.d('Could not parse error response as JSON: $e');
         }
         
         throw errorMessage;
@@ -778,7 +766,7 @@ class ChatService {
       };
       
       // Build URL
-      final baseUrl = ApiConstants.jarvisApiUrl;
+      const baseUrl = ApiConstants.jarvisApiUrl;
       final endpoint = '/api/v1/ai-chat/assistants/$assistantId';
       final uri = Uri.parse(baseUrl + endpoint);
       
@@ -796,12 +784,10 @@ class ChatService {
         _logger.i('Assistant deleted successfully');
         return true;
       } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');
         final refreshSuccess = await _authService.refreshToken();
         
         if (refreshSuccess) {
-          // Retry with new token
           return deleteAssistant(assistantId);
         } else {
           throw 'Authentication expired. Please log in again.';
@@ -819,7 +805,8 @@ class ChatService {
             errorMessage = errorData['message'];
           }
         } catch (e) {
-          // Ignore JSON parsing errors
+          // Ignore JSON parsing errors for error responses
+          _logger.d('Could not parse error response as JSON: $e');
         }
         
         throw errorMessage;
@@ -859,7 +846,6 @@ class ChatService {
   /// Note: This is a simplified implementation; consider using a UUID library
   /// in production for true uniqueness.
   String generateGuid() {
-    // This is a simplified GUID generator - in production, use a proper UUID library
     final now = DateTime.now().millisecondsSinceEpoch;
     final random = now % 1000000;
     return '$now-$random-chat-history';

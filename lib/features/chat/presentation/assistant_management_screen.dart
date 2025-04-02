@@ -136,6 +136,24 @@ class _AssistantManagementScreenState extends State<AssistantManagementScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quản lý trợ lý AI'),
+        actions: [
+          // Add link to bot management
+          TextButton.icon(
+            onPressed: () {
+              Navigator.of(context).pushNamed('/bots');
+            },
+            icon: const Icon(Icons.adb),
+            label: const Text('Bots'),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchAssistants,
+            tooltip: 'Refresh',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

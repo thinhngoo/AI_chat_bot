@@ -20,6 +20,20 @@ class ApiConstants {
   static const String aiChatConversations = '/api/v1/ai-chat/conversations';
   static const String aiChatConversationMessages = '/api/v1/ai-chat/conversations/{conversationId}/messages';
   
+  // Bot Management endpoints
+  static const String botsEndpoint = '/api/v1/assistants';
+  static const String botById = '/api/v1/assistants/{botId}';
+  static const String botKnowledge = '/api/v1/assistants/{botId}/knowledge';
+  static const String botKnowledgeById = '/api/v1/assistants/{botId}/knowledge/{knowledgeBaseId}';
+  static const String botAsk = '/api/v1/assistants/{botId}/ask';
+  static const String botPublish = '/api/v1/assistants/{botId}/publish';
+  static const String botPublishPlatform = '/api/v1/assistants/{botId}/publish/{platform}';
+  static const String botConfigurations = '/api/v1/assistants/{botId}/configurations';
+  
+  // Knowledge Base endpoints
+  static const String knowledgeBase = '/api/v1/knowledge';
+  static const String knowledgeUpload = '/api/v1/knowledge/upload';
+  
   // Verification callback URL
   static const String verificationCallbackUrl = 'https://auth.dev.jarvis.cx/handler/email-verification?after_auth_return_to=%2Fauth%2Fsignin%3Fclient_id%3Djarvis_chat%26redirect%3Dhttps%253A%252F%252Fchat.dev.jarvis.cx%252Fauth%252Foauth%252Fsuccess';
   

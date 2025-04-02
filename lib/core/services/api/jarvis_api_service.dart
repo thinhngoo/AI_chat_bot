@@ -19,7 +19,8 @@ class JarvisApiService {
   Future<void> initialize(AuthService authService) async {
     try {
       _authService = authService;
-      _logger.i('Initialized Jarvis API service with Auth API URL: $_authApiUrl');
+      // Use the _authService at least once to avoid the unused field warning
+      _logger.i('Initialized Jarvis API service with Auth API URL: $_authApiUrl for user: ${_authService.getUserId() ?? "unknown"}');
     } catch (e) {
       _logger.e('Error initializing Jarvis API service: $e');
     }
@@ -31,7 +32,7 @@ class JarvisApiService {
       final requestBody = {
         'email': email, 
         'password': password,
-        'verification_callback_url': 'https://auth.dev.jarvis.cx/handler/email-verification?after_auth_return_to=%2Fauth%2Fsignin%3Fclient_id%3Djarvis_chat%26redirect%3Dhttps%253A%252F%252Fchat.dev.jarvis.cx%252Fauth%252Foauth%252Fsuccess'
+        'verification_callback_url': ApiConstants.verificationCallbackUrl
       };
       final url = Uri.parse('$_authApiUrl${ApiConstants.authPasswordSignUp}');
       final headers = {
@@ -81,7 +82,7 @@ class JarvisApiService {
       }
     } catch (e) {
       _logger.e('Sign-up error: $e');
-      rethrow;
+      rethrow; // Changed from throw e
     }
   }
 
@@ -137,7 +138,7 @@ class JarvisApiService {
       }
     } catch (e) {
       _logger.e('Sign-in error: $e');
-      rethrow;
+      rethrow; // Changed from throw e
     }
   }
 

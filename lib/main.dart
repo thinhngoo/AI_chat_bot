@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'core/services/auth/auth_service.dart';
 import 'features/auth/presentation/login_page.dart';
 import 'features/chat/presentation/chat_screen.dart';
+import 'features/bot/presentation/bot_list_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,7 +64,11 @@ class _MyAppState extends State<MyApp> {
             color: Colors.white,
           ),
         ),
-      home: AuthCheckPage(toggleTheme: toggleTheme, isDarkMode: _isDarkMode),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => AuthCheckPage(toggleTheme: toggleTheme, isDarkMode: _isDarkMode),
+        '/bots': (context) => const BotListScreen(),
+      },
     );
   }
 }
