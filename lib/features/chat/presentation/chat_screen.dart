@@ -323,6 +323,19 @@ class _ChatScreenState extends State<ChatScreen> {
             tooltip: 'Manage Bots',
           ),
           
+          // Prompt management button (NEW)
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const PromptManagementScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.list),
+            tooltip: 'Manage Prompts',
+          ),
+          
           // Light/dark mode toggle
           IconButton(
             icon: Icon(
@@ -661,6 +674,134 @@ class _ChatScreenState extends State<ChatScreen> {
         tooltip: 'New chat',
         child: const Icon(Icons.add),
       ) : null,
+    );
+  }
+}
+
+class PromptManagementScreen extends StatefulWidget {
+  const PromptManagementScreen({Key? key}) : super(key: key);
+
+  @override
+  _PromptManagementScreenState createState() => _PromptManagementScreenState();
+}
+
+class _PromptManagementScreenState extends State<PromptManagementScreen> {
+  final PromptService _promptService = PromptService();
+  final Logger _logger = Logger();
+  List<Map<String, dynamic>> _publicPrompts = [];
+  List<Map<String, dynamic>> _privatePrompts = [];
+  List<Map<String, dynamic>> _favoritePrompts = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPrompts();
+  }
+
+  Future<void> _fetchPrompts() async {
+    try {
+      final publicPrompts = await _promptService.getPrompts(isPublic: true);
+      final privatePrompts = await _promptService.getPrompts(isPublic: false);
+      final favoritePrompts = await _promptService.getPrompts(isFavorite: true);
+      setState(() {
+        _publicPrompts = publicPrompts;
+        _privatePrompts = privatePrompts;
+        _favoritePrompts = favoritePrompts;
+      });
+    } catch (e) {
+      _logger.e('Error fetching prompts: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Prompt Management'),
+      ),
+      body: ListView(
+        children: [
+          ListTile(
+            title: Text('Public Prompts'),
+            subtitle: Text('Tap to view public prompts'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PromptListScreen(
+                    key: UniqueKey(),
+                    title: 'Public Prompts',
+                    prompts: _publicPrompts,
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            title: Text('Private Prompts'),
+            subtitle: Text('Tap to view private prompts'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PromptListScreen(
+                    key: UniqueKey(),
+                    title: 'Private Prompts',
+                    prompts: _privatePrompts,
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            title: Text('Favorite Prompts'),
+            subtitle: Text('Tap to view favorite prompts'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PromptListScreen(
+                    key: UniqueKey(),
+                    title: 'Favorite Prompts',
+                    prompts: _favoritePrompts,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PromptListScreen extends StatelessWidget {
+  PromptListScreen({Key? key, required this.title, required this.prompts}) : super(key: key);
+
+  final String title;
+  final List<Map<String, dynamic>> prompts;
+  final Logger _logger = Logger();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+      ),
+      body: ListView.builder(
+        itemCount: prompts.length,
+        itemBuilder: (context, index) {
+          final prompt = prompts[index];
+          return ListTile(
+            title: Text(prompt['title'] ?? 'Untitled'),
+            subtitle: Text(prompt['description'] ?? 'No description'),
+            onTap: () {
+              // Use the prompt content in chat
+              _logger.i('Using prompt: ${prompt['content']}');
+            },
+          );
+        },
+      ),
     );
   }
 }

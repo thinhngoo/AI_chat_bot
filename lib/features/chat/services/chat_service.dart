@@ -851,3 +851,101 @@ class ChatService {
     return '$now-$random-chat-history';
   }
 }
+
+class PromptService {
+  final String _baseUrl = ApiConstants.jarvisApiUrl;
+
+  Future<List<Map<String, dynamic>>> getPrompts({
+    String? query,
+    int offset = 0,
+    int limit = 20,
+    bool isFavorite = false,
+    bool isPublic = false,
+  }) async {
+    final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}')
+        .replace(queryParameters: {
+      if (query != null) 'query': query,
+      'offset': offset.toString(),
+      'limit': limit.toString(),
+      'isFavorite': isFavorite.toString(),
+      'isPublic': isPublic.toString(),
+    });
+
+    final response = await http.get(uri, headers: {
+      'Authorization': 'Bearer YOUR_TOKEN',
+    });
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return List<Map<String, dynamic>>.from(data['items']);
+    } else {
+      throw Exception('Failed to fetch prompts: ${response.body}');
+    }
+  }
+
+  Future<void> createPrompt(Map<String, dynamic> promptData) async {
+    final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}');
+
+    final response = await http.post(uri,
+        headers: {
+          'Authorization': 'Bearer YOUR_TOKEN',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(promptData));
+
+    if (response.statusCode != 201) {
+      throw Exception('Failed to create prompt: ${response.body}');
+    }
+  }
+
+  Future<void> updatePrompt(String id, Map<String, dynamic> promptData) async {
+    final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$id');
+
+    final response = await http.patch(uri,
+        headers: {
+          'Authorization': 'Bearer YOUR_TOKEN',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(promptData));
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update prompt: ${response.body}');
+    }
+  }
+
+  Future<void> deletePrompt(String id) async {
+    final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$id');
+
+    final response = await http.delete(uri, headers: {
+      'Authorization': 'Bearer YOUR_TOKEN',
+    });
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete prompt: ${response.body}');
+    }
+  }
+
+  Future<void> addPromptToFavorite(String id) async {
+    final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$id/favorite');
+
+    final response = await http.post(uri, headers: {
+      'Authorization': 'Bearer YOUR_TOKEN',
+    });
+
+    if (response.statusCode != 201) {
+      throw Exception('Failed to add prompt to favorite: ${response.body}');
+    }
+  }
+
+  Future<void> removePromptFromFavorite(String id) async {
+    final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$id/favorite');
+
+    final response = await http.delete(uri, headers: {
+      'Authorization': 'Bearer YOUR_TOKEN',
+    });
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to remove prompt from favorite: ${response.body}');
+    }
+  }
+}

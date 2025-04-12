@@ -44,21 +44,21 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
       
       final knowledgeBases = await _botService.getKnowledgeBases();
       
-      if (mounted) {
-        setState(() {
-          _allKnowledgeBases = knowledgeBases;
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      
+      setState(() {
+        _allKnowledgeBases = knowledgeBases;
+        _isLoading = false;
+      });
     } catch (e) {
       _logger.e('Error fetching knowledge bases: $e');
       
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
     }
   }
   
@@ -84,6 +84,8 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
         });
         
         // Use context after confirming mounted
+        if (!mounted) return;
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Removed "${knowledge.name}" from bot knowledge'),
@@ -103,6 +105,8 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
           _botKnowledgeBaseIds.add(knowledge.id);
         });
         
+        if (!mounted) return;
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Added "${knowledge.name}" to bot knowledge'),
@@ -113,20 +117,20 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
     } catch (e) {
       _logger.e('Error toggling knowledge base: $e');
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
   
@@ -138,55 +142,57 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
       });
       
       // Simple dialog to explain we don't have file picking implemented
-      if (mounted) {
-        // Update progress to simulate activity
-        setState(() {
-          _uploadProgress = 0.3;
-        });
-        
-        await Future.delayed(const Duration(milliseconds: 500));
-        
-        // Store the context and check mounted status
-        final currentContext = context;
-        if (!mounted) return;
-        
-        showDialog(
-          context: currentContext,
-          builder: (context) => AlertDialog(
-            title: const Text('File Upload'),
-            content: const Text(
-              'File upload functionality requires the file_picker package.\n\n'
-              'To implement this feature, add the dependency to pubspec.yaml:\n'
-              'file_picker: ^5.2.10'
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
+      if (!mounted) return;
+      
+      // Update progress to simulate activity
+      setState(() {
+        _uploadProgress = 0.3;
+      });
+      
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Store the context and check mounted status
+      final currentContext = context;
+      if (!mounted) return;
+      
+      showDialog(
+        context: currentContext,
+        builder: (context) => AlertDialog(
+          title: const Text('File Upload'),
+          content: const Text(
+            'File upload functionality requires the file_picker package.\n\n'
+            'To implement this feature, add the dependency to pubspec.yaml:\n'
+            'file_picker: ^5.2.10'
           ),
-        );
-        
-        setState(() {
-          _isUploading = false;
-        });
-      }
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _isUploading = false;
+      });
     } catch (e) {
       _logger.e('Error with file upload dialog: $e');
       
-      if (mounted) {
-        setState(() {
-          _isUploading = false;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      
+      setState(() {
+        _isUploading = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
   
