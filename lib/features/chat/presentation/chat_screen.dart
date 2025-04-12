@@ -427,138 +427,48 @@ class _ChatScreenState extends State<ChatScreen> {
             // Chat messages
             if (!_isLoading && _errorMessage.isEmpty && _messages.isNotEmpty)
               Expanded(
-                child: Scrollbar(
+                child: ListView.builder(
                   controller: _scrollController,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    reverse: true,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      final messageDate = DateTime.fromMillisecondsSinceEpoch(message.createdAt * 1000);
-                      
-                      return Column(
-                        children: [
-                          // User message
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth: MediaQuery.of(context).size.width * 0.8,
-                              ),
-                              child: Card(
-                                color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: Radius.circular(16),
-                                    bottomLeft: Radius.circular(16),
-                                    bottomRight: Radius.circular(16),
-                                    topRight: Radius.circular(4),
-                                  ),
-                                ),
-                                margin: const EdgeInsets.only(bottom: 4, top: 16),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      SelectableText(
-                                        message.query,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: isDarkMode ? Colors.white : Colors.black,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${messageDate.hour}:${messageDate.minute.toString().padLeft(2, '0')}',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: isDarkMode 
-                                              ? Colors.white.withAlpha(153) 
-                                              : Colors.black.withAlpha(153),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                  reverse: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: _messages.length,
+                  itemBuilder: (context, index) {
+                    final message = _messages[index];
+                    final isUserMessage = message.query != null && message.query.isNotEmpty;
+                    final messageDate = DateTime.fromMillisecondsSinceEpoch(message.createdAt * 1000);
+
+                    return Column(
+                      crossAxisAlignment:
+                          isUserMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isUserMessage
+                                ? Theme.of(context).colorScheme.primary.withOpacity(0.8)
+                                : Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            isUserMessage ? message.query : message.answer,
+                            style: TextStyle(
+                              color: isUserMessage
+                                  ? Theme.of(context).colorScheme.onPrimary
+                                  : Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
-                          
-                          // AI message
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth: MediaQuery.of(context).size.width * 0.8,
-                              ),
-                              child: Card(
-                                color: isDarkMode 
-                                    ? const Color(0xFF2D2D2D) 
-                                    : Colors.white,
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: Radius.circular(4),
-                                    bottomLeft: Radius.circular(16),
-                                    bottomRight: Radius.circular(16),
-                                    topRight: Radius.circular(16),
-                                  ),
-                                ),
-                                elevation: 1,
-                                margin: const EdgeInsets.only(top: 4, bottom: 16),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          CircleAvatar(
-                                            backgroundColor: theme.colorScheme.primary.withAlpha(26),
-                                            radius: 14,
-                                            child: Icon(
-                                              Icons.smart_toy, 
-                                              size: 16,
-                                              color: theme.colorScheme.primary,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: message.answer == 'Thinking...'
-                                                ? Row(
-                                                    children: [
-                                                      const Text('Thinking'),
-                                                      const SizedBox(width: 4),
-                                                      SizedBox(
-                                                        width: 16,
-                                                        height: 16,
-                                                        child: CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                          color: theme.colorScheme.primary,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  )
-                                                : SelectableText(
-                                                    message.answer,
-                                                    style: const TextStyle(fontSize: 16),
-                                                  ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
+                        ),
+                        Text(
+                          '${messageDate.hour}:${messageDate.minute.toString().padLeft(2, '0')}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             
