@@ -234,6 +234,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
                 Expanded(
                   child: TextField(
                     controller: _messageController,
+                    maxLength: 2048, // Add character limit to reduce token usage
                     decoration: InputDecoration(
                       hintText: 'Type a message...',
                       border: OutlineInputBorder(
@@ -243,6 +244,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
                         horizontal: 16.0,
                         vertical: 12.0,
                       ),
+                      counterText: '', // Hide the character counter
                     ),
                     onSubmitted: (_) => _sendMessage(),
                     enabled: !_isLoading,

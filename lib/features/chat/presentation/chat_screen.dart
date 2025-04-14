@@ -510,6 +510,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             maxLines: null,
                             minLines: 1,
                             textInputAction: TextInputAction.newline,
+                            maxLength: 2048, // Add character limit to reduce token usage
                             decoration: InputDecoration(
                               hintText: 'Type a message...',
                               border: InputBorder.none,
@@ -518,6 +519,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 vertical: 12.0,
                               ),
                               isDense: true,
+                              counterText: '', // Hide the character counter
                               hintStyle: TextStyle(
                                 color: isDarkMode 
                                     ? Colors.grey[400] 
