@@ -709,7 +709,7 @@ class BotService {
     }
   }
   
-  // Get publishing configuration for platforms
+  // Get publishing configuration for a bot
   Future<Map<String, dynamic>> getPublishingConfigurations(String botId) async {
     try {
       _logger.i('Fetching publishing configurations for bot $botId');
@@ -720,7 +720,7 @@ class BotService {
         throw 'No access token available. Please log in again.';
       }
       
-      // Prepare headers - changed from const to final
+      // Prepare headers
       final headers = {
         'Authorization': 'Bearer $accessToken',
       };
@@ -762,6 +762,11 @@ class BotService {
       _logger.e('Error fetching publishing configurations: $e');
       rethrow;
     }
+  }
+
+  // Get bot publish configurations - alias for getPublishingConfigurations
+  Future<Map<String, dynamic>> getBotPublishConfigurations(String botId) async {
+    return getPublishingConfigurations(botId);
   }
   
   // Publish bot to a platform (Slack, Telegram, Messenger)
@@ -895,6 +900,26 @@ class BotService {
       }
     } catch (e) {
       _logger.e('Error unpublishing bot: $e');
+      rethrow;
+    }
+  }
+  
+  // Test connection to a platform
+  Future<Map<String, dynamic>> testBotConnection({
+    required String botId,
+    required String platform,
+  }) async {
+    try {
+      // In a real implementation, this would make an API call to test the connection
+      // For now, we'll simulate a successful response
+      await Future.delayed(const Duration(seconds: 1));
+      return {
+        'status': 'connected',
+        'message': 'Connection successful',
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+    } catch (e) {
+      _logger.e('Error testing bot connection: $e');
       rethrow;
     }
   }

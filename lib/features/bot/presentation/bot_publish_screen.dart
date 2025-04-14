@@ -24,20 +24,37 @@ class _BotPublishScreenState extends State<BotPublishScreen> {
   bool _isLoading = true;
   String _errorMessage = '';
   Map<String, dynamic> _publishConfig = {};
+  bool _isBatchProcessing = false;
   
   final Map<String, String> _platformNames = {
     'slack': 'Slack',
     'telegram': 'Telegram',
     'messenger': 'Facebook Messenger',
+    'discord': 'Discord',
     'web': 'Website Widget',
+    'whatsapp': 'WhatsApp',
   };
   
   final Map<String, IconData> _platformIcons = {
-    'slack': Icons.workspaces_outlined,
+    'slack': Icons.chat_bubble_outline,
     'telegram': Icons.send,
     'messenger': Icons.facebook,
-    'web': Icons.language,
+    'discord': Icons.headset_mic,
+    'web': Icons.public,
+    'whatsapp': Icons.message,
   };
+
+  final Map<String, Color> _platformColors = {
+    'slack': const Color(0xFF4A154B),
+    'telegram': const Color(0xFF0088CC),
+    'messenger': const Color(0xFF0084FF),
+    'discord': const Color(0xFF5865F2),
+    'web': const Color(0xFF424242),
+    'whatsapp': const Color(0xFF25D366),
+  };
+  
+  // Selected platforms for batch operations
+  final Set<String> _selectedPlatforms = {};
   
   @override
   void initState() {
@@ -52,125 +69,521 @@ class _BotPublishScreenState extends State<BotPublishScreen> {
         _errorMessage = '';
       });
       
-      final config = await _botService.getPublishingConfigurations(widget.botId);
+      final configs = await _botService.getPublishingConfigurations(widget.botId);
       
-      if (mounted) {
-        setState(() {
-          _publishConfig = config;
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      
+      setState(() {
+        _publishConfig = configs;
+        _isLoading = false;
+      });
     } catch (e) {
       _logger.e('Error fetching publishing configurations: $e');
       
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
     }
   }
   
   Future<void> _publishToPlatform(String platform) async {
     try {
-      // Show platform configuration dialog
-      final Map<String, dynamic>? config = await _showConfigDialog(platform);
-      
-      if (config == null) {
-        // User canceled
-        return;
-      }
-      
       setState(() {
-        _isLoading = true;
+        if (!_isBatchProcessing) {
+          _isLoading = true;
+        }
       });
       
-      // Publish to platform
-      await _botService.publishBot(
+      // Get configuration for the platform, may be empty for first-time publish
+      final platformConfig = _publishConfig[platform] ?? {};
+      
+      // If we need additional configuration, show dialog to get it
+      Map<String, dynamic>? additionalConfig;
+      if (!_isBatchProcessing && 
+          (!platformConfig.containsKey('configured') || 
+           platformConfig['configured'] != true)) {
+        // Use await to pause execution until dialog is closed
+        additionalConfig = await _showConfigDialog(platform);
+        
+        // If user canceled, abort publish
+        if (additionalConfig == null) {
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+      
+      // Publish to platform with configs
+      final result = await _botService.publishBot(
         botId: widget.botId,
         platform: platform,
-        config: config,
+        config: additionalConfig ?? {},
       );
-      
-      // Refresh configurations
-      await _fetchPublishingConfigurations();
       
       if (!mounted) return;
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Published to ${_platformNames[platform] ?? platform}'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      // Update config with result
+      setState(() {
+        if (_publishConfig.containsKey(platform)) {
+          _publishConfig[platform]!.addAll(result);
+        } else {
+          _publishConfig[platform] = result;
+        }
+        
+        if (!_isBatchProcessing) {
+          _isLoading = false;
+        }
+      });
+      
+      if (!_isBatchProcessing) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Bot published to ${_platformNames[platform] ?? platform}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       _logger.e('Error publishing to $platform: $e');
       
       if (!mounted) return;
       
-      setState(() {
-        _isLoading = false;
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (!_isBatchProcessing) {
+        setState(() {
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to publish to ${_platformNames[platform] ?? platform}: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
   
   Future<void> _unpublishFromPlatform(String platform) async {
     try {
-      // Show confirmation dialog
-      final bool? confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Unpublish from ${_platformNames[platform] ?? platform}'),
-          content: Text('Are you sure you want to unpublish "${widget.botName}" from ${_platformNames[platform] ?? platform}?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Unpublish', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        ),
-      );
-      
-      if (confirmed != true) {
-        // User canceled
-        return;
-      }
-      
       setState(() {
-        _isLoading = true;
+        if (!_isBatchProcessing) {
+          _isLoading = true;
+        }
       });
       
-      // Unpublish from platform
       await _botService.unpublishBot(
         botId: widget.botId,
         platform: platform,
       );
       
-      // Refresh configurations
-      await _fetchPublishingConfigurations();
+      if (!mounted) return;
+      
+      // Update config
+      setState(() {
+        if (_publishConfig.containsKey(platform)) {
+          _publishConfig[platform]!['published'] = false;
+        }
+        
+        if (!_isBatchProcessing) {
+          _isLoading = false;
+        }
+      });
+      
+      if (!_isBatchProcessing) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Bot unpublished from ${_platformNames[platform] ?? platform}'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      _logger.e('Error unpublishing from $platform: $e');
+      
+      if (!mounted) return;
+      
+      if (!_isBatchProcessing) {
+        setState(() {
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to unpublish from ${_platformNames[platform] ?? platform}: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  Future<Map<String, dynamic>?> _showConfigDialog(String platform) async {
+    final platformName = _platformNames[platform] ?? platform;
+    
+    // Define field controllers for different platforms
+    final TextEditingController tokenController = TextEditingController();
+    final TextEditingController channelController = TextEditingController();
+    final TextEditingController apiKeyController = TextEditingController();
+    
+    // Different fields for different platforms
+    Widget configFields;
+    switch (platform) {
+      case 'slack':
+        configFields = Column(
+          children: [
+            TextField(
+              controller: tokenController,
+              decoration: const InputDecoration(
+                labelText: 'Slack Bot Token',
+                hintText: 'xoxb-...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: channelController,
+              decoration: const InputDecoration(
+                labelText: 'Default Channel ID (optional)',
+                hintText: 'C01234567',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        );
+        break;
+      
+      case 'telegram':
+        configFields = TextField(
+          controller: tokenController,
+          decoration: const InputDecoration(
+            labelText: 'Telegram Bot Token',
+            hintText: '123456789:AAHn...',
+            border: OutlineInputBorder(),
+          ),
+        );
+        break;
+      
+      case 'messenger':
+        configFields = Column(
+          children: [
+            TextField(
+              controller: tokenController,
+              decoration: const InputDecoration(
+                labelText: 'Page Access Token',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: apiKeyController,
+              decoration: const InputDecoration(
+                labelText: 'App Secret',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        );
+        break;
+      
+      case 'web':
+        configFields = const Column(
+          children: [
+            Text(
+              'Web integration không yêu cầu cấu hình. Nhấn Xác nhận để tiếp tục.',
+              style: TextStyle(fontStyle: FontStyle.italic),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Sau khi xuất bản, bạn sẽ nhận được mã nhúng (embed code) để thêm vào website của bạn.',
+            ),
+          ],
+        );
+        break;
+      
+      default:
+        configFields = const Text(
+          'Integration này đang trong quá trình phát triển và sẽ sớm được hỗ trợ.',
+        );
+    }
+    
+    try {
+      // Return result from dialog
+      final result = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                _platformIcons[platform] ?? Icons.integration_instructions,
+                color: _platformColors[platform],
+              ),
+              const SizedBox(width: 8),
+              Text('Configure $platformName Integration'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Please provide the necessary information to publish your bot to $platformName',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                configFields,
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // Collect values from controllers
+                final config = <String, dynamic>{
+                  'configured': true,
+                };
+                
+                if (tokenController.text.isNotEmpty) {
+                  config['token'] = tokenController.text;
+                }
+                
+                if (channelController.text.isNotEmpty) {
+                  config['channel'] = channelController.text;
+                }
+                
+                if (apiKeyController.text.isNotEmpty) {
+                  config['api_key'] = apiKeyController.text;
+                }
+                
+                Navigator.of(context).pop(config);
+              },
+              child: const Text('CONFIRM'),
+            ),
+          ],
+        ),
+      );
+      
+      // Dispose controllers
+      tokenController.dispose();
+      channelController.dispose();
+      apiKeyController.dispose();
+      
+      return result;
+    } finally {
+      // Ensure controllers are disposed in case of exceptions
+      tokenController.dispose();
+      channelController.dispose();
+      apiKeyController.dispose();
+    }
+  }
+
+  // Copy integration code to clipboard
+  void _copyIntegrationCode(String platform) {
+    if (!_publishConfig.containsKey(platform) || 
+        !_publishConfig[platform].containsKey('embed_code')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không có mã nhúng cho nền tảng này'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    final embedCode = _publishConfig[platform]['embed_code'];
+    Clipboard.setData(ClipboardData(text: embedCode));
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã sao chép mã nhúng vào clipboard'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  // Perform batch operations on selected platforms
+  Future<void> _batchPublish() async {
+    if (_selectedPlatforms.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng chọn ít nhất một nền tảng'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    try {
+      setState(() {
+        _isBatchProcessing = true;
+        _isLoading = true;
+      });
+      
+      // Process each platform sequentially
+      for (final platform in _selectedPlatforms) {
+        await _publishToPlatform(platform);
+      }
       
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Unpublished from ${_platformNames[platform] ?? platform}'),
+          content: Text('Đã xuất bản bot trên ${_selectedPlatforms.length} nền tảng'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      _logger.e('Error in batch publishing: $e');
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi xuất bản hàng loạt: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBatchProcessing = false;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _batchUnpublish() async {
+    if (_selectedPlatforms.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng chọn ít nhất một nền tảng'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    // Confirm before unpublishing
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận hủy xuất bản'),
+        content: Text(
+          'Bạn có chắc chắn muốn hủy xuất bản bot trên ${_selectedPlatforms.length} nền tảng đã chọn?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('HỦY'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('XÁC NHẬN'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed != true) return;
+    
+    try {
+      setState(() {
+        _isBatchProcessing = true;
+        _isLoading = true;
+      });
+      
+      // Process each platform sequentially
+      for (final platform in _selectedPlatforms) {
+        await _unpublishFromPlatform(platform);
+      }
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã hủy xuất bản bot trên ${_selectedPlatforms.length} nền tảng'),
           backgroundColor: Colors.orange,
         ),
       );
     } catch (e) {
-      _logger.e('Error unpublishing from $platform: $e');
+      _logger.e('Error in batch unpublishing: $e');
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi hủy xuất bản hàng loạt: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBatchProcessing = false;
+          _isLoading = false;
+          _selectedPlatforms.clear();
+        });
+      }
+    }
+  }
+
+  // Check connectivity to platform
+  Future<void> _testConnection(String platform) async {
+    if (!_publishConfig.containsKey(platform) || 
+        !_publishConfig[platform].containsKey('published') ||
+        _publishConfig[platform]['published'] != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bot chưa được xuất bản trên ${_platformNames[platform] ?? platform}'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+      
+      final result = await _botService.testBotConnection(
+        botId: widget.botId,
+        platform: platform,
+      );
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _isLoading = false;
+      });
+      
+      if (result['status'] == 'connected') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Kết nối thành công đến ${_platformNames[platform] ?? platform}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể kết nối đến ${_platformNames[platform] ?? platform}: ${result['message'] ?? 'Unknown error'}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      _logger.e('Error testing connection to $platform: $e');
       
       if (!mounted) return;
       
@@ -180,108 +593,68 @@ class _BotPublishScreenState extends State<BotPublishScreen> {
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.toString()}'),
+          content: Text('Lỗi kiểm tra kết nối: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
     }
   }
-  
-  Future<Map<String, dynamic>?> _showConfigDialog(String platform) async {
-    final TextEditingController tokenController = TextEditingController();
-    final TextEditingController channelController = TextEditingController();
-    
-    try {
-      return await showDialog<Map<String, dynamic>>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Configure ${_platformNames[platform] ?? platform}'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: tokenController,
-                  decoration: InputDecoration(
-                    labelText: '${_platformNames[platform] ?? platform} Token',
-                    hintText: 'Enter your bot token',
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (platform == 'slack') ...[
-                  TextField(
-                    controller: channelController,
-                    decoration: const InputDecoration(
-                      labelText: 'Default Channel',
-                      hintText: 'e.g., #general',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                const Text(
-                  'For instructions on how to obtain tokens, please refer to our documentation.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                final Map<String, dynamic> config = {
-                  'token': tokenController.text,
-                };
-                
-                if (platform == 'slack' && channelController.text.isNotEmpty) {
-                  config['channel'] = channelController.text;
-                }
-                
-                Navigator.of(context).pop(config);
-              },
-              child: const Text('Publish'),
-            ),
-          ],
+
+  // Open the documentation for a platform
+  void _openDocumentation(String platform) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Tài liệu hướng dẫn cho ${_platformNames[platform] ?? platform} sẽ mở trong trình duyệt'),
+        backgroundColor: Colors.blue,
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {},
         ),
-      );
-    } finally {
-      tokenController.dispose();
-      channelController.dispose();
-    }
+      ),
+    );
   }
-  
-  void _copyToClipboard(String platform, String value) {
-    if (value.isEmpty) return;
-    
-    Clipboard.setData(ClipboardData(text: value)).then((_) {
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Copied ${_platformNames[platform] ?? platform} URL to clipboard'),
-          backgroundColor: Colors.blue,
-        ),
-      );
+
+  // Toggle selection of a platform for batch operations
+  void _togglePlatformSelection(String platform) {
+    setState(() {
+      if (_selectedPlatforms.contains(platform)) {
+        _selectedPlatforms.remove(platform);
+      } else {
+        _selectedPlatforms.add(platform);
+      }
     });
   }
   
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    // Get all platforms from config plus some default ones
+    final allPlatforms = {
+      ..._platformNames.keys,
+      ...(_publishConfig.keys),
+    }.toList();
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Publish Bot'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Publish: ${widget.botName}'),
+            Text(
+              'Manage Publishing',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(179),
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _fetchPublishingConfigurations,
             tooltip: 'Refresh',
+            onPressed: _fetchPublishingConfigurations,
           ),
         ],
       ),
@@ -305,164 +678,285 @@ class _BotPublishScreenState extends State<BotPublishScreen> {
                     ],
                   ),
                 )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Publish your bot to these platforms:',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: theme.textTheme.titleLarge?.color,
-                        ),
+              : Column(
+                  children: [
+                    // Header with instructions
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16.0),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(127),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Xuất bản bot của bạn',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Xuất bản bot của bạn trên nhiều nền tảng khác nhau để người dùng có thể tương tác.',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          if (_selectedPlatforms.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Text(
+                                  '${_selectedPlatforms.length} nền tảng đã chọn',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                const Spacer(),
+                                OutlinedButton.icon(
+                                  icon: const Icon(Icons.upload),
+                                  label: const Text('Xuất bản hàng loạt'),
+                                  onPressed: _batchPublish,
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton.icon(
+                                  icon: const Icon(Icons.cancel),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                  ),
+                                  label: const Text('Hủy xuất bản'),
+                                  onPressed: _batchUnpublish,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
                       ),
-                      const SizedBox(height: 24),
-                      
-                      // Slack
-                      _buildPlatformCard(
-                        platform: 'slack',
-                        isPublished: _publishConfig.containsKey('slack'),
-                        configData: _publishConfig['slack'],
-                      ),
-                      
-                      // Telegram
-                      _buildPlatformCard(
-                        platform: 'telegram',
-                        isPublished: _publishConfig.containsKey('telegram'),
-                        configData: _publishConfig['telegram'],
-                      ),
-                      
-                      // Facebook Messenger
-                      _buildPlatformCard(
-                        platform: 'messenger',
-                        isPublished: _publishConfig.containsKey('messenger'),
-                        configData: _publishConfig['messenger'],
-                      ),
-                      
-                      // Web Widget
-                      _buildPlatformCard(
-                        platform: 'web',
-                        isPublished: _publishConfig.containsKey('web'),
-                        configData: _publishConfig['web'],
-                      ),
-                      
-                      const SizedBox(height: 32),
-                      const Divider(),
-                      const SizedBox(height: 16),
-                      
-                      const Text(
-                        'Documentation & Tips',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ListTile(
-                        leading: const Icon(Icons.help_outline),
-                        title: const Text('How to publish your bot'),
-                        subtitle: const Text('Step-by-step guide for all platforms'),
-                        trailing: const Icon(Icons.open_in_new),
-                        onTap: () {
-                          // Open documentation URL
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.verified_user),
-                        title: const Text('Verify your bot'),
-                        subtitle: const Text('Increase visibility and trust'),
-                        trailing: const Icon(Icons.open_in_new),
-                        onTap: () {
-                          // Open verification documentation
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-    );
-  }
-  
-  Widget _buildPlatformCard({
-    required String platform,
-    required bool isPublished,
-    dynamic configData,
-  }) {
-    final theme = Theme.of(context);
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16.0),
-      child: Column(
-        children: [
-          ListTile(
-            leading: Icon(
-              _platformIcons[platform] ?? Icons.integration_instructions,
-              color: theme.primaryColor,
-              size: 32,
-            ),
-            title: Text(
-              _platformNames[platform] ?? platform,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-            subtitle: Text(
-              isPublished ? 'Published' : 'Not published',
-              style: TextStyle(
-                color: isPublished ? Colors.green : Colors.grey,
-              ),
-            ),
-            trailing: isPublished
-                ? IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _unpublishFromPlatform(platform),
-                    tooltip: 'Unpublish',
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.add_circle, color: Colors.green),
-                    onPressed: () => _publishToPlatform(platform),
-                    tooltip: 'Publish',
-                  ),
-          ),
-          if (isPublished && configData != null) ...[
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Text(
-                        'Integration URL:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.copy, size: 18),
-                        onPressed: () => _copyToClipboard(
-                          platform,
-                          configData['url'] ?? '',
-                        ),
-                        tooltip: 'Copy to clipboard',
-                      ),
-                    ],
-                  ),
-                  Text(
-                    configData['url'] ?? 'URL not available',
-                    style: TextStyle(
-                      color: theme.colorScheme.secondary,
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
-        ],
-      ),
+
+                    // Platform list
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: allPlatforms.length,
+                        itemBuilder: (context, index) {
+                          final platform = allPlatforms[index];
+                          final platformConfig = _publishConfig[platform];
+                          final isPublished = platformConfig != null && 
+                                           platformConfig['published'] == true;
+                          final isConfigured = platformConfig != null && 
+                                           platformConfig['configured'] == true;
+                          final isSelected = _selectedPlatforms.contains(platform);
+                          
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: isSelected
+                                ? BorderSide(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    width: 2,
+                                  )
+                                : BorderSide.none,
+                            ),
+                            elevation: isSelected ? 4 : 1,
+                            child: InkWell(
+                              onTap: () => _togglePlatformSelection(platform),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        // Platform icon and name
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: _platformColors[platform]?.withAlpha(25) ?? 
+                                                   Colors.grey.withAlpha(25),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Icon(
+                                            _platformIcons[platform] ?? Icons.integration_instructions,
+                                            color: _platformColors[platform] ?? Colors.grey,
+                                            size: 28,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _platformNames[platform] ?? platform.toUpperCase(),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            // Status chip
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: isPublished 
+                                                  ? Colors.green.withAlpha(25) 
+                                                  : isConfigured
+                                                    ? Colors.orange.withAlpha(25)
+                                                    : Colors.grey.withAlpha(25),
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    isPublished 
+                                                      ? Icons.check_circle 
+                                                      : isConfigured
+                                                        ? Icons.settings
+                                                        : Icons.circle_outlined,
+                                                    size: 12,
+                                                    color: isPublished 
+                                                      ? Colors.green
+                                                      : isConfigured
+                                                        ? Colors.orange
+                                                        : Colors.grey,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    isPublished 
+                                                      ? 'Đã xuất bản' 
+                                                      : isConfigured
+                                                        ? 'Đã cấu hình'
+                                                        : 'Chưa xuất bản',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: isPublished 
+                                                        ? Colors.green
+                                                        : isConfigured
+                                                          ? Colors.orange
+                                                          : Colors.grey,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const Spacer(),
+                                        Checkbox(
+                                          value: isSelected,
+                                          onChanged: (value) => _togglePlatformSelection(platform),
+                                          activeColor: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ],
+                                    ),
+                                    
+                                    const SizedBox(height: 16),
+                                    
+                                    // Status and actions
+                                    Wrap(
+                                      spacing: 8,
+                                      children: [
+                                        OutlinedButton.icon(
+                                          icon: Icon(
+                                            isPublished ? Icons.cancel : Icons.publish,
+                                            size: 16,
+                                          ),
+                                          label: Text(
+                                            isPublished ? 'Hủy xuất bản' : 'Xuất bản',
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: isPublished ? Colors.red : null,
+                                          ),
+                                          onPressed: isPublished
+                                            ? () => _unpublishFromPlatform(platform)
+                                            : () => _publishToPlatform(platform),
+                                        ),
+                                        
+                                        if (isConfigured)
+                                          OutlinedButton.icon(
+                                            icon: const Icon(
+                                              Icons.settings,
+                                              size: 16,
+                                            ),
+                                            label: const Text('Cấu hình'),
+                                            onPressed: () => _showConfigDialog(platform),
+                                          ),
+                                        
+                                        if (isPublished)
+                                          OutlinedButton.icon(
+                                            icon: const Icon(
+                                              Icons.sync,
+                                              size: 16,
+                                            ),
+                                            label: const Text('Kiểm tra kết nối'),
+                                            onPressed: () => _testConnection(platform),
+                                          ),
+                                        
+                                        if (isPublished && platform == 'web')
+                                          OutlinedButton.icon(
+                                            icon: const Icon(
+                                              Icons.content_copy,
+                                              size: 16,
+                                            ),
+                                            label: const Text('Sao chép mã nhúng'),
+                                            onPressed: () => _copyIntegrationCode(platform),
+                                          ),
+                                        
+                                        OutlinedButton.icon(
+                                          icon: const Icon(
+                                            Icons.help_outline,
+                                            size: 16,
+                                          ),
+                                          label: const Text('Hướng dẫn'),
+                                          onPressed: () => _openDocumentation(platform),
+                                        ),
+                                      ],
+                                    ),
+                                    
+                                    // Integration details if published
+                                    if (isPublished && platformConfig != null && platformConfig.containsKey('details')) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(127),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Chi tiết tích hợp:',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(platformConfig['details'] ?? 'Không có thông tin chi tiết'),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
     );
   }
 }

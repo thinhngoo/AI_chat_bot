@@ -446,7 +446,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: isUserMessage
-                                ? Theme.of(context).colorScheme.primary.withOpacity(0.8)
+                                ? Theme.of(context).colorScheme.primary.withAlpha(204) // Changed from withOpacity(0.8)
                                 : Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -463,7 +463,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           '${messageDate.hour}:${messageDate.minute.toString().padLeft(2, '0')}',
                           style: TextStyle(
                             fontSize: 10,
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            color: Theme.of(context).colorScheme.onSurface.withAlpha(153), // Changed from withOpacity(0.6)
                           ),
                         ),
                       ],
