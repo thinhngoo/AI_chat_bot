@@ -16,37 +16,47 @@ class BotPreviewScreen extends StatefulWidget {
   State<BotPreviewScreen> createState() => _BotPreviewScreenState();
 }
 
-class _BotPreviewScreenState extends State<BotPreviewScreen> {
+class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProviderStateMixin {
   final Logger _logger = Logger();
   final BotService _botService = BotService();
   
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
   bool _isTyping = false;
   
+  // Animation controllers
+  late AnimationController _sendButtonController;
+  
   @override
   void initState() {
     super.initState();
     _addWelcomeMessage();
+    
+    _sendButtonController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
   }
   
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _focusNode.dispose();
+    _sendButtonController.dispose();
     super.dispose();
   }
   
   void _addWelcomeMessage() {
     _messages.add(
       ChatMessage(
-        message: 'Xin chào! Tôi là ${widget.botName}. Tôi có thể giúp gì cho bạn?',
+        message: 'Xin chào! Tôi là ${widget.botName}. Bạn có thể hỏi tôi bất cứ điều gì.',
         isUserMessage: false,
         timestamp: DateTime.now(),
-        isError: false,
       ),
     );
   }
@@ -55,25 +65,30 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
     
-    // Add user message to chat
+    _sendButtonController.forward();
+    
     setState(() {
+      _isLoading = true;
+      _isTyping = true;
+      
+      // Add user message
       _messages.add(
         ChatMessage(
           message: message,
           isUserMessage: true,
           timestamp: DateTime.now(),
-          isError: false,
+          deliveryStatus: 'sent',
         ),
       );
+      
       _messageController.clear();
-      _isTyping = true;
     });
     
-    // Scroll to bottom after adding message
+    // Scroll to bottom
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+          0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -81,67 +96,82 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
     });
     
     try {
-      setState(() {
-        _isLoading = true;
-      });
-      
       // Simulate network delay
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 800));
       
+      // Call bot service
       final response = await _botService.askBot(
         botId: widget.botId,
         message: message,
       );
       
-      // Add bot response to chat
-      if (mounted) {
-        setState(() {
-          _isTyping = false;
-          _messages.add(
-            ChatMessage(
-              message: response,
-              isUserMessage: false,
-              timestamp: DateTime.now(),
-              isError: false,
-            ),
-          );
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
       
-      // Scroll to bottom after receiving response
+      // Update message delivery status
+      setState(() {
+        final lastUserMessageIndex = _messages.lastIndexWhere((msg) => msg.isUserMessage);
+        if (lastUserMessageIndex != -1) {
+          _messages[lastUserMessageIndex] = ChatMessage(
+            message: _messages[lastUserMessageIndex].message,
+            isUserMessage: true,
+            timestamp: _messages[lastUserMessageIndex].timestamp,
+            deliveryStatus: 'read',
+          );
+        }
+      });
+      
+      // Add bot response after a small delay to show typing indicator
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _messages.add(
+          ChatMessage(
+            message: response, // Direct use of response as String
+            isUserMessage: false,
+            timestamp: DateTime.now(),
+          ),
+        );
+        _isLoading = false;
+        _isTyping = false;
+        _sendButtonController.reverse();
+      });
+      
+      // Scroll to show new message
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
+            0,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
         }
       });
     } catch (e) {
-      _logger.e('Error asking bot: $e');
+      _logger.e('Error sending message: $e');
       
-      if (mounted) {
-        setState(() {
-          _isTyping = false;
-          _messages.add(
-            ChatMessage(
-              message: 'Xin lỗi, đã xảy ra lỗi: ${e.toString()}',
-              isUserMessage: false,
-              timestamp: DateTime.now(),
-              isError: true,
-            ),
-          );
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
       
-      // Still scroll to bottom on error
+      setState(() {
+        _messages.add(
+          ChatMessage(
+            message: 'Xin lỗi, đã xảy ra lỗi: ${e.toString()}',
+            isUserMessage: false,
+            timestamp: DateTime.now(),
+            isError: true,
+          ),
+        );
+        _isLoading = false;
+        _isTyping = false;
+        _sendButtonController.reverse();
+      });
+      
+      // Scroll to bottom on error
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
+            0,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
@@ -164,30 +194,15 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Thêm tệp đính kèm',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Divider(),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade100,
-                      borderRadius: BorderRadius.circular(8),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16.0),
+                  child: Text(
+                    'Gửi tệp đính kèm',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
-                    child: const Icon(Icons.image, color: Colors.blue),
                   ),
-                  title: const Text('Hình ảnh'),
-                  subtitle: const Text('Gửi từ thư viện ảnh'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showFeatureNotImplemented('Chức năng tải ảnh lên đang phát triển');
-                  },
                 ),
                 ListTile(
                   leading: Container(
@@ -231,19 +246,38 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
 
   // Show URL input dialog
   void _showUrlInputDialog() {
-    final textController = TextEditingController();
+    final TextEditingController urlController = TextEditingController();
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Gửi đường dẫn'),
+        title: const Text('Nhập URL'),
         content: TextField(
-          controller: textController,
+          controller: urlController,
           decoration: const InputDecoration(
-            hintText: 'Nhập đường dẫn website',
+            hintText: 'https://example.com',
             prefixIcon: Icon(Icons.link),
           ),
           keyboardType: TextInputType.url,
+          onSubmitted: (_) {
+            if (urlController.text.isNotEmpty) {
+              Navigator.pop(context);
+              
+              setState(() {
+                _messages.add(
+                  ChatMessage(
+                    message: urlController.text,
+                    isUserMessage: true,
+                    timestamp: DateTime.now(),
+                    isUrl: true,
+                  ),
+                );
+              });
+              
+              // Simulate bot response
+              _simulateBotResponseWithDelay('Cảm ơn bạn đã chia sẻ liên kết. Tôi đang phân tích nội dung.');
+            }
+          },
         ),
         actions: [
           TextButton(
@@ -252,18 +286,76 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              final url = textController.text.trim();
-              if (url.isNotEmpty) {
+              if (urlController.text.isNotEmpty) {
                 Navigator.pop(context);
-                _messageController.text = url;
-                _sendMessage();
+                
+                setState(() {
+                  _messages.add(
+                    ChatMessage(
+                      message: urlController.text,
+                      isUserMessage: true,
+                      timestamp: DateTime.now(),
+                      isUrl: true,
+                    ),
+                  );
+                });
+                
+                // Simulate bot response
+                _simulateBotResponseWithDelay('Cảm ơn bạn đã chia sẻ liên kết. Tôi đang phân tích nội dung.');
               }
             },
             child: const Text('GỬI'),
           ),
         ],
       ),
-    ).then((_) => textController.dispose());
+    ).then((_) {
+      urlController.dispose();
+    });
+  }
+  
+  // Simulate bot response with delay
+  Future<void> _simulateBotResponseWithDelay(String message) async {
+    setState(() {
+      _isTyping = true;
+    });
+    
+    // Scroll to bottom
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+    
+    // Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    if (!mounted) return;
+    
+    setState(() {
+      _messages.add(
+        ChatMessage(
+          message: message,
+          isUserMessage: false,
+          timestamp: DateTime.now(),
+        ),
+      );
+      _isTyping = false;
+    });
+    
+    // Scroll to bottom again
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   // Show feature not implemented dialog
@@ -271,7 +363,6 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.orange,
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
           label: 'OK',
@@ -287,15 +378,22 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xóa lịch sử chat'),
-        content: const Text('Bạn có chắc chắn muốn xóa tất cả tin nhắn trong cuộc trò chuyện này?'),
+        title: Row(
+          children: const [
+            Icon(Icons.delete_outline, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Xóa cuộc trò chuyện'),
+          ],
+        ),
+        content: const Text(
+          'Bạn có chắc chắn muốn xóa tất cả tin nhắn? Hành động này không thể hoàn tác.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('HỦY'),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
             onPressed: () {
               Navigator.pop(context);
               setState(() {
@@ -303,6 +401,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
                 _addWelcomeMessage();
               });
             },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('XÓA'),
           ),
         ],
@@ -320,6 +419,9 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    
     // Group messages by sender with minimal time gap
     final groupedMessages = <List<ChatMessage>>[];
     for (final message in _messages) {
@@ -365,13 +467,13 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
           // Chat header info
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(128), // Changed from withOpacity(0.5)
+            color: theme.colorScheme.surfaceContainerHighest,
             child: Row(
               children: [
                 Icon(
                   Icons.info_outline,
                   size: 18,
-                  color: Theme.of(context).colorScheme.primary,
+                  color: theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -379,7 +481,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
                     'Đây là chế độ xem trước của bot. Tin nhắn không được lưu trữ và đây chỉ là môi trường để kiểm tra.',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -391,28 +493,32 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
+                color: isDarkMode 
+                    ? const Color(0xFF121212) 
+                    : const Color(0xFFF5F5F5),
                 image: DecorationImage(
                   image: const AssetImage('assets/images/chat_background.png'),
                   fit: BoxFit.cover,
                   opacity: 0.05,
                   colorFilter: ColorFilter.mode(
-                    Theme.of(context).colorScheme.primary.withAlpha(26), // Changed from withOpacity(0.1)
+                    theme.colorScheme.primary.withAlpha(25),  // Approximately 0.1 opacity
                     BlendMode.dstATop,
                   ),
                 ),
               ),
               child: ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.all(16.0),
+                reverse: true,
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
                 itemCount: groupedMessages.length + (_isTyping ? 1 : 0),
                 itemBuilder: (context, index) {
-                  // Show typing indicator as the last item when bot is typing
-                  if (_isTyping && index == groupedMessages.length) {
+                  // Show typing indicator as the first item when bot is typing
+                  if (_isTyping && index == 0) {
                     return _buildTypingIndicator();
                   }
                   
-                  final messageGroup = groupedMessages[index];
+                  final messageGroupIndex = _isTyping ? index - 1 : index;
+                  final messageGroup = groupedMessages[messageGroupIndex];
                   final isUserMessage = messageGroup.first.isUserMessage;
                   
                   return _buildMessageGroup(context, messageGroup, isUserMessage);
@@ -423,65 +529,118 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
           
           // Message input area
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
+              color: theme.colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withAlpha(13), // Changed from withOpacity(0.05)
-                  blurRadius: 3,
+                  color: Colors.black.withAlpha(13), // ~0.05 opacity
+                  blurRadius: 5,
                   offset: const Offset(0, -1),
                 ),
               ],
             ),
             child: SafeArea(
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  // Attachment button
                   IconButton(
-                    icon: const Icon(Icons.attach_file),
-                    tooltip: 'Thêm tệp đính kèm',
+                    icon: Icon(
+                      Icons.attach_file,
+                      color: theme.colorScheme.primary,
+                    ),
                     onPressed: _showAttachmentOptions,
+                    tooltip: 'Add attachment',
                   ),
+                  
+                  // Message input
                   Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      textCapitalization: TextCapitalization.sentences,
-                      textInputAction: TextInputAction.send,
-                      maxLines: 5,
-                      minLines: 1,
-                      decoration: InputDecoration(
-                        hintText: 'Nhập tin nhắn...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24.0),
-                          borderSide: BorderSide.none,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: isDarkMode 
+                              ? Colors.grey[700]! 
+                              : Colors.grey[300]!,
+                          width: 1,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 8.0,
-                        ),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(128), // Changed from withOpacity(0.5)
+                        color: isDarkMode 
+                            ? Colors.grey[850] 
+                            : Colors.grey[50],
                       ),
-                      onSubmitted: (_) => _sendMessage(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: TextField(
+                          controller: _messageController,
+                          focusNode: _focusNode,
+                          textCapitalization: TextCapitalization.sentences,
+                          maxLines: 5,
+                          minLines: 1,
+                          textInputAction: TextInputAction.send,
+                          decoration: InputDecoration(
+                            hintText: 'Nhập tin nhắn...',
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            isDense: true,
+                            hintStyle: TextStyle(
+                              color: isDarkMode 
+                                  ? Colors.grey[400] 
+                                  : Colors.grey[600],
+                            ),
+                          ),
+                          onSubmitted: (_) => _sendMessage(),
+                          onChanged: (text) {
+                            setState(() {
+                              // This forces the send button to update
+                            });
+                          },
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  FloatingActionButton(
-                    onPressed: _isLoading ? null : _sendMessage,
-                    mini: true,
-                    tooltip: 'Gửi tin nhắn',
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                    child: _isLoading
-                        ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          )
-                        : const Icon(Icons.send),
+                  
+                  const SizedBox(width: 8),
+                  
+                  // Send button
+                  AnimatedBuilder(
+                    animation: _sendButtonController,
+                    builder: (context, child) {
+                      final bool showLoading = _sendButtonController.status == AnimationStatus.forward ||
+                                            _sendButtonController.status == AnimationStatus.completed;
+                      
+                      return Material(
+                        color: theme.colorScheme.primary,
+                        borderRadius: BorderRadius.circular(24),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(24),
+                          onTap: (_messageController.text.trim().isNotEmpty && !_isLoading) 
+                              ? _sendMessage 
+                              : null,
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            child: showLoading
+                                ? SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        theme.colorScheme.onPrimary,
+                                      ),
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.send_rounded,
+                                    color: _messageController.text.trim().isEmpty
+                                        ? theme.colorScheme.onPrimary.withAlpha(128)
+                                        : theme.colorScheme.onPrimary,
+                                    size: 24,
+                                  ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -492,23 +651,35 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
     );
   }
   
-  // Build a group of messages from the same sender
+  // Build a message group from the same sender
   Widget _buildMessageGroup(BuildContext context, List<ChatMessage> messageGroup, bool isUser) {
-    final alignStart = !isUser;
-    final avatarWidget = !isUser 
-        ? CircleAvatar(
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            radius: 16,
-            child: Text(
-              widget.botName.isNotEmpty ? widget.botName[0].toUpperCase() : 'B',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onPrimary,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
+    final theme = Theme.of(context);
+    
+    // Create avatar for user or bot
+    final avatarWidget = isUser
+      ? CircleAvatar(
+          backgroundColor: Colors.grey[700],
+          radius: 16,
+          child: const Icon(
+            Icons.person,
+            size: 18,
+            color: Colors.white,
+          ),
+        )
+      : CircleAvatar(
+          backgroundColor: theme.colorScheme.primary,
+          radius: 16,
+          child: Text(
+            widget.botName.isNotEmpty ? widget.botName[0].toUpperCase() : 'B',
+            style: TextStyle(
+              color: theme.colorScheme.onPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
             ),
-          )
-        : null;
+          ),
+        );
+    
+    final bool alignStart = !isUser;
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
@@ -517,7 +688,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (alignStart) ...[
-            avatarWidget!,
+            avatarWidget,
             const SizedBox(width: 8),
           ],
           
@@ -534,7 +705,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurface.withAlpha(178), // Changed from withOpacity
+                        color: theme.colorScheme.onSurface.withAlpha(179),
                       ),
                     ),
                   ),
@@ -553,7 +724,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
                     _formatTime(messageGroup.last.timestamp),
                     style: TextStyle(
                       fontSize: 10,
-                      color: Theme.of(context).colorScheme.onSurface.withAlpha(128), // Changed from withOpacity
+                      color: theme.colorScheme.onSurface.withAlpha(128),
                     ),
                   ),
                 ),
@@ -573,6 +744,11 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
                 : Colors.grey,
             ),
           ],
+          
+          if (!alignStart) ...[
+            const SizedBox(width: 8),
+            avatarWidget,
+          ],
         ],
       ),
     );
@@ -580,21 +756,22 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
 
   // Build a message bubble
   Widget _buildMessageBubble(BuildContext context, ChatMessage message) {
+    final theme = Theme.of(context);
     final isUserMessage = message.isUserMessage;
     final backgroundColor = isUserMessage
-        ? Theme.of(context).colorScheme.primary
+        ? theme.colorScheme.primary
         : message.isError
-            ? Theme.of(context).colorScheme.errorContainer
-            : Theme.of(context).colorScheme.surfaceContainerHighest;
+            ? theme.colorScheme.errorContainer
+            : theme.colorScheme.surfaceContainerHighest;
 
     final textColor = isUserMessage
-        ? Theme.of(context).colorScheme.onPrimary
+        ? theme.colorScheme.onPrimary
         : message.isError
-            ? Theme.of(context).colorScheme.onErrorContainer
-            : Theme.of(context).colorScheme.onSurfaceVariant;
+            ? theme.colorScheme.onErrorContainer
+            : theme.colorScheme.onSurfaceVariant;
 
     // Determine if message appears to be a URL
-    final isUrl = Uri.tryParse(message.message)?.hasScheme ?? false;
+    final isUrl = message.isUrl || (Uri.tryParse(message.message)?.hasScheme ?? false);
 
     return Container(
       margin: EdgeInsets.only(
@@ -607,7 +784,16 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
         margin: EdgeInsets.zero,
         color: backgroundColor,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: isUserMessage 
+                ? const Radius.circular(16) 
+                : const Radius.circular(4),
+            bottomRight: isUserMessage 
+                ? const Radius.circular(4) 
+                : const Radius.circular(16),
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
@@ -628,7 +814,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: textColor,
-                      side: BorderSide(color: textColor.withAlpha(128)), // Changed from withOpacity
+                      side: BorderSide(color: textColor.withAlpha(128)),
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                       minimumSize: const Size(0, 28),
                       textStyle: const TextStyle(fontSize: 12),
@@ -647,57 +833,58 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
   
   // Build the typing indicator
   Widget _buildTypingIndicator() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          radius: 16,
-          child: Text(
-            widget.botName.isNotEmpty ? widget.botName[0].toUpperCase() : 'B',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onPrimary,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            CircleAvatar(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              radius: 16,
+              child: Text(
+                widget.botName.isNotEmpty ? widget.botName[0].toUpperCase() : 'B',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Card(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Row(
-              children: [
-                _buildPulsingDot(0),
-                const SizedBox(width: 4),
-                _buildPulsingDot(100),
-                const SizedBox(width: 4),
-                _buildPulsingDot(200),
-              ],
+            const SizedBox(width: 8),
+            
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              child: Row(
+                children: [
+                  _buildPulsingDot(),
+                  const SizedBox(width: 4),
+                  _buildPulsingDot(),
+                  const SizedBox(width: 4),
+                  _buildPulsingDot(),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
   
-  // Build a pulsing dot for the typing indicator with a delay
-  Widget _buildPulsingDot(int delay) {
+  // Build a pulsing dot for the typing indicator
+  Widget _buildPulsingDot() {
     return TweenAnimationBuilder(
       tween: Tween<double>(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 1000),
       builder: (context, value, child) {
         return Container(
-          width: 8,
-          height: 8,
+          width: 8 + (value < 0.5 ? value : 1.0 - value) * 4,
+          height: 8 + (value < 0.5 ? value : 1.0 - value) * 4,
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withOpacity(
-              0.3 + (0.7 * (0.7 * (value > 0.5 ? 1 - value : value) * 2)),
+            color: Theme.of(context).colorScheme.primary.withAlpha(
+              (153 + (value < 0.5 ? value : 1.0 - value) * 102).toInt(),
             ),
             borderRadius: BorderRadius.circular(4),
           ),
@@ -705,24 +892,12 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> {
       },
     );
   }
-  
-  // Format timestamp for message display
+
+  // Format time to display in messages
   String _formatTime(DateTime time) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final messageDate = DateTime(time.year, time.month, time.day);
-    
-    final formatter = time.hour > 12 
-        ? '${time.hour - 12}:${time.minute.toString().padLeft(2, '0')} PM'
-        : '${time.hour}:${time.minute.toString().padLeft(2, '0')} AM';
-    
-    if (messageDate == today) {
-      return formatter;
-    } else if (messageDate == today.subtract(const Duration(days: 1))) {
-      return 'Hôm qua, $formatter';
-    } else {
-      return '${time.day}/${time.month} $formatter';
-    }
+    final hours = time.hour.toString().padLeft(2, '0');
+    final minutes = time.minute.toString().padLeft(2, '0');
+    return '$hours:$minutes';
   }
 }
 
@@ -746,39 +921,51 @@ class _RatingDialogState extends State<RatingDialog> {
   
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return AlertDialog(
-      title: const Text('Đánh giá trò chuyện'),
-      content: SizedBox(
-        width: double.maxFinite,
+      title: Row(
+        children: [
+          Icon(Icons.star, color: theme.colorScheme.primary),
+          const SizedBox(width: 8),
+          const Text('Rate Conversation'),
+        ],
+      ),
+      content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Bạn đánh giá cuộc trò chuyện này như thế nào?'),
+            const Text('How was your experience with the bot?'),
             const SizedBox(height: 16),
+            
+            // Star rating
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(5, (index) {
-                final starValue = index + 1;
+                final starIndex = index + 1;
                 return IconButton(
                   icon: Icon(
-                    _rating >= starValue ? Icons.star : Icons.star_border,
+                    _rating >= starIndex ? Icons.star : Icons.star_border,
+                    color: _rating >= starIndex ? Colors.amber : Colors.grey,
                     size: 32,
-                    color: _rating >= starValue ? Colors.amber : Colors.grey,
                   ),
                   onPressed: () {
                     setState(() {
-                      _rating = starValue;
+                      _rating = starIndex;
                     });
                   },
                 );
               }),
             ),
+            
             const SizedBox(height: 16),
+            
+            // Feedback text field
             TextField(
               controller: _feedbackController,
               decoration: const InputDecoration(
-                labelText: 'Phản hồi (tùy chọn)',
-                hintText: 'Chia sẻ ý kiến của bạn...',
+                labelText: 'Additional Comments (optional)',
+                hintText: 'Tell us more about your experience...',
                 border: OutlineInputBorder(),
               ),
               maxLines: 3,
@@ -789,22 +976,28 @@ class _RatingDialogState extends State<RatingDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('HỦY'),
+          child: const Text('CANCEL'),
         ),
         ElevatedButton(
           onPressed: () {
-            // Send feedback
+            // Submit rating and feedback
             if (_rating > 0) {
+              // In a real app, you would send this to your backend
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Thanks for your $_rating-star rating!'),
+                ),
+              );
+              Navigator.pop(context);
+            } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Cảm ơn bạn đã đánh giá!'),
-                  backgroundColor: Colors.green,
+                  content: Text('Please select a rating'),
                 ),
               );
             }
-            Navigator.pop(context);
           },
-          child: const Text('GỬI'),
+          child: const Text('SUBMIT'),
         ),
       ],
     );
@@ -815,14 +1008,16 @@ class ChatMessage {
   final String message;
   final bool isUserMessage;
   final DateTime timestamp;
+  final String? deliveryStatus; // 'sent', 'delivered', 'read', or null
   final bool isError;
-  final String? deliveryStatus; // null, 'sent', or 'read'
+  final bool isUrl;
   
   ChatMessage({
     required this.message,
     required this.isUserMessage,
     required this.timestamp,
-    this.isError = false,
     this.deliveryStatus,
+    this.isError = false,
+    this.isUrl = false,
   });
 }

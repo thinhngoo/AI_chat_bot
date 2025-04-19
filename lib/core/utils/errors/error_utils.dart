@@ -125,11 +125,10 @@ class StackBarAction extends SnackBarAction {
   const StackBarAction({
     required String label,
     required VoidCallback onPressed,
-    Key? key, // Add key parameter
+    super.key,
+    super.textColor = Colors.white,
   }) : super(
-    key: key,
     label: label,
     onPressed: onPressed,
-    textColor: Colors.white,
   );
 }

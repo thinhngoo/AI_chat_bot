@@ -10,9 +10,9 @@ class TypingIndicator extends StatefulWidget {
   ///
   /// [isTyping] determines whether the typing animation is active
   const TypingIndicator({
-    Key? key,
+    super.key,
     required this.isTyping,
-  }) : super(key: key);
+  });
 
   @override
   State<TypingIndicator> createState() => _TypingIndicatorState();
@@ -68,6 +68,7 @@ class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderSt
     if (widget.isTyping != oldWidget.isTyping) {
       if (widget.isTyping) {
         _appearanceController.forward();
+        
         for (int i = 0; i < _dotControllers.length; i++) {
           Future.delayed(Duration(milliseconds: i * 200), () {
             if (mounted && widget.isTyping) {
@@ -102,14 +103,14 @@ class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderSt
       sizeFactor: _indicatorSpaceAnimation,
       axisAlignment: -1.0,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(12.0),
           decoration: BoxDecoration(
             color: isDarkMode
-                ? Colors.grey[800]?.withAlpha(65)
-                : Colors.grey[200]?.withAlpha(65),
-            borderRadius: BorderRadius.circular(16),
+                ? Colors.grey[800]?.withOpacity(0.25)
+                : Colors.grey[200]?.withOpacity(0.25),
+            borderRadius: BorderRadius.circular(16.0),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -120,11 +121,11 @@ class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderSt
                   builder: (context, child) {
                     final bounceValue = math.sin(_dotControllers[i].value * math.pi);
                     return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      height: 8 + bounceValue * 4,
-                      width: 8 + bounceValue * 4,
+                      margin: const EdgeInsets.symmetric(horizontal: 2.0),
+                      height: 8.0 + bounceValue * 4.0,
+                      width: 8.0 + bounceValue * 4.0,
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withAlpha((153 + (102 * bounceValue)).toInt()),
+                        color: theme.colorScheme.primary.withOpacity(0.6 + (0.4 * bounceValue)),
                         shape: BoxShape.circle,
                       ),
                     );

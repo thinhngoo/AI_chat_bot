@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../../../core/services/auth/auth_service.dart';
+import '../../../widgets/common/typing_indicator.dart';
 import '../services/chat_service.dart';
 import '../models/conversation_message.dart';
+import '../../../features/prompt/presentation/prompt_selector.dart';
+import '../../../features/prompt/presentation/prompt_management_screen.dart';
+import '../../../features/prompt/services/prompt_service.dart' as prompt_service;
 import 'assistant_management_screen.dart';
 import '../../auth/presentation/login_page.dart';
 
@@ -20,9 +24,10 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final ChatService _chatService = ChatService();
+  final prompt_service.PromptService _promptService = prompt_service.PromptService();
   final Logger _logger = Logger();
   
   bool _isLoading = true;
@@ -34,21 +39,88 @@ class _ChatScreenState extends State<ChatScreen> {
   final FocusNode _messageFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   bool _isSending = false;
+  bool _isTyping = false;
+  
+  // Animation controllers
+  late AnimationController _sendButtonController;
   
   String _selectedAssistantId = 'gpt-4o-mini';
+  
+  // Prompt selector state
+  bool _showPromptSelector = false;
+  String _promptQuery = '';
   
   @override
   void initState() {
     super.initState();
     _fetchConversationHistory();
+    
+    _sendButtonController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    
+    // Listen for changes in the message text to detect slash commands
+    _messageController.addListener(_handleMessageChanged);
   }
   
   @override
   void dispose() {
+    _messageController.removeListener(_handleMessageChanged);
     _messageController.dispose();
     _messageFocusNode.dispose();
     _scrollController.dispose();
+    _sendButtonController.dispose();
     super.dispose();
+  }
+  
+  // Handle message text changes to detect slash commands
+  void _handleMessageChanged() {
+    final text = _messageController.text;
+    
+    // Check if text starts with a slash
+    if (text.startsWith('/')) {
+      if (!_showPromptSelector) {
+        setState(() {
+          _showPromptSelector = true;
+          _promptQuery = text;
+        });
+      } else {
+        setState(() {
+          _promptQuery = text;
+        });
+      }
+    } else {
+      if (_showPromptSelector) {
+        setState(() {
+          _showPromptSelector = false;
+        });
+      }
+    }
+  }
+  
+  // Handle selection of a prompt from the prompt selector
+  void _handlePromptSelected(String content) {
+    setState(() {
+      _messageController.text = content;
+      _messageController.selection = TextSelection.fromPosition(
+        TextPosition(offset: content.length),
+      );
+      _showPromptSelector = false;
+    });
+    
+    // Focus on the text field
+    _messageFocusNode.requestFocus();
+  }
+  
+  // Open the prompt management screen
+  void _openPromptManagement() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const PromptManagementScreen(),
+      ),
+    );
   }
   
   Future<void> _fetchConversationHistory() async {
@@ -115,6 +187,16 @@ class _ChatScreenState extends State<ChatScreen> {
             content: Text('Unable to load conversations: ${e.toString()}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
+            action: _currentConversationId != null ? SnackBarAction(
+              label: 'New Chat',
+              onPressed: () {
+                setState(() {
+                  _currentConversationId = null;
+                  _messages = [];
+                });
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ) : null,
           ),
         );
       }
@@ -127,6 +209,8 @@ class _ChatScreenState extends State<ChatScreen> {
     
     setState(() {
       _isSending = true;
+      _isTyping = true;
+      _sendButtonController.forward();
     });
     
     try {
@@ -164,40 +248,88 @@ class _ChatScreenState extends State<ChatScreen> {
           assistantId: _selectedAssistantId,
           conversationId: _currentConversationId,
         );
+        
+        if (mounted) {
+          setState(() {
+            if (response.containsKey('answers') && 
+                response['answers'] is List && 
+                (response['answers'] as List).isNotEmpty) {
+              final answer = (response['answers'] as List<dynamic>).first;
+              final conversationId = response['conversation_id'] ?? _currentConversationId;
+
+              if (_currentConversationId == null) {
+                _currentConversationId = conversationId;
+              }
+              
+              if (_messages.isNotEmpty) {
+                _messages[0] = ConversationMessage(
+                  query: message,
+                  answer: answer,
+                  createdAt: _messages[0].createdAt,
+                  files: [],
+                );
+              }
+            }
+            _isSending = false;
+            _isTyping = false;
+            _sendButtonController.reverse();
+          });
+        }
       } catch (e) {
-        // If error occurs and we have a conversation ID, try creating a new conversation
+        _logger.e('Error sending message (first attempt): $e');
+        
+        // If the message fails, try to create a new conversation
         if (_currentConversationId != null) {
-          _logger.w('Error with existing conversation, trying to create new conversation');
-          _currentConversationId = null;
-          response = await _chatService.sendMessage(
-            content: message,
-            assistantId: _selectedAssistantId,
-            conversationId: null,
-          );
-        } else {
-          // No retry option, rethrow the error
-          rethrow;
+          try {
+            _currentConversationId = null;
+            response = await _chatService.sendMessage(
+              content: message,
+              assistantId: _selectedAssistantId,
+              conversationId: null, // Force creating a new conversation
+            );
+            
+            setState(() {
+              if (response.containsKey('answers') && 
+                  response['answers'] is List && 
+                  (response['answers'] as List).isNotEmpty) {
+                final answer = (response['answers'] as List<dynamic>).first;
+                final conversationId = response['conversation_id'];
+                _currentConversationId = conversationId;
+                
+                if (_messages.isNotEmpty) {
+                  _messages[0] = ConversationMessage(
+                    query: message,
+                    answer: answer,
+                    createdAt: _messages[0].createdAt,
+                    files: [],
+                  );
+                }
+              }
+              _isSending = false;
+              _isTyping = false;
+              _sendButtonController.reverse();
+            });
+          } catch (e2) {
+            _logger.e('Error sending message (retry attempt): $e2');
+            
+            if (mounted) {
+              setState(() {
+                if (_messages.isNotEmpty) {
+                  _messages[0] = ConversationMessage(
+                    query: message,
+                    answer: 'Error: ${e2.toString()}',
+                    createdAt: _messages[0].createdAt,
+                    files: [],
+                  );
+                }
+                _isSending = false;
+                _isTyping = false;
+                _sendButtonController.reverse();
+              });
+            }
+          }
         }
       }
-      
-      // Update conversation ID when needed
-      final String conversationId = response['conversationId'];
-      if (_currentConversationId == null || _currentConversationId!.isEmpty) {
-        _logger.i('New conversation started with ID: $conversationId');
-        _currentConversationId = conversationId;
-      } else {
-        _logger.i('Continued conversation with ID: $conversationId');
-      }
-      
-      setState(() {
-        _messages[0] = ConversationMessage(
-          query: message,
-          answer: response['message'],
-          createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          files: [],
-        );
-        _isSending = false;
-      });
     } catch (e) {
       _logger.e('Error sending message: $e');
       
@@ -223,6 +355,8 @@ class _ChatScreenState extends State<ChatScreen> {
           );
         }
         _isSending = false;
+        _isTyping = false;
+        _sendButtonController.reverse();
       });
       
       if (mounted) {
@@ -314,26 +448,20 @@ class _ChatScreenState extends State<ChatScreen> {
             tooltip: 'Manage Assistants',
           ),
           
-          // Bot management button (NEW)
+          // Prompt management button (NEW)
+          IconButton(
+            onPressed: _openPromptManagement,
+            icon: const Icon(Icons.format_quote),
+            tooltip: 'Manage Prompts',
+          ),
+          
+          // Bot management button
           IconButton(
             onPressed: () {
               Navigator.of(context).pushNamed('/bots');
             },
             icon: const Icon(Icons.adb),
             tooltip: 'Manage Bots',
-          ),
-          
-          // Prompt management button (NEW)
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const PromptManagementScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.list),
-            tooltip: 'Manage Prompts',
           ),
           
           // Light/dark mode toggle
@@ -382,7 +510,21 @@ class _ChatScreenState extends State<ChatScreen> {
             if (_isLoading || (_errorMessage.isNotEmpty && _messages.isEmpty) || _messages.isEmpty)
               Expanded(
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Loading conversations...',
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
                     : _errorMessage.isNotEmpty && _messages.isEmpty
                         ? Center(
                             child: Column(
@@ -412,7 +554,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 Icon(
                                   Icons.chat_bubble_outline,
                                   size: 64,
-                                  color: theme.colorScheme.primary.withAlpha(128),
+                                  color: theme.colorScheme.primary.withOpacity(0.5),
                                 ),
                                 const SizedBox(height: 16),
                                 const Text(
@@ -427,50 +569,145 @@ class _ChatScreenState extends State<ChatScreen> {
             // Chat messages
             if (!_isLoading && _errorMessage.isEmpty && _messages.isNotEmpty)
               Expanded(
-                child: ListView.builder(
-                  controller: _scrollController,
-                  reverse: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: _messages.length,
-                  itemBuilder: (context, index) {
-                    final message = _messages[index];
-                    final isUserMessage = message.query != null && message.query.isNotEmpty;
-                    final messageDate = DateTime.fromMillisecondsSinceEpoch(message.createdAt * 1000);
-
-                    return Column(
-                      crossAxisAlignment:
-                          isUserMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isUserMessage
-                                ? Theme.of(context).colorScheme.primary.withAlpha(204) // Changed from withOpacity(0.8)
-                                : Theme.of(context).colorScheme.surface,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            isUserMessage ? message.query : message.answer,
-                            style: TextStyle(
-                              color: isUserMessage
-                                  ? Theme.of(context).colorScheme.onPrimary
-                                  : Theme.of(context).colorScheme.onSurface,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDarkMode 
+                        ? const Color(0xFF121212) 
+                        : const Color(0xFFF5F5F5),
+                    backgroundBlendMode: BlendMode.multiply,
+                  ),
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    reverse: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      final isUserMessage = message.query != null && message.query.isNotEmpty;
+                      final messageDate = DateTime.fromMillisecondsSinceEpoch(message.createdAt * 1000);
+                      final isLastMessage = index == _messages.length - 1;
+                      
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: Column(
+                          crossAxisAlignment:
+                              isUserMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: isUserMessage 
+                                  ? MainAxisAlignment.end 
+                                  : MainAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (!isUserMessage) ...[
+                                  CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: theme.colorScheme.primary,
+                                    child: Text(
+                                      'AI',
+                                      style: TextStyle(
+                                        color: theme.colorScheme.onPrimary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                
+                                Flexible(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: isUserMessage
+                                          ? theme.colorScheme.primary
+                                          : isDarkMode
+                                              ? const Color(0xFF2D2D2D)
+                                              : Colors.white,
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: const Radius.circular(16),
+                                        topRight: const Radius.circular(16),
+                                        bottomLeft: isUserMessage 
+                                            ? const Radius.circular(16) 
+                                            : const Radius.circular(4),
+                                        bottomRight: isUserMessage 
+                                            ? const Radius.circular(4) 
+                                            : const Radius.circular(16),
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 5,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: SelectableText(
+                                      isUserMessage ? message.query : message.answer,
+                                      style: TextStyle(
+                                        color: isUserMessage
+                                            ? theme.colorScheme.onPrimary
+                                            : theme.colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                
+                                if (isUserMessage) ...[
+                                  const SizedBox(width: 8),
+                                  CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: isDarkMode 
+                                        ? Colors.grey[700] 
+                                        : Colors.grey[300],
+                                    child: const Icon(
+                                      Icons.person,
+                                      size: 18,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                          ),
+                            
+                            Padding(
+                              padding: EdgeInsets.only(
+                                left: isUserMessage ? 0 : 40,
+                                right: isUserMessage ? 40 : 0,
+                                top: 4,
+                              ),
+                              child: Text(
+                                '${messageDate.hour}:${messageDate.minute.toString().padLeft(2, '0')}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          '${messageDate.hour}:${messageDate.minute.toString().padLeft(2, '0')}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Theme.of(context).colorScheme.onSurface.withAlpha(153), // Changed from withOpacity(0.6)
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
+            
+            // Show typing indicator when AI is thinking
+            if (_isTyping) 
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
+                  child: TypingIndicator(isTyping: _isTyping),
+                ),
+              ),
+            
+            // Prompt selector (NEW)
+            PromptSelector(
+              onPromptSelected: _handlePromptSelected,
+              isVisible: _showPromptSelector,
+              query: _promptQuery,
+            ),
             
             // Message input area
             Container(
@@ -478,13 +715,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withAlpha(13),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 5,
                     offset: const Offset(0, -1),
                   ),
                 ],
               ),
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(12.0),
               child: SafeArea(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -492,34 +729,31 @@ class _ChatScreenState extends State<ChatScreen> {
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(24),
                           border: Border.all(
                             color: isDarkMode 
                                 ? Colors.grey[700]! 
                                 : Colors.grey[300]!,
+                            width: 1,
                           ),
                           color: isDarkMode 
-                              ? Colors.grey[900] 
-                              : Colors.grey[100],
+                              ? Colors.grey[850] 
+                              : Colors.grey[50],
                         ),
-                        child: Semantics(
-                          label: 'Message input field',
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: TextField(
                             controller: _messageController,
                             focusNode: _messageFocusNode,
                             maxLines: null,
                             minLines: 1,
                             textInputAction: TextInputAction.newline,
-                            maxLength: 2048, // Add character limit to reduce token usage
+                            keyboardType: TextInputType.multiline,
                             decoration: InputDecoration(
-                              hintText: 'Type a message...',
+                              hintText: 'Type a message or / for prompts...',
                               border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                                vertical: 12.0,
-                              ),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
                               isDense: true,
-                              counterText: '', // Hide the character counter
                               hintStyle: TextStyle(
                                 color: isDarkMode 
                                     ? Colors.grey[400] 
@@ -527,40 +761,54 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                             ),
                             onSubmitted: (_) => _sendMessage(),
+                            onChanged: (text) {
+                              setState(() {
+                                // This forces the send button to update
+                              });
+                            },
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Semantics(
-                      button: true,
-                      enabled: !_isSending,
-                      label: 'Send message',
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
+                    AnimatedBuilder(
+                      animation: _sendButtonController,
+                      builder: (context, child) {
+                        final bool showLoading = _sendButtonController.status == AnimationStatus.forward ||
+                                              _sendButtonController.status == AnimationStatus.completed;
+                        
+                        return Material(
                           color: theme.colorScheme.primary,
-                        ),
-                        child: IconButton(
-                          icon: _isSending 
-                              ? SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      theme.colorScheme.onPrimary,
+                          borderRadius: BorderRadius.circular(24),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(24),
+                            onTap: (_messageController.text.trim().isNotEmpty && !_isSending) 
+                                ? _sendMessage 
+                                : null,
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              child: showLoading
+                                  ? SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          theme.colorScheme.onPrimary,
+                                        ),
+                                      ),
+                                    )
+                                  : Icon(
+                                      Icons.send_rounded,
+                                      color: _messageController.text.trim().isEmpty
+                                          ? theme.colorScheme.onPrimary.withOpacity(0.5)
+                                          : theme.colorScheme.onPrimary,
+                                      size: 24,
                                     ),
-                                  ),
-                                )
-                              : Icon(
-                                  Icons.send, 
-                                  color: theme.colorScheme.onPrimary,
-                                ),
-                          onPressed: _isSending ? null : _sendMessage,
-                          tooltip: 'Send message',
-                        ),
-                      ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -569,151 +817,26 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
       ),
-      // Add a New Chat FAB
-      floatingActionButton: _messages.isNotEmpty ? FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            _currentConversationId = null;
-            _messages = [];
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Started a new conversation'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        },
-        tooltip: 'New chat',
-        child: const Icon(Icons.add),
+      floatingActionButton: _messages.isNotEmpty ? Container(
+        margin: const EdgeInsets.only(bottom: 70),
+        child: FloatingActionButton(
+          onPressed: () {
+            setState(() {
+              _currentConversationId = null;
+              _messages = [];
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Started a new conversation'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          },
+          mini: true,
+          tooltip: 'New chat',
+          child: const Icon(Icons.add),
+        ),
       ) : null,
-    );
-  }
-}
-
-class PromptManagementScreen extends StatefulWidget {
-  const PromptManagementScreen({Key? key}) : super(key: key);
-
-  @override
-  _PromptManagementScreenState createState() => _PromptManagementScreenState();
-}
-
-class _PromptManagementScreenState extends State<PromptManagementScreen> {
-  final PromptService _promptService = PromptService();
-  final Logger _logger = Logger();
-  List<Map<String, dynamic>> _publicPrompts = [];
-  List<Map<String, dynamic>> _privatePrompts = [];
-  List<Map<String, dynamic>> _favoritePrompts = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchPrompts();
-  }
-
-  Future<void> _fetchPrompts() async {
-    try {
-      final publicPrompts = await _promptService.getPrompts(isPublic: true);
-      final privatePrompts = await _promptService.getPrompts(isPublic: false);
-      final favoritePrompts = await _promptService.getPrompts(isFavorite: true);
-      setState(() {
-        _publicPrompts = publicPrompts;
-        _privatePrompts = privatePrompts;
-        _favoritePrompts = favoritePrompts;
-      });
-    } catch (e) {
-      _logger.e('Error fetching prompts: $e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Prompt Management'),
-      ),
-      body: ListView(
-        children: [
-          ListTile(
-            title: Text('Public Prompts'),
-            subtitle: Text('Tap to view public prompts'),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PromptListScreen(
-                    key: UniqueKey(),
-                    title: 'Public Prompts',
-                    prompts: _publicPrompts,
-                  ),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            title: Text('Private Prompts'),
-            subtitle: Text('Tap to view private prompts'),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PromptListScreen(
-                    key: UniqueKey(),
-                    title: 'Private Prompts',
-                    prompts: _privatePrompts,
-                  ),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            title: Text('Favorite Prompts'),
-            subtitle: Text('Tap to view favorite prompts'),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PromptListScreen(
-                    key: UniqueKey(),
-                    title: 'Favorite Prompts',
-                    prompts: _favoritePrompts,
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class PromptListScreen extends StatelessWidget {
-  PromptListScreen({Key? key, required this.title, required this.prompts}) : super(key: key);
-
-  final String title;
-  final List<Map<String, dynamic>> prompts;
-  final Logger _logger = Logger();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-      ),
-      body: ListView.builder(
-        itemCount: prompts.length,
-        itemBuilder: (context, index) {
-          final prompt = prompts[index];
-          return ListTile(
-            title: Text(prompt['title'] ?? 'Untitled'),
-            subtitle: Text(prompt['description'] ?? 'No description'),
-            onTap: () {
-              // Use the prompt content in chat
-              _logger.i('Using prompt: ${prompt['content']}');
-            },
-          );
-        },
-      ),
     );
   }
 }
