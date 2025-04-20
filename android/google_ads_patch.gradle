@@ -1,0 +1,17 @@
+// Google Mobile Ads plugin namespace fix
+// This script adds the missing namespace to the Google Mobile Ads plugin
+// which is required for Android Gradle Plugin 8.7.0+
+
+// Wait until all projects are evaluated to ensure we can access the plugin
+gradle.projectsEvaluated {
+    rootProject.allprojects { project ->
+        // Check if this is the Google Mobile Ads project
+        if (project.name == 'google_mobile_ads') {
+            // Make sure the project has an Android extension before trying to set namespace
+            if (project.hasProperty('android')) {
+                project.android.namespace = 'com.google.android.gms.ads'
+                println "✓ Added namespace 'com.google.android.gms.ads' to Google Mobile Ads plugin"
+            }
+        }
+    }
+}

@@ -7,6 +7,9 @@ import '../models/conversation_message.dart';
 import '../../../features/prompt/presentation/prompt_selector.dart';
 import '../../../features/prompt/presentation/prompt_management_screen.dart';
 import '../../../features/prompt/services/prompt_service.dart' as prompt_service;
+import '../../../features/subscription/widgets/ad_banner_widget.dart';
+import '../../../features/subscription/services/ad_manager.dart';
+import '../../../features/subscription/services/subscription_service.dart';
 import 'assistant_management_screen.dart';
 import '../../auth/presentation/login_page.dart';
 
@@ -28,9 +31,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final ChatService _chatService = ChatService();
   final prompt_service.PromptService _promptService = prompt_service.PromptService();
+  final SubscriptionService _subscriptionService = SubscriptionService(
+    AuthService(),
+    Logger(),
+  );
+  final AdManager _adManager = AdManager();
   final Logger _logger = Logger();
   
   bool _isLoading = true;
+  bool _isPro = false;
   String _errorMessage = '';
   List<ConversationMessage> _messages = [];
   String? _currentConversationId;
@@ -54,6 +63,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _fetchConversationHistory();
+    _checkSubscriptionStatus();
     
     _sendButtonController = AnimationController(
       vsync: this,
@@ -203,6 +213,20 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
   
+  Future<void> _checkSubscriptionStatus() async {
+    try {
+      final subscription = await _subscriptionService.getCurrentSubscription();
+      setState(() {
+        _isPro = subscription.isPro;
+      });
+    } catch (e) {
+      _logger.e('Error checking subscription status: $e');
+      setState(() {
+        _isPro = false; // Default to free user if error
+      });
+    }
+  }
+  
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
@@ -274,6 +298,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             _isTyping = false;
             _sendButtonController.reverse();
           });
+          
+          // Show an ad occasionally for free users
+          if (!_isPro) {
+            _adManager.maybeShowInterstitialAd(context);
+          }
         }
       } catch (e) {
         _logger.e('Error sending message (first attempt): $e');
@@ -448,11 +477,26 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             tooltip: 'Manage Assistants',
           ),
           
-          // Prompt management button (NEW)
+          // Prompt management button
           IconButton(
             onPressed: _openPromptManagement,
             icon: const Icon(Icons.format_quote),
             tooltip: 'Manage Prompts',
+          ),
+          
+          // Subscription status & management
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).pushNamed('/subscription').then((_) {
+                // Refresh Pro status when returning from subscription screen
+                _checkSubscriptionStatus();
+              });
+            },
+            icon: Icon(
+              _isPro ? Icons.workspace_premium : Icons.star_outline,
+              color: _isPro ? Colors.amber : null,
+            ),
+            tooltip: _isPro ? 'Pro Subscription Active' : 'Upgrade to Pro',
           ),
           
           // Bot management button
@@ -506,6 +550,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         onTap: () => FocusScope.of(context).unfocus(),
         child: Column(
           children: [
+            // Show ad banner for free users
+            if (!_isPro) const AdBannerWidget(),
+            
             // Empty conversation state or loading state
             if (_isLoading || (_errorMessage.isNotEmpty && _messages.isEmpty) || _messages.isEmpty)
               Expanded(
@@ -702,7 +749,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 ),
               ),
             
-            // Prompt selector (NEW)
+            // Prompt selector
             PromptSelector(
               onPromptSelected: _handlePromptSelected,
               isVisible: _showPromptSelector,

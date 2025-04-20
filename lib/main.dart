@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
+// Commented out to fix build issues
+// import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'core/services/auth/auth_service.dart';
 import 'features/auth/presentation/login_page.dart';
 import 'features/chat/presentation/chat_screen.dart';
 import 'features/bot/presentation/bot_list_screen.dart';
+import 'features/subscription/services/ad_manager.dart';
+import 'features/subscription/presentation/subscription_info_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize the auth service
   await AuthService().initializeService();
+  
+  // Initialize MobileAds - Commented out to fix build issues
+  // await MobileAds.instance.initialize();
+  
+  // Initialize AdManager
+  await AdManager().initialize();
   
   runApp(const MyApp());
 }
@@ -190,6 +200,7 @@ class _MyAppState extends State<MyApp> {
       routes: {
         '/': (context) => AuthCheckPage(toggleTheme: toggleTheme, isDarkMode: _isDarkMode),
         '/bots': (context) => const BotListScreen(),
+        '/subscription': (context) => const SubscriptionInfoScreen(),
       },
     );
   }
