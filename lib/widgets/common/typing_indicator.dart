@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 
 /// A typing indicator widget that shows animated dots
 /// to indicate the other person is typing
 class TypingIndicator extends StatefulWidget {
   final bool isTyping;
-  
+
   /// Creates a typing indicator
   ///
   /// [isTyping] determines whether the typing animation is active
   const TypingIndicator({
-    super.key,
+    Key? key,
     required this.isTyping,
-  });
+  }) : super(key: key);
 
   @override
   State<TypingIndicator> createState() => _TypingIndicatorState();
@@ -21,18 +20,16 @@ class TypingIndicator extends StatefulWidget {
 class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderStateMixin {
   late AnimationController _appearanceController;
   late Animation<double> _indicatorSpaceAnimation;
-  
   late AnimationController _controller;
-  
+
   @override
   void initState() {
     super.initState();
-    
     _appearanceController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 500),
     );
-    
+
     _indicatorSpaceAnimation = CurvedAnimation(
       parent: _appearanceController,
       curve: Curves.easeOut,
@@ -90,8 +87,8 @@ class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderSt
           padding: const EdgeInsets.all(12.0),
           decoration: BoxDecoration(
             color: isDarkTheme
-                ? Colors.grey[800]?.withValues(alpha: 64)
-                : Colors.grey[200]?.withValues(alpha: 64),
+                ? Colors.grey[800]?.withAlpha(64)
+                : Colors.grey[200]?.withAlpha(64),
             borderRadius: BorderRadius.circular(16.0),
           ),
           child: AnimatedBuilder(
@@ -104,21 +101,19 @@ class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderSt
                   final delay = index * 0.2;
                   
                   // Use the controller's value to calculate opacity and scale
-                  final progress = _calculateProgress(delay);
-                  final opacity = _calculateOpacity(progress);
-                  final scale = _calculateScale(progress);
+                  final value = _calculateAnimationValue(delay);
                   
-                  return Transform.scale(
-                    scale: scale,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                    child: Transform.scale(
+                      scale: 0.8 + (value * 0.4),
                       child: Opacity(
-                        opacity: opacity,
+                        opacity: 0.4 + (value * 0.6),
                         child: Container(
                           width: 8.0,
                           height: 8.0,
                           decoration: BoxDecoration(
-                            color: dotColor,
+                            color: theme.colorScheme.primary.withAlpha(200),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -134,23 +129,12 @@ class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderSt
     );
   }
   
-  // Calculate wave progress for each dot, offset by delay
-  double _calculateProgress(double delay) {
-    final relativeValue = (_controller.value - delay) % 1.0;
-    return relativeValue < 0.0 ? relativeValue + 1.0 : relativeValue;
-  }
-  
-  // Map progress to opacity value
-  double _calculateOpacity(double progress) {
-    if (progress < 0.5) {
-      return 0.5 + progress;
-    } else {
-      return 1.5 - progress; 
-    }
-  }
-  
-  // Map progress to scale value
-  double _calculateScale(double progress) {
-    return 0.5 + (progress * 0.5);
+  double _calculateAnimationValue(double delay) {
+    // Calculate a value between 0 and 1 for each dot based on the delay
+    final progress = _controller.value;
+    final value = (progress - delay) % 1.0;
+    
+    // Ensure the value is between 0 and 1
+    return value < 0 ? value + 1.0 : value;
   }
 }

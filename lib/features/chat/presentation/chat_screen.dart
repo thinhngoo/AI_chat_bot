@@ -413,7 +413,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final bool isDarkMode = theme.brightness == Brightness.dark;
+    final bool isDarkMode = widget.isDarkMode;
     
     return Scaffold(
       appBar: AppBar(
@@ -459,62 +459,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 },
               ),
             ),
-          ),
-          
-          // Email composer button
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).pushNamed('/email');
-            },
-            icon: const Icon(Icons.email),
-            tooltip: 'Email Composer',
-          ),
-          
-          // Manage assistants button
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const AssistantManagementScreen(),
-                ),
-              ).then((_) {
-                // Refresh data when returning from assistant management
-                _fetchConversationHistory();
-              });
-            },
-            icon: const Icon(Icons.smart_toy),
-            tooltip: 'Manage Assistants',
-          ),
-          
-          // Prompt management button
-          IconButton(
-            onPressed: _openPromptManagement,
-            icon: const Icon(Icons.format_quote),
-            tooltip: 'Manage Prompts',
-          ),
-          
-          // Subscription status & management
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).pushNamed('/subscription').then((_) {
-                // Refresh Pro status when returning from subscription screen
-                _checkSubscriptionStatus();
-              });
-            },
-            icon: Icon(
-              _isPro ? Icons.workspace_premium : Icons.star_outline,
-              color: _isPro ? Colors.amber : null,
-            ),
-            tooltip: _isPro ? 'Pro Subscription Active' : 'Upgrade to Pro',
-          ),
-          
-          // Bot management button
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).pushNamed('/bots');
-            },
-            icon: const Icon(Icons.adb),
-            tooltip: 'Manage Bots',
           ),
           
           // Light/dark mode toggle
@@ -640,6 +584,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     itemBuilder: (context, index) {
                       final message = _messages[index];
                       final isUserMessage = message.query != null && message.query.isNotEmpty;
+                      final messageText = isUserMessage ? message.query : message.answer;
                       final messageDate = DateTime.fromMillisecondsSinceEpoch(message.createdAt * 1000);
                       final isLastMessage = index == _messages.length - 1;
                       
@@ -673,7 +618,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                 
                                 Flexible(
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
                                       color: isUserMessage
                                           ? theme.colorScheme.primary
@@ -681,14 +626,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                               ? const Color(0xFF2D2D2D)
                                               : Colors.white,
                                       borderRadius: BorderRadius.only(
-                                        topLeft: const Radius.circular(16),
-                                        topRight: const Radius.circular(16),
+                                        topLeft: const Radius.circular(20),
+                                        topRight: const Radius.circular(20),
                                         bottomLeft: isUserMessage 
-                                            ? const Radius.circular(16) 
+                                            ? const Radius.circular(20) 
                                             : const Radius.circular(4),
                                         bottomRight: isUserMessage 
                                             ? const Radius.circular(4) 
-                                            : const Radius.circular(16),
+                                            : const Radius.circular(20),
                                       ),
                                       boxShadow: [
                                         BoxShadow(
@@ -699,11 +644,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                       ],
                                     ),
                                     child: SelectableText(
-                                      isUserMessage ? message.query : message.answer,
+                                      messageText,
                                       style: TextStyle(
                                         color: isUserMessage
                                             ? theme.colorScheme.onPrimary
                                             : theme.colorScheme.onSurface,
+                                        height: 1.4,
                                       ),
                                     ),
                                   ),
@@ -782,6 +728,20 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    // Voice input button
+                    IconButton(
+                      icon: Icon(
+                        Icons.mic_none,
+                        color: theme.colorScheme.primary,
+                      ),
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Voice input coming soon')),
+                        );
+                      },
+                    ),
+                    
+                    // Message text field
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
@@ -826,7 +786,22 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    
+                    // Image upload button
+                    IconButton(
+                      icon: Icon(
+                        Icons.image_outlined,
+                        color: theme.colorScheme.primary,
+                      ),
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Image upload coming soon')),
+                        );
+                      },
+                    ),
+                    
+                    // Send button
+                    const SizedBox(width: 4),
                     AnimatedBuilder(
                       animation: _sendButtonController,
                       builder: (context, child) {

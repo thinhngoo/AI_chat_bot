@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 // Commented out to fix build issues
 // import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'core/services/auth/auth_service.dart';
-import 'features/auth/presentation/login_page.dart';
-import 'features/chat/presentation/chat_screen.dart';
-import 'features/bot/presentation/bot_list_screen.dart';
+import 'features/auth/presentation/auth_check_screen.dart';
 import 'features/subscription/services/ad_manager.dart';
-import 'features/subscription/presentation/subscription_info_screen.dart';
-import 'features/email/presentation/email_screen.dart';
+import 'features/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,11 +50,12 @@ class _MyAppState extends State<MyApp> {
           colorScheme: ColorScheme.dark(
             primary: Colors.teal,
             secondary: Colors.tealAccent,
-            surface: const Color(0xFF1E1E1E),
+            surface: const Color(0xFF121212),  // Darker surface
             surfaceContainerHighest: Colors.black.withAlpha(30),
+            background: const Color(0xFF0A0A0A),  // Near-black background
           ),
           appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF1D1D1D),
+            backgroundColor: Color(0xFF121212),  // Darker app bar
             elevation: 0,
             centerTitle: false,
             titleTextStyle: TextStyle(
@@ -198,80 +196,8 @@ class _MyAppState extends State<MyApp> {
         ),
       initialRoute: '/',
       routes: {
-        '/': (context) => AuthCheckPage(toggleTheme: toggleTheme, isDarkMode: _isDarkMode),
-        '/bots': (context) => const BotListScreen(),
-        '/subscription': (context) => const SubscriptionInfoScreen(),
-        '/email': (context) => EmailScreen(toggleTheme: toggleTheme, isDarkMode: _isDarkMode),
+        '/': (context) => AuthCheckScreen(toggleTheme: toggleTheme, isDarkMode: _isDarkMode),
       },
-    );
-  }
-}
-
-class AuthCheckPage extends StatefulWidget {
-  final Function toggleTheme;
-  final bool isDarkMode;
-  
-  const AuthCheckPage({
-    super.key, 
-    required this.toggleTheme,
-    required this.isDarkMode
-  });
-
-  @override
-  State<AuthCheckPage> createState() => _AuthCheckPageState();
-}
-
-class _AuthCheckPageState extends State<AuthCheckPage> {
-  final AuthService _authService = AuthService();
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkAuthStatus();
-  }
-
-  Future<void> _checkAuthStatus() async {
-    try {
-      final isLoggedIn = await _authService.isLoggedIn();
-      
-      if (!mounted) return;
-      
-      if (isLoggedIn) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => ChatScreen(
-            toggleTheme: widget.toggleTheme,
-            isDarkMode: widget.isDarkMode,
-          )),
-        );
-      } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: _isLoading
-            ? const CircularProgressIndicator()
-            : const Text('Checking authentication status...'),
-      ),
     );
   }
 }
