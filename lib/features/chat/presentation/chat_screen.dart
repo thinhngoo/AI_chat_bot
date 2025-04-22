@@ -410,13 +410,300 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
   
+  Widget _buildChatHistoryDrawer(ThemeData theme, bool isDarkMode) {
+    return Drawer(
+      backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,
+      child: Column(
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Lịch sử chat',
+                    style: TextStyle(
+                      color: theme.colorScheme.onPrimary,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // New chat button
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _currentConversationId = null;
+                        _messages = [];
+                      });
+                      Navigator.pop(context); // Close the drawer
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Đã bắt đầu cuộc trò chuyện mới'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Chat mới'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDarkMode ? Colors.teal.shade700 : Colors.white,
+                      foregroundColor: isDarkMode ? Colors.white : theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<dynamic>>(
+              future: _chatService.getConversations(
+                assistantId: _selectedAssistantId,
+                limit: 20,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading chat history: ${snapshot.error}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                
+                final conversations = snapshot.data ?? [];
+                
+                if (conversations.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 48,
+                          color: theme.colorScheme.onSurface.withOpacity(0.4),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Chưa có cuộc trò chuyện nào',
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                
+                return ListView.builder(
+                  itemCount: conversations.length,
+                  itemBuilder: (context, index) {
+                    final conversation = conversations[index];
+                    final conversationId = conversation['id'];
+                    final title = _getConversationTitle(conversation);
+                    final timestamp = _getConversationTimestamp(conversation);
+                    final isActive = conversationId == _currentConversationId;
+                    
+                    return ListTile(
+                      title: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      subtitle: Text(
+                        timestamp,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      leading: CircleAvatar(
+                        backgroundColor: isActive 
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.primary.withOpacity(0.2),
+                        child: Icon(
+                          Icons.chat,
+                          color: isActive 
+                            ? theme.colorScheme.onPrimary
+                            : theme.colorScheme.primary,
+                          size: 18,
+                        ),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () {
+                          // Delete conversation
+                          _showDeleteConfirmation(context, conversationId);
+                        },
+                      ),
+                      onTap: () {
+                        // Load the conversation
+                        _loadConversation(conversationId);
+                        Navigator.pop(context); // Close the drawer
+                      },
+                      tileColor: isActive ? (isDarkMode ? Colors.teal.shade900.withOpacity(0.2) : Colors.teal.shade50) : null,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(isActive ? 8 : 0),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  String _getConversationTitle(dynamic conversation) {
+    // Extract first message as title or use default
+    final firstMessage = conversation['first_message'] as String? ?? '';
+    if (firstMessage.isNotEmpty) {
+      return firstMessage.length > 30 
+          ? '${firstMessage.substring(0, 27)}...'
+          : firstMessage;
+    }
+    
+    // Use created date as fallback
+    final createdAt = conversation['created_at'] ?? 0;
+    final date = DateTime.fromMillisecondsSinceEpoch(createdAt * 1000);
+    return 'Conversation on ${date.day}/${date.month}/${date.year}';
+  }
+  
+  String _getConversationTimestamp(dynamic conversation) {
+    final createdAt = conversation['created_at'] ?? 0;
+    final date = DateTime.fromMillisecondsSinceEpoch(createdAt * 1000);
+    final now = DateTime.now();
+    
+    // If today, show time
+    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+      return '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    }
+    
+    // If this year, show month and day
+    if (date.year == now.year) {
+      return '${date.day}/${date.month}';
+    }
+    
+    // Show full date
+    return '${date.day}/${date.month}/${date.year}';
+  }
+  
+  void _showDeleteConfirmation(BuildContext context, String conversationId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa cuộc trò chuyện'),
+        content: const Text('Bạn có chắc chắn muốn xóa cuộc trò chuyện này không?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                // Delete conversation API call would go here
+                // await _chatService.deleteConversation(conversationId);
+                
+                // For now, just refresh the UI
+                if (conversationId == _currentConversationId) {
+                  setState(() {
+                    _currentConversationId = null;
+                    _messages = [];
+                  });
+                }
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Đã xóa cuộc trò chuyện')),
+                );
+                
+                // Close and reopen drawer to refresh
+                Navigator.pop(context);
+                Scaffold.of(context).openDrawer();
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Không thể xóa: $e')),
+                );
+              }
+            },
+            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _loadConversation(String conversationId) async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+      
+      final response = await _chatService.getConversationHistory(
+        conversationId,
+        assistantId: _selectedAssistantId,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _currentConversationId = conversationId;
+          _messages = response.items;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      _logger.e('Error loading conversation: $e');
+      
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load conversation: $e';
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading conversation: $e')),
+        );
+      }
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool isDarkMode = widget.isDarkMode;
     
     return Scaffold(
+      drawer: _buildChatHistoryDrawer(theme, isDarkMode),
       appBar: AppBar(
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            tooltip: 'Chat History',
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+        ),
         title: const Text(
           'AI Chat Bot',
           style: TextStyle(fontWeight: FontWeight.bold),
