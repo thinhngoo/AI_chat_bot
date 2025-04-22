@@ -74,10 +74,6 @@ class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderSt
     final theme = Theme.of(context);
     final isDarkTheme = theme.brightness == Brightness.dark;
     
-    Color dotColor = isDarkTheme 
-        ? Colors.white.withAlpha(204) 
-        : Colors.black.withAlpha(204);
-    
     return SizeTransition(
       sizeFactor: _indicatorSpaceAnimation,
       axisAlignment: -1.0,

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'core/services/auth/auth_service.dart';
 import 'features/auth/presentation/auth_check_screen.dart';
 import 'features/subscription/services/ad_manager.dart';
-import 'features/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -123,16 +123,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _messageFocusNode.requestFocus();
   }
   
-  // Open the prompt management screen
-  void _openPromptManagement() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const PromptManagementScreen(),
-      ),
-    );
-  }
-  
   Future<void> _fetchConversationHistory() async {
     try {
       setState(() {
@@ -281,9 +271,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               final answer = (response['answers'] as List<dynamic>).first;
               final conversationId = response['conversation_id'] ?? _currentConversationId;
 
-              if (_currentConversationId == null) {
-                _currentConversationId = conversationId;
-              }
+              _currentConversationId ??= conversationId;
               
               if (_messages.isNotEmpty) {
                 _messages[0] = ConversationMessage(
@@ -496,13 +484,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         Icon(
                           Icons.chat_bubble_outline,
                           size: 48,
-                          color: theme.colorScheme.onSurface.withOpacity(0.4),
+                          color: theme.colorScheme.onSurface.withAlpha(102),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'Chưa có cuộc trò chuyện nào',
                           style: TextStyle(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withAlpha(153),
                           ),
                         ),
                       ],
@@ -536,7 +524,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                       leading: CircleAvatar(
                         backgroundColor: isActive 
                           ? theme.colorScheme.primary
-                          : theme.colorScheme.primary.withOpacity(0.2),
+                          : theme.colorScheme.primary.withAlpha(51),
                         child: Icon(
                           Icons.chat,
                           color: isActive 
@@ -557,7 +545,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         _loadConversation(conversationId);
                         Navigator.pop(context); // Close the drawer
                       },
-                      tileColor: isActive ? (isDarkMode ? Colors.teal.shade900.withOpacity(0.2) : Colors.teal.shade50) : null,
+                      tileColor: isActive ? (isDarkMode ? Colors.teal.shade900.withAlpha(51) : Colors.teal.shade50) : null,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(isActive ? 8 : 0),
                       ),
@@ -806,7 +794,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                             Text(
                               'Loading conversations...',
                               style: TextStyle(
-                                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                color: theme.colorScheme.onSurface.withAlpha(179),
                               ),
                             ),
                           ],
@@ -841,7 +829,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                 Icon(
                                   Icons.chat_bubble_outline,
                                   size: 64,
-                                  color: theme.colorScheme.primary.withOpacity(0.5),
+                                  color: theme.colorScheme.primary.withAlpha(128),
                                 ),
                                 const SizedBox(height: 16),
                                 const Text(
@@ -924,7 +912,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
+                                          color: Colors.black.withAlpha(13),
                                           blurRadius: 5,
                                           offset: const Offset(0, 2),
                                         ),
@@ -969,7 +957,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                 '${messageDate.hour}:${messageDate.minute.toString().padLeft(2, '0')}',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                  color: theme.colorScheme.onSurface.withAlpha(153),
                                 ),
                               ),
                             ),
@@ -1004,7 +992,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withAlpha(13),
                     blurRadius: 5,
                     offset: const Offset(0, -1),
                   ),
@@ -1119,7 +1107,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                   : Icon(
                                       Icons.send_rounded,
                                       color: _messageController.text.trim().isEmpty
-                                          ? theme.colorScheme.onPrimary.withOpacity(0.5)
+                                          ? theme.colorScheme.onPrimary.withAlpha(128)
                                           : theme.colorScheme.onPrimary,
                                       size: 24,
                                     ),

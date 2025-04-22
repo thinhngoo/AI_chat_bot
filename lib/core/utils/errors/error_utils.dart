@@ -123,12 +123,9 @@ class ErrorUtils {
 /// Custom action for error snackbars
 class StackBarAction extends SnackBarAction {
   const StackBarAction({
-    required String label,
-    required VoidCallback onPressed,
+    required super.label,
+    required super.onPressed,
     super.key,
     super.textColor = Colors.white,
-  }) : super(
-    label: label,
-    onPressed: onPressed,
-  );
+  });
 }

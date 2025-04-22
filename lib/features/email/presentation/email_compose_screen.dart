@@ -40,6 +40,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
   String _errorMessage = '';
   EmailDraft _emailDraft = EmailDraft();
   bool _showCcBcc = false;
+  bool _hasUnsavedChanges = false;
   
   @override
   void initState() {
@@ -214,13 +215,37 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
     final isDarkMode = widget.isDarkMode;
     
     return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) async {
-        if (didPop) return;
+      canPop: !_hasUnsavedChanges || _isSaving,
+      onPopInvokedWithResult: (didPop, result) async {
+        // If we're already popping or there's no unsaved changes, allow the pop
+        if (didPop || !_hasUnsavedChanges || _isSaving) {
+          return;
+        }
         
-        final shouldPop = await _onWillPop();
+        // Show confirmation dialog
+        final shouldPop = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Discard changes?'),
+            content: const Text(
+              'You have unsaved changes that will be lost if you leave this screen.'
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('CANCEL'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('DISCARD'),
+              ),
+            ],
+          ),
+        ) ?? false;
+        
+        // If user confirmed, allow the pop
         if (shouldPop && context.mounted) {
-          Navigator.of(context).pop();
+          Navigator.pop(context);
         }
       },
       child: Scaffold(

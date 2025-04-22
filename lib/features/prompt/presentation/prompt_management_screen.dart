@@ -360,6 +360,48 @@ class _PromptManagementScreenState extends State<PromptManagementScreen> with Si
     }
   }
   
+  Future<void> _deletePrompt(String promptId) async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+      
+      await _promptService.deletePrompt(promptId);
+      
+      if (!mounted) return; // Added mounted check
+      
+      setState(() {
+        _privatePrompts.removeWhere((prompt) => prompt.id == promptId);
+        _isLoading = false;
+      });
+      
+      // Use mounted check before using BuildContext
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Prompt deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      _logger.e('Error deleting prompt: $e');
+      
+      if (!mounted) return; // Added mounted check
+      
+      setState(() {
+        _isLoading = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  
   void _handleEditPrompt(Prompt prompt) {
     Navigator.push(
       context, 
