@@ -80,6 +80,13 @@ class _PromptListScreenState extends State<PromptListScreen> {
     }).toList();
   }
   
+  void _promptTapped(Prompt prompt) {
+    if (widget.onPromptSelected != null) {
+      widget.onPromptSelected!(prompt);
+      Navigator.of(context).pop();
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -230,7 +237,7 @@ class _PromptListScreenState extends State<PromptListScreen> {
                                 separatorBuilder: (context, index) => const SizedBox(height: 12),
                                 itemBuilder: (context, index) {
                                   final prompt = _filteredPrompts[index];
-                                  return _buildPromptCard(context, prompt);
+                                  return _buildPromptCard(prompt);
                                 },
                               ),
           ),
@@ -239,7 +246,7 @@ class _PromptListScreenState extends State<PromptListScreen> {
     );
   }
   
-  Widget _buildPromptCard(BuildContext context, Prompt prompt) {
+  Widget _buildPromptCard(Prompt prompt) {
     final theme = Theme.of(context);
     
     return Card(
@@ -247,158 +254,87 @@ class _PromptListScreenState extends State<PromptListScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: InkWell(
-        onTap: widget.onPromptSelected != null 
-            ? () => widget.onPromptSelected!(prompt) 
-            : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title and favorite action
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      prompt.title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  if (widget.onPromptToggleFavorite != null)
-                    IconButton(
-                      icon: Icon(
-                        prompt.isFavorite ? Icons.star : Icons.star_border,
-                        color: prompt.isFavorite ? Colors.amber : Colors.grey,
-                      ),
-                      onPressed: () => widget.onPromptToggleFavorite!(prompt),
-                      tooltip: prompt.isFavorite ? 'Remove from favorites' : 'Add to favorites',
-                    ),
-                ],
-              ),
-              
-              // Category chip
-              if (prompt.category.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Chip(
-                    label: Text(
-                      prompt.category,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                    ),
-                    backgroundColor: theme.colorScheme.primary,
-                    padding: EdgeInsets.zero,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              
-              // Description
-              Text(
-                prompt.description,
-                style: TextStyle(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
-                ),
-              ),
-              
-              const SizedBox(height: 12),
-              
-              // Content preview
-              Container(
-                padding: const EdgeInsets.all(8.0),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: theme.colorScheme.outline.withOpacity(0.3),
-                  ),
-                ),
-                child: Text(
-                  prompt.content.length > 100
-                      ? '${prompt.content.substring(0, 100)}...'
-                      : prompt.content,
-                  style: TextStyle(
-                    color: theme.colorScheme.onSurface.withOpacity(0.8),
-                    fontSize: 14,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ),
-              
-              // Actions row (only for editable prompts)
-              if (widget.isEditable && (widget.onEdit != null || widget.onDelete != null))
-                Padding(
-                  padding: const EdgeInsets.only(top: 12.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      if (widget.onEdit != null)
-                        TextButton.icon(
-                          onPressed: () => widget.onEdit!(prompt),
-                          icon: const Icon(Icons.edit, size: 16),
-                          label: const Text('Edit'),
-                        ),
-                      if (widget.onDelete != null) ...[
-                        const SizedBox(width: 8),
-                        TextButton.icon(
-                          onPressed: () => widget.onDelete!(prompt),
-                          icon: const Icon(Icons.delete, size: 16),
-                          label: const Text('Delete'),
-                          style: TextButton.styleFrom(foregroundColor: Colors.red),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              
-              // Author and date info
-              if (prompt.authorName != null || prompt.createdAt != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Row(
-                    children: [
-                      if (prompt.authorName != null) ...[
-                        Icon(
-                          Icons.person,
-                          size: 12,
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          prompt.authorName!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: theme.colorScheme.onSurface.withOpacity(0.5),
-                          ),
-                        ),
-                      ],
-                      const Spacer(),
-                      Icon(
-                        Icons.calendar_today,
-                        size: 12,
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatDate(prompt.updatedAt),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+      child: ListTile(
+        onTap: () {
+          if (widget.onPromptSelected != null) {
+            widget.onPromptSelected!(prompt);
+            Navigator.of(context).pop();
+          }
+        },
+        title: Text(
+          prompt.title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
           ),
         ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (prompt.category.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Chip(
+                  label: Text(
+                    prompt.category,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
+                  backgroundColor: theme.colorScheme.primary,
+                  padding: EdgeInsets.zero,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            Text(
+              prompt.description,
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: theme.colorScheme.outline.withOpacity(0.3),
+                ),
+              ),
+              child: Text(
+                prompt.content.length > 100
+                    ? '${prompt.content.substring(0, 100)}...'
+                    : prompt.content,
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface.withOpacity(0.8),
+                  fontSize: 14,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+          ],
+        ),
+        trailing: widget.isEditable && (widget.onEdit != null || widget.onDelete != null)
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.onEdit != null)
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () => widget.onEdit!(prompt),
+                    ),
+                  if (widget.onDelete != null)
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () => widget.onDelete!(prompt),
+                      color: Colors.red,
+                    ),
+                ],
+              )
+            : null,
       ),
     );
   }

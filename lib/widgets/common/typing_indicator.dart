@@ -22,7 +22,7 @@ class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderSt
   late AnimationController _appearanceController;
   late Animation<double> _indicatorSpaceAnimation;
   
-  late List<AnimationController> _dotControllers;
+  late AnimationController _controller;
   
   @override
   void initState() {
@@ -39,25 +39,14 @@ class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderSt
       reverseCurve: Curves.easeIn,
     ).drive(Tween<double>(begin: 0.0, end: 1.0));
     
-    _dotControllers = List.generate(
-      3,
-      (index) => AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 600),
-      ),
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
     );
-    
-    // Start dot animations with staggered delays
-    for (int i = 0; i < _dotControllers.length; i++) {
-      Future.delayed(Duration(milliseconds: i * 200), () {
-        if (mounted && widget.isTyping) {
-          _dotControllers[i].repeat(reverse: true);
-        }
-      });
-    }
     
     if (widget.isTyping) {
       _appearanceController.forward();
+      _controller.repeat(reverse: true);
     }
   }
   
@@ -68,19 +57,10 @@ class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderSt
     if (widget.isTyping != oldWidget.isTyping) {
       if (widget.isTyping) {
         _appearanceController.forward();
-        
-        for (int i = 0; i < _dotControllers.length; i++) {
-          Future.delayed(Duration(milliseconds: i * 200), () {
-            if (mounted && widget.isTyping) {
-              _dotControllers[i].repeat(reverse: true);
-            }
-          });
-        }
+        _controller.repeat(reverse: true);
       } else {
         _appearanceController.reverse();
-        for (final controller in _dotControllers) {
-          controller.reset();
-        }
+        _controller.reset();
       }
     }
   }
@@ -88,16 +68,18 @@ class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderSt
   @override
   void dispose() {
     _appearanceController.dispose();
-    for (final controller in _dotControllers) {
-      controller.dispose();
-    }
+    _controller.dispose();
     super.dispose();
   }
   
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
+    final isDarkTheme = theme.brightness == Brightness.dark;
+    
+    Color dotColor = isDarkTheme 
+        ? Colors.white.withAlpha(204) 
+        : Colors.black.withAlpha(204);
     
     return SizeTransition(
       sizeFactor: _indicatorSpaceAnimation,
@@ -107,34 +89,68 @@ class _TypingIndicatorState extends State<TypingIndicator> with TickerProviderSt
         child: Container(
           padding: const EdgeInsets.all(12.0),
           decoration: BoxDecoration(
-            color: isDarkMode
-                ? Colors.grey[800]?.withOpacity(0.25)
-                : Colors.grey[200]?.withOpacity(0.25),
+            color: isDarkTheme
+                ? Colors.grey[800]?.withValues(alpha: 64)
+                : Colors.grey[200]?.withValues(alpha: 64),
             borderRadius: BorderRadius.circular(16.0),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < 3; i++)
-                AnimatedBuilder(
-                  animation: _dotControllers[i],
-                  builder: (context, child) {
-                    final bounceValue = math.sin(_dotControllers[i].value * math.pi);
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 2.0),
-                      height: 8.0 + bounceValue * 4.0,
-                      width: 8.0 + bounceValue * 4.0,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.6 + (0.4 * bounceValue)),
-                        shape: BoxShape.circle,
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(3, (index) {
+                  // Calculate a delay for each dot
+                  final delay = index * 0.2;
+                  
+                  // Use the controller's value to calculate opacity and scale
+                  final progress = _calculateProgress(delay);
+                  final opacity = _calculateOpacity(progress);
+                  final scale = _calculateScale(progress);
+                  
+                  return Transform.scale(
+                    scale: scale,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                      child: Opacity(
+                        opacity: opacity,
+                        child: Container(
+                          width: 8.0,
+                          height: 8.0,
+                          decoration: BoxDecoration(
+                            color: dotColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
                       ),
-                    );
-                  },
-                ),
-            ],
+                    ),
+                  );
+                }),
+              );
+            },
           ),
         ),
       ),
     );
+  }
+  
+  // Calculate wave progress for each dot, offset by delay
+  double _calculateProgress(double delay) {
+    final relativeValue = (_controller.value - delay) % 1.0;
+    return relativeValue < 0.0 ? relativeValue + 1.0 : relativeValue;
+  }
+  
+  // Map progress to opacity value
+  double _calculateOpacity(double progress) {
+    if (progress < 0.5) {
+      return 0.5 + progress;
+    } else {
+      return 1.5 - progress; 
+    }
+  }
+  
+  // Map progress to scale value
+  double _calculateScale(double progress) {
+    return 0.5 + (progress * 0.5);
   }
 }

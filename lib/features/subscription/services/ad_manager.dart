@@ -8,45 +8,42 @@ import 'package:logger/logger.dart';
 
 class AdManager {
   // Dependencies
-  final AdService _adService;
+  AdService? _adService;
   final SubscriptionService _subscriptionService;
   final Logger _logger = Logger();
-  
-  // Constants for ad frequency
-  static const int _minMessagesBetweenAds = 5;
-  static const double _adProbability = 0.3; // 30% chance
   
   // Track ad statistics
   int _messagesSinceLastAd = 0;
   DateTime _lastAdShownTime = DateTime.now().subtract(const Duration(hours: 1));
   
-  // Constructor
-  AdManager({
-    AdService? adService,
-    SubscriptionService? subscriptionService,
-    AuthService? authService,
-  }) : _adService = adService ?? AdService(),
-       _subscriptionService = subscriptionService ?? SubscriptionService(
-         authService ?? AuthService(),
-         Logger(),
-       );
+  // Singleton instance
+  static final AdManager _instance = AdManager._internal();
+  
+  // Factory constructor
+  factory AdManager() {
+    return _instance;
+  }
+  
+  // Internal constructor
+  AdManager._internal()
+    : _subscriptionService = SubscriptionService(
+        AuthService(),
+        Logger(),
+      );
   
   // Initialize ad system
   Future<void> initialize() async {
-    // Ad functionality is disabled
-    _logger.d('Ad functionality is disabled');
+    _logger.d('Ad functionality initializing');
     await _loadAdStats();
   }
   
-  // Check if user is eligible to see an ad
-  Future<bool> _shouldShowAd() async {
-    // Ad functionality is disabled
-    return false;
+  // Initialize ad service with context when available
+  void initializeAdService(BuildContext context) {
+    _adService = AdService(context);
   }
   
   // Maybe show an interstitial ad based on frequency rules
   Future<void> maybeShowInterstitialAd(BuildContext context) async {
-    // Ad functionality is disabled
     _logger.d('Ad functionality is disabled');
   }
   

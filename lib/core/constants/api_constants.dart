@@ -20,6 +20,10 @@ class ApiConstants {
   static const String aiChatConversations = '/api/v1/ai-chat/conversations';
   static const String aiChatConversationMessages = '/api/v1/ai-chat/conversations/{conversationId}/messages';
   
+  // Email Composition endpoints
+  static const String emailSuggestReply = '/api/v1/email/suggest-reply';
+  static const String emailComposeResponse = '/api/v1/email/compose-response';
+  
   // Bot Management endpoints
   static const String botsEndpoint = '/api/v1/assistants';
   static const String botById = '/api/v1/assistants/{botId}';

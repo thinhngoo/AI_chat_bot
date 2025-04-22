@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-// Commented out to fix build issues
+// Temporarily disabled due to build issues
 // import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../services/ad_service.dart';
 import '../services/subscription_service.dart';
@@ -14,30 +14,35 @@ class AdBannerWidget extends StatefulWidget {
 }
 
 class _AdBannerWidgetState extends State<AdBannerWidget> {
-  final AdService _adService = AdService();
   final SubscriptionService _subscriptionService = SubscriptionService(
     AuthService(),
     Logger(),
   );
-  
-  // BannerAd? _bannerAd;
-  var _bannerAd;
-  bool _isAdLoaded = false;
+
+  AdService? _adService;
   bool _isPro = false;
-  
+  bool _isAdLoaded = false;
+
   @override
   void initState() {
     super.initState();
-    // _loadBannerAd(); // Disabled to fix build issues
     _checkSubscriptionStatus();
   }
   
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Initialize ad service with context
+    _adService = AdService(context);
+    _loadAd();
+  }
+
+  @override
   void dispose() {
-    // _bannerAd?.dispose(); // Commented out to fix build issues
+    _adService?.dispose();
     super.dispose();
   }
-  
+
   Future<void> _checkSubscriptionStatus() async {
     try {
       final subscription = await _subscriptionService.getCurrentSubscription();
@@ -56,32 +61,19 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
     }
   }
   
-  void _loadBannerAd() {
-    /* Commented out to fix build issues
-    _bannerAd = _adService.createBannerAd(
-      size: AdSize.banner,
-      onAdLoaded: (Ad ad) {
-        if (mounted) {
-          setState(() {
-            _isAdLoaded = true;
-          });
-        }
-      },
-      onAdFailedToLoad: (Ad ad, LoadAdError error) {
-        ad.dispose();
-        if (mounted) {
-          setState(() {
-            _bannerAd = null;
-            _isAdLoaded = false;
-          });
-        }
-        debugPrint('Banner ad failed to load: $error');
-      },
-    );
+  Future<void> _loadAd() async {
+    if (_isPro || _adService == null) return;
     
-    _bannerAd?.load();
-    */
-    debugPrint('Banner ad loading disabled');
+    try {
+      await _adService!.loadBannerAd();
+      if (mounted) {
+        setState(() {
+          _isAdLoaded = _adService!.isBannerAdLoaded;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading banner ad: $e');
+    }
   }
 
   @override
@@ -91,14 +83,18 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
       return const SizedBox.shrink();
     }
     
-    // Show a dummy ad placeholder instead of real ad
+    // Instead of using AdWidget which is unavailable, show a placeholder
     return Container(
+      width: double.infinity,
       height: 50,
-      color: Colors.grey[200],
       alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.grey.withValues(alpha: 40),
+        border: Border.all(color: Colors.grey.withValues(alpha: 100), width: 0.5),
+      ),
       child: const Text(
-        'Ad Banner Placeholder (Ad functionality disabled)',
-        style: TextStyle(fontSize: 12),
+        'Ad Banner Placeholder',
+        style: TextStyle(fontStyle: FontStyle.italic),
       ),
     );
   }

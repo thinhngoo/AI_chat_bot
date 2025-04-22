@@ -75,6 +75,7 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
   
   Future<void> _toggleKnowledgeBase(KnowledgeData knowledge) async {
     final isAdded = _botKnowledgeBaseIds.contains(knowledge.id);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     
     try {
       setState(() {
@@ -94,10 +95,10 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
           _botKnowledgeBaseIds.remove(knowledge.id);
         });
         
-        // Use context after confirming mounted
+        // Use scaffoldMessenger instead of context
         if (!mounted) return;
         
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text('Removed "${knowledge.name}" from bot knowledge'),
             backgroundColor: Colors.orange,
@@ -125,7 +126,7 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
         
         if (!mounted) return;
         
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text('Added "${knowledge.name}" to bot knowledge'),
             backgroundColor: Colors.green,
@@ -137,7 +138,7 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
       
       if (!mounted) return;
       
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
           backgroundColor: Colors.red,
@@ -159,9 +160,6 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
         _uploadProgress = 0.0;
       });
       
-      // Simple dialog to explain we don't have file picking implemented
-      if (!mounted) return;
-      
       // Update progress to simulate activity
       setState(() {
         _uploadProgress = 0.3;
@@ -182,21 +180,17 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
       });
       
       await Future.delayed(const Duration(milliseconds: 300));
-      
-      // Store the context before the async gap
       if (!mounted) return;
-      final currentContext = context;
       
       setState(() {
         _uploadProgress = 1.0;
       });
       
       await Future.delayed(const Duration(milliseconds: 300));
-      
-      // Use the stored context instead of the class instance context
       if (!mounted) return;
+      
       showDialog(
-        context: currentContext,
+        context: context,
         builder: (context) => AlertDialog(
           title: Row(
             children: const [

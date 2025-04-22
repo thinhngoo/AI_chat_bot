@@ -461,6 +461,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             ),
           ),
           
+          // Email composer button
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).pushNamed('/email');
+            },
+            icon: const Icon(Icons.email),
+            tooltip: 'Email Composer',
+          ),
+          
           // Manage assistants button
           IconButton(
             onPressed: () {

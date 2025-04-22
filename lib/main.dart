@@ -7,6 +7,7 @@ import 'features/chat/presentation/chat_screen.dart';
 import 'features/bot/presentation/bot_list_screen.dart';
 import 'features/subscription/services/ad_manager.dart';
 import 'features/subscription/presentation/subscription_info_screen.dart';
+import 'features/email/presentation/email_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,8 +54,7 @@ class _MyAppState extends State<MyApp> {
             primary: Colors.teal,
             secondary: Colors.tealAccent,
             surface: const Color(0xFF1E1E1E),
-            background: const Color(0xFF121212),
-            surfaceContainerHighest: Colors.black.withOpacity(0.12),
+            surfaceContainerHighest: Colors.black.withAlpha(30),
           ),
           appBarTheme: const AppBarTheme(
             backgroundColor: Color(0xFF1D1D1D),
@@ -81,7 +81,7 @@ class _MyAppState extends State<MyApp> {
               borderSide: const BorderSide(color: Colors.teal, width: 2),
             ),
             filled: true,
-            fillColor: Colors.grey.shade800.withOpacity(0.5),
+            fillColor: Colors.grey.shade800.withAlpha(128),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
           elevatedButtonTheme: ElevatedButtonThemeData(
@@ -129,7 +129,7 @@ class _MyAppState extends State<MyApp> {
             primary: Colors.teal,
             secondary: Colors.tealAccent,
             surface: Colors.white,
-            surfaceContainerHighest: Colors.grey.withOpacity(0.08),
+            surfaceContainerHighest: Colors.grey.withAlpha(20),
           ),
           appBarTheme: const AppBarTheme(
             backgroundColor: Colors.white,
@@ -201,6 +201,7 @@ class _MyAppState extends State<MyApp> {
         '/': (context) => AuthCheckPage(toggleTheme: toggleTheme, isDarkMode: _isDarkMode),
         '/bots': (context) => const BotListScreen(),
         '/subscription': (context) => const SubscriptionInfoScreen(),
+        '/email': (context) => EmailScreen(toggleTheme: toggleTheme, isDarkMode: _isDarkMode),
       },
     );
   }

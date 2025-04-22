@@ -82,7 +82,7 @@ class JarvisApiService {
       }
     } catch (e) {
       _logger.e('Sign-up error: $e');
-      rethrow; // Changed from throw e
+      rethrow;
     }
   }
 

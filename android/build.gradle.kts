@@ -1,5 +1,4 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
-// Comment out Google Mobile Ads patch to fix build issues
 // apply(from = "google_ads_patch.gradle")
 
 allprojects {
