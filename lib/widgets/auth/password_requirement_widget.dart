@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_colors.dart';
 
 class PasswordRequirementWidget extends StatelessWidget {
   final String password;
   final bool showTitle;
+  final bool darkMode;
 
   const PasswordRequirementWidget({
     super.key,
     required this.password,
     this.showTitle = false,
+    this.darkMode = false,
   });
 
   @override
@@ -35,23 +38,51 @@ class PasswordRequirementWidget extends StatelessWidget {
       },
     ];
 
+    // Split requirements into two columns
+    final firstColumnReqs = requirements.sublist(0, 3);
+    final secondColumnReqs = requirements.sublist(3);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showTitle) ...[
-          const Text(
+          Text(
             'Yêu cầu mật khẩu:',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,
+              color: darkMode ? AppColors.muted : Colors.grey[800],
             ),
           ),
           const SizedBox(height: 8),
         ],
-        ...requirements.map((req) => _buildRequirement(
-          req['text'] as String,
-          req['isMet'] as bool,
-        )),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: firstColumnReqs
+                    .map((req) => _buildRequirement(
+                          req['text'] as String,
+                          req['isMet'] as bool,
+                        ))
+                    .toList(),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: secondColumnReqs
+                    .map((req) => _buildRequirement(
+                          req['text'] as String,
+                          req['isMet'] as bool,
+                        ))
+                    .toList(),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -63,15 +94,25 @@ class PasswordRequirementWidget extends StatelessWidget {
         children: [
           Icon(
             isMet ? Icons.check_circle : Icons.circle_outlined,
-            color: isMet ? Colors.green : Colors.grey,
+            color: isMet
+                ? Colors.green
+                : darkMode
+                    ? AppColors.muted
+                    : Colors.grey,
             size: 16,
           ),
           const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              color: isMet ? Colors.green : Colors.grey[700],
-              fontSize: 12,
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: isMet
+                    ? Colors.green
+                    : darkMode
+                        ? AppColors.muted
+                        : Colors.grey[700],
+                fontSize: 12,
+              ),
             ),
           ),
         ],
