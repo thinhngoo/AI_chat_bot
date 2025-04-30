@@ -1,166 +1,54 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 
-/// Email field widget with standard validation and styling
-class EmailField extends StatelessWidget {
-  final TextEditingController controller;
-  final String? errorText;
-  final Function(String)? onChanged;
-  final Function(String)? onSubmit;
+/// Background with synthwave grid and gradient overlay for auth screens
+class AuthBackground extends StatelessWidget {
+  final Widget child;
 
-  const EmailField({
+  const AuthBackground({
     super.key,
-    required this.controller,
-    this.errorText,
-    this.onChanged,
-    this.onSubmit,
+    required this.child,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: TextInputType.emailAddress,
-      autocorrect: false,
-      decoration: InputDecoration(
-        labelText: 'Email',
-        hintText: 'Nhập địa chỉ email của bạn',
-        prefixIcon: const Icon(Icons.email),
-        border: const OutlineInputBorder(),
-        errorText: errorText,
-      ),
-      onChanged: onChanged,
-      onSubmitted: onSubmit,
-    );
-  }
-}
+    final size = MediaQuery.of(context).size;
 
-/// Password field widget with standard styling and visibility toggle
-class PasswordField extends StatefulWidget {
-  final TextEditingController controller;
-  final String labelText;
-  final String? errorText;
-  final Function(String)? onChanged;
-  final Function()? onSubmit;
-  final bool darkMode;
-
-  const PasswordField({
-    super.key,
-    required this.controller,
-    required this.labelText,
-    this.errorText,
-    this.onChanged,
-    this.onSubmit,
-    this.darkMode = false,
-  });
-
-  @override
-  State<PasswordField> createState() => _PasswordFieldState();
-}
-
-class _PasswordFieldState extends State<PasswordField> {
-  bool _obscureText = true;
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.darkMode) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.input,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: widget.errorText != null
-                    ? AppColors.error
-                    : AppColors.border,
-                width: 1,
-              ),
-            ),
-            child: TextField(
-              controller: widget.controller,
-              obscureText: _obscureText,
-              style: TextStyle(color: AppColors.inputForeground),
-              cursorColor: AppColors.foreground,
-              decoration: InputDecoration(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                border: InputBorder.none,
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: AppColors.ring,
-                    width: 1.5,
-                  ),
-                ),
-                hintText: 'Nhập mật khẩu của bạn',
-                hintStyle: TextStyle(
-                  color: AppColors.muted,
-                ),
-                prefixIcon: Icon(
-                  Icons.lock_outline,
-                  color: AppColors.muted,
-                ),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureText
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    color: AppColors.muted,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _obscureText = !_obscureText;
-                    });
-                  },
-                  tooltip: _obscureText ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
-                ),
-              ),
-              onChanged: widget.onChanged,
-              onSubmitted:
-                  widget.onSubmit != null ? (_) => widget.onSubmit!() : null,
-            ),
-          ),
-          if (widget.errorText != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0, left: 12.0),
-              child: Text(
-                widget.errorText!,
-                style: TextStyle(
-                  color: AppColors.error,
-                  fontSize: 12,
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SizedBox(
+        width: size.width,
+        height: size.height,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background grid image
+            Container(
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/images/synthwave.png'),
+                  fit: BoxFit.cover,
                 ),
               ),
             ),
-        ],
-      );
-    }
-
-    return TextField(
-      controller: widget.controller,
-      obscureText: _obscureText,
-      decoration: InputDecoration(
-        labelText: widget.labelText,
-        prefixIcon: const Icon(Icons.lock),
-        border: const OutlineInputBorder(),
-        errorText: widget.errorText,
-        suffixIcon: IconButton(
-          icon: Icon(
-            _obscureText ? Icons.visibility : Icons.visibility_off,
-          ),
-          onPressed: () {
-            setState(() {
-              _obscureText = !_obscureText;
-            });
-          },
-          tooltip: _obscureText ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
+            // Gradient overlay for better visibility
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withAlpha(179), // 0.7 opacity
+                    Colors.black.withAlpha(128), // 0.5 opacity
+                  ],
+                ),
+              ),
+            ),
+            // Content
+            SafeArea(child: child),
+          ],
         ),
       ),
-      onChanged: widget.onChanged,
-      onSubmitted: widget.onSubmit != null ? (_) => widget.onSubmit!() : null,
     );
   }
 }
@@ -363,6 +251,126 @@ class SubmitButton extends StatelessWidget {
                 ),
               ),
       ),
+    );
+  }
+}
+
+/// Reusable Terms and Privacy Policy links widget
+class TermsAndPrivacyLinks extends StatelessWidget {
+  final String introText;
+  final bool darkMode;
+
+  const TermsAndPrivacyLinks({
+    super.key,
+    this.introText = 'Bằng cách đăng nhập, bạn đồng ý với',
+    this.darkMode = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          introText,
+          style: TextStyle(
+            color: AppColors.muted.withAlpha(204),
+            fontSize: 14,
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextButton(
+              onPressed: () {},
+              style: TextButton.styleFrom(
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'Điều khoản',
+                style: TextStyle(
+                  color: AppColors.muted,
+                  decoration: TextDecoration.underline,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Text(
+              'và',
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 14,
+              ),
+            ),
+            TextButton(
+              onPressed: () {},
+              style: TextButton.styleFrom(
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'Chính sách bảo mật',
+                style: TextStyle(
+                  color: AppColors.muted,
+                  decoration: TextDecoration.underline,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Reusable auth link widget for switching between login and register screens
+class AuthLinkWidget extends StatelessWidget {
+  final String questionText;
+  final String linkText;
+  final VoidCallback onPressed;
+  final bool darkMode;
+
+  const AuthLinkWidget({
+    super.key,
+    required this.questionText,
+    required this.linkText,
+    required this.onPressed,
+    this.darkMode = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          questionText,
+          style: TextStyle(
+            color: AppColors.muted,
+          ),
+        ),
+        TextButton(
+          style: TextButton.styleFrom(
+            minimumSize: Size.zero,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          onPressed: onPressed,
+          child: Text(
+            linkText,
+            style: TextStyle(
+              color: AppColors.foreground,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

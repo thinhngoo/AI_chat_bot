@@ -170,201 +170,99 @@ class _LoginPageState extends State<LoginPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // Background grid image
-          Positioned.fill(
-            child: Transform(
-              transform: Matrix4.identity()
-                ..scale(1.2, 1.2) // Scale up the image a bit
-                ..translate(
-                    0.0, -260.0), // Move it up by adjusting this Y value
-              alignment: Alignment.center,
-              child: Image.asset(
-                'assets/images/synthwave.png',
-                fit: BoxFit.cover,
+    return AuthBackground(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24.0, 60.0, 24.0, 24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // App title
+            Text(
+              'AI Chat Bot',
+              style: TextStyle(
+                fontSize: 60,
+                fontWeight: FontWeight.bold,
+                color: AppColors.foreground,
               ),
             ),
-          ),
-          // Overlay with slight transparency
-          Positioned.fill(
-            child: Container(
-              color: AppColors.background.withAlpha(191),
-            ),
-          ),
-          // Content
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24.0, 60.0, 24.0, 24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // App title
-                  Text(
-                    'AI Chat Bot',
+            // Description
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Trải nghiệm ngay',
+                  style: TextStyle(
+                    fontSize: 24,
+                    color: AppColors.muted,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+                SizedBox(
+                  width: 15,
+                  child: Text(
+                    _showCursor ? '_' : ' ',
                     style: TextStyle(
-                      fontSize: 60,
+                      fontSize: 24,
+                      color: AppColors.muted,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 60),
+
+            // Login Form
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    'Đăng nhập',
+                    style: TextStyle(
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: AppColors.foreground,
                     ),
                   ),
-                  // Description
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Trải nghiệm ngay',
-                        style: TextStyle(
-                          fontSize: 24,
-                          color: AppColors.muted,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      SizedBox(
-                        width: 15,
-                        child: Text(
-                          _showCursor ? '_' : ' ',
-                          style: TextStyle(
-                            fontSize: 24,
-                            color: AppColors.muted,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 60),
-
-                  // Login Form
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Đăng nhập',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.foreground,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        _buildEmailField(),
-                        const SizedBox(height: 16),
-                        _buildPasswordField(),
-                        const SizedBox(height: 24),
-                        _buildLoginButton(),
-                      ],
-                    ),
-                  ),
-
                   const SizedBox(height: 20),
-
-                  // Register link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Chưa có tài khoản?',
-                        style: TextStyle(
-                          color: AppColors.muted,
-                        ),
-                      ),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          minimumSize: Size.zero,
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const SignupPage(),
-                            ),
-                          );
-                        },
-                        child: Text(
-                          'Đăng ký ngay',
-                          style: TextStyle(
-                            color: AppColors.foreground,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // Terms and Privacy Policy
-                  Text(
-                    'Bằng cách đăng nhập, bạn đồng ý với',
-                    style: TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextButton(
-                        onPressed: () {},
-                        style: TextButton.styleFrom(
-                          minimumSize: Size.zero,
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Điều khoản',
-                          style: TextStyle(
-                            color: AppColors.muted,
-                            decoration: TextDecoration.underline,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        'và',
-                        style: TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 14,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {},
-                        style: TextButton.styleFrom(
-                          minimumSize: Size.zero,
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Chính sách bảo mật',
-                          style: TextStyle(
-                            color: AppColors.muted,
-                            decoration: TextDecoration.underline,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildEmailField(),
+                  const SizedBox(height: 16),
+                  _buildPasswordField(),
+                  const SizedBox(height: 24),
+                  _buildLoginButton(),
                 ],
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 20),
+
+            // Register link
+            AuthLinkWidget(
+              questionText: 'Chưa có tài khoản?',
+              linkText: 'Đăng ký ngay',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SignupPage(),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 30),
+
+            // Terms and Privacy Policy
+            TermsAndPrivacyLinks(
+              introText: 'Bằng cách đăng nhập, bạn đồng ý với',
+              darkMode: true,
+            ),
+          ],
+        ),
       ),
     );
   }

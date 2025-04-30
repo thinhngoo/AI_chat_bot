@@ -173,52 +173,29 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // Background grid image
-          Positioned.fill(
-            child: Transform(
-              transform: Matrix4.identity()
-                ..scale(1.2, 1.2)
-                ..translate(0.0, -260.0),
-              alignment: Alignment.center,
-              child: Image.asset(
-                'assets/images/synthwave.png',
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          // Overlay with slight transparency
-          Positioned.fill(
-            child: Container(
-              color: AppColors.background.withAlpha(191),
-            ),
-          ),
-          // Content
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24.0, 40.0, 24.0, 24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // App title
-                  Text(
-                    'AI Chat Bot',
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.foreground,
+    return AuthBackground(
+      child: SafeArea(
+        child: _isSuccess
+            ? Center(child: _buildSuccessCard())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24.0, 40.0, 24.0, 40.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // App title
+                    Text(
+                      'AI Chat Bot',
+                      style: TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.foreground,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 40),
-                  _isSuccess ? _buildSuccessCard() : _buildSignupForm(),
-                ],
+                    const SizedBox(height: 40),
+                    _buildSignupForm(),
+                  ],
+                ),
               ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -306,94 +283,23 @@ class _SignupPageState extends State<SignupPage> {
           isLoading: _isLoading,
           darkMode: true,
         ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Đã có tài khoản?',
-              style: TextStyle(
-                color: AppColors.muted,
+        const SizedBox(height: 20),
+        AuthLinkWidget(
+          questionText: 'Đã có tài khoản?',
+          linkText: 'Đăng nhập ngay',
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const LoginPage(),
               ),
-            ),
-            TextButton(
-              style: TextButton.styleFrom(
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const LoginPage(),
-                  ),
-                );
-              },
-              child: Text(
-                'Đăng nhập ngay',
-                style: TextStyle(
-                  color: AppColors.foreground,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+            );
+          },
         ),
         const SizedBox(height: 30),
-        Text(
-          'Bằng cách đăng ký, bạn đồng ý với',
-          style: TextStyle(
-            color: AppColors.muted,
-            fontSize: 14,
-          ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextButton(
-              onPressed: () {},
-              style: TextButton.styleFrom(
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                'Điều khoản',
-                style: TextStyle(
-                  color: AppColors.muted,
-                  decoration: TextDecoration.underline,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            Text(
-              'và',
-              style: TextStyle(
-                color: AppColors.muted,
-                fontSize: 14,
-              ),
-            ),
-            TextButton(
-              onPressed: () {},
-              style: TextButton.styleFrom(
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                'Chính sách bảo mật',
-                style: TextStyle(
-                  color: AppColors.muted,
-                  decoration: TextDecoration.underline,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ],
+        TermsAndPrivacyLinks(
+          introText: 'Bằng cách đăng ký, bạn đồng ý với',
+          darkMode: true,
         ),
       ],
     );
@@ -402,11 +308,6 @@ class _SignupPageState extends State<SignupPage> {
   Widget _buildSuccessCard() {
     return Container(
       padding: const EdgeInsets.all(24.0),
-      decoration: BoxDecoration(
-        color: AppColors.input,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
