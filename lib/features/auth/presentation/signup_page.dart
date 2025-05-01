@@ -4,8 +4,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/utils/validators/input_validator.dart';
 import '../../../widgets/auth/auth_widgets.dart';
-import '../../../widgets/auth/password_requirement_widget.dart';
-import '../../../widgets/auth/password_strength_bar.dart';
 import 'login_page.dart';
 
 class SignupPage extends StatefulWidget {
@@ -173,7 +171,10 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
+    final AppColors colors = AppColors.dark;
+
     return AuthBackground(
+      darkMode: true,
       child: SafeArea(
         child: _isSuccess
             ? Center(child: _buildSuccessCard())
@@ -188,11 +189,34 @@ class _SignupPageState extends State<SignupPage> {
                       style: TextStyle(
                         fontSize: 48,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.foreground,
+                        color: colors.foreground,
                       ),
                     ),
+
                     const SizedBox(height: 40),
+
                     _buildSignupForm(),
+
+                    const SizedBox(height: 20),
+
+                    AuthLinkWidget(
+                      questionText: 'Đã có tài khoản?',
+                      linkText: 'Đăng nhập ngay',
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginPage(),
+                          ),
+                        );
+                      },
+                      darkMode: true,
+                    ),
+                    const SizedBox(height: 30),
+                    TermsAndPrivacyLinks(
+                      introText: 'Bằng cách đăng ký, bạn đồng ý với',
+                      darkMode: true,
+                    ),
                   ],
                 ),
               ),
@@ -201,6 +225,8 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildSignupForm() {
+    final AppColors colors = AppColors.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -209,7 +235,7 @@ class _SignupPageState extends State<SignupPage> {
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: AppColors.foreground,
+            color: colors.foreground,
           ),
         ),
         const SizedBox(height: 24),
@@ -250,7 +276,7 @@ class _SignupPageState extends State<SignupPage> {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: PasswordStrengthBar(
+          child: _PasswordStrengthBar(
             password: _passwordController.text,
             darkMode: true,
           ),
@@ -258,7 +284,7 @@ class _SignupPageState extends State<SignupPage> {
         const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: PasswordRequirementWidget(
+          child: _PasswordRequirementWidget(
             password: _passwordController.text,
             showTitle: true,
             darkMode: true,
@@ -283,29 +309,13 @@ class _SignupPageState extends State<SignupPage> {
           isLoading: _isLoading,
           darkMode: true,
         ),
-        const SizedBox(height: 20),
-        AuthLinkWidget(
-          questionText: 'Đã có tài khoản?',
-          linkText: 'Đăng nhập ngay',
-          onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const LoginPage(),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 30),
-        TermsAndPrivacyLinks(
-          introText: 'Bằng cách đăng ký, bạn đồng ý với',
-          darkMode: true,
-        ),
       ],
     );
   }
 
   Widget _buildSuccessCard() {
+    final AppColors colors = AppColors.dark;
+
     return Container(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -322,7 +332,7 @@ class _SignupPageState extends State<SignupPage> {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppColors.foreground,
+              color: colors.foreground,
             ),
             textAlign: TextAlign.center,
           ),
@@ -331,7 +341,7 @@ class _SignupPageState extends State<SignupPage> {
             'Tài khoản ${_emailController.text} đã được tạo thành công.',
             style: TextStyle(
               fontSize: 16,
-              color: AppColors.muted,
+              color: colors.muted,
             ),
             textAlign: TextAlign.center,
           ),
@@ -360,5 +370,239 @@ class _SignupPageState extends State<SignupPage> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+}
+
+/// Password strength indicator bar
+class _PasswordStrengthBar extends StatelessWidget {
+  final String password;
+  final bool darkMode;
+
+  const _PasswordStrengthBar({
+    required this.password,
+    this.darkMode = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Calculate strength score from 0 to 100
+    final int strengthScore = _calculateStrengthScore(password);
+    final String strengthText = _getStrengthText(strengthScore);
+    final Color strengthColor = _getStrengthColor(strengthScore);
+    final AppColors colors = darkMode ? AppColors.dark : AppColors.light;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: strengthScore / 100,
+              backgroundColor: darkMode ? colors.border : Colors.grey[300],
+              valueColor: AlwaysStoppedAnimation<Color>(strengthColor),
+              minHeight: 4,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 2.0),
+          child: Row(
+            children: [
+              Text(
+                'Độ mạnh: ',
+                style: TextStyle(
+                  color: darkMode ? colors.muted : Colors.grey[700],
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                strengthText,
+                style: TextStyle(
+                  color: strengthColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Strength bar
+      ],
+    );
+  }
+
+  // Calculate password strength as a score from 0 to 100
+  int _calculateStrengthScore(String password) {
+    if (password.isEmpty) return 0;
+
+    int score = 0;
+
+    // Length contribution - up to 25 points
+    score += password.length * 2;
+    if (score > 25) score = 25;
+
+    // Character variety - up to 75 additional points
+    if (password.contains(RegExp(r'[A-Z]'))) score += 15; // Uppercase
+    if (password.contains(RegExp(r'[a-z]'))) score += 15; // Lowercase
+    if (password.contains(RegExp(r'[0-9]'))) score += 15; // Digits
+    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+      score += 20; // Special chars
+    }
+
+    // Bonus for combination of character types - up to 10 additional points
+    int typesCount = 0;
+    if (password.contains(RegExp(r'[A-Z]'))) typesCount++;
+    if (password.contains(RegExp(r'[a-z]'))) typesCount++;
+    if (password.contains(RegExp(r'[0-9]'))) typesCount++;
+    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) typesCount++;
+
+    if (typesCount >= 3) score += 10;
+
+    return score > 100 ? 100 : score;
+  }
+
+  String _getStrengthText(int score) {
+    if (score == 0) return 'Chưa nhập';
+    if (score < 30) return 'Rất yếu';
+    if (score < 50) return 'Yếu';
+    if (score < 70) return 'Trung bình';
+    if (score < 90) return 'Mạnh';
+    return 'Rất mạnh';
+  }
+
+  Color _getStrengthColor(int score) {
+    final AppColors colors = darkMode ? AppColors.dark : AppColors.light;
+    if (score == 0) return darkMode ? colors.muted : Colors.grey;
+    if (score < 30) return Colors.red;
+    if (score < 50) return Colors.orange;
+    if (score < 70) return Colors.yellow;
+    if (score < 90) return Colors.lightGreen;
+    return Colors.green;
+  }
+}
+
+/// Password requirement checker widget
+class _PasswordRequirementWidget extends StatelessWidget {
+  final String password;
+  final bool showTitle;
+  final bool darkMode;
+
+  const _PasswordRequirementWidget({
+    required this.password,
+    this.showTitle = false,
+    this.darkMode = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors colors = darkMode ? AppColors.dark : AppColors.light;
+
+    final requirements = [
+      {
+        'text': 'Ít nhất 8 ký tự',
+        'isMet': password.length >= 8,
+      },
+      {
+        'text': 'Ít nhất 1 chữ hoa',
+        'isMet': password.contains(RegExp(r'[A-Z]')),
+      },
+      {
+        'text': 'Ít nhất 1 chữ thường',
+        'isMet': password.contains(RegExp(r'[a-z]')),
+      },
+      {
+        'text': 'Ít nhất 1 chữ số',
+        'isMet': password.contains(RegExp(r'[0-9]')),
+      },
+      {
+        'text': 'Ít nhất 1 ký tự đặc biệt',
+        'isMet': password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]')),
+      },
+    ];
+
+    // Split requirements into two columns
+    final firstColumnReqs = requirements.sublist(0, 3);
+    final secondColumnReqs = requirements.sublist(3);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showTitle) ...[
+          Text(
+            'Yêu cầu mật khẩu:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: darkMode ? colors.muted : Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: firstColumnReqs
+                    .map((req) => _buildRequirement(
+                          req['text'] as String,
+                          req['isMet'] as bool,
+                          colors,
+                        ))
+                    .toList(),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: secondColumnReqs
+                    .map((req) => _buildRequirement(
+                          req['text'] as String,
+                          req['isMet'] as bool,
+                          colors,
+                        ))
+                    .toList(),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRequirement(String text, bool isMet, AppColors colors) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
+      child: Row(
+        children: [
+          Icon(
+            isMet ? Icons.check_circle : Icons.circle_outlined,
+            color: isMet
+                ? Colors.green
+                : darkMode
+                    ? colors.muted
+                    : Colors.grey,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: isMet
+                    ? Colors.green
+                    : darkMode
+                        ? colors.muted
+                        : Colors.grey[700],
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

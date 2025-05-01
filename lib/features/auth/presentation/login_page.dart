@@ -170,7 +170,10 @@ class _LoginPageState extends State<LoginPage>
 
   @override
   Widget build(BuildContext context) {
+    final AppColors colors = AppColors.dark;
+
     return AuthBackground(
+      darkMode: true,
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24.0, 60.0, 24.0, 24.0),
         child: Column(
@@ -182,9 +185,10 @@ class _LoginPageState extends State<LoginPage>
               style: TextStyle(
                 fontSize: 60,
                 fontWeight: FontWeight.bold,
-                color: AppColors.foreground,
+                color: colors.foreground,
               ),
             ),
+
             // Description
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -193,7 +197,7 @@ class _LoginPageState extends State<LoginPage>
                   'Trải nghiệm ngay',
                   style: TextStyle(
                     fontSize: 24,
-                    color: AppColors.muted,
+                    color: colors.muted,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -203,7 +207,7 @@ class _LoginPageState extends State<LoginPage>
                     _showCursor ? '_' : ' ',
                     style: TextStyle(
                       fontSize: 24,
-                      color: AppColors.muted,
+                      color: colors.muted,
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -225,7 +229,7 @@ class _LoginPageState extends State<LoginPage>
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.foreground,
+                      color: colors.foreground,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -240,7 +244,6 @@ class _LoginPageState extends State<LoginPage>
 
             const SizedBox(height: 20),
 
-            // Register link
             AuthLinkWidget(
               questionText: 'Chưa có tài khoản?',
               linkText: 'Đăng ký ngay',
@@ -252,11 +255,11 @@ class _LoginPageState extends State<LoginPage>
                   ),
                 );
               },
+              darkMode: true,
             ),
 
             const SizedBox(height: 30),
 
-            // Terms and Privacy Policy
             TermsAndPrivacyLinks(
               introText: 'Bằng cách đăng nhập, bạn đồng ý với',
               darkMode: true,

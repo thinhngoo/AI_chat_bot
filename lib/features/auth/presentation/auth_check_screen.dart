@@ -42,14 +42,18 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
         );
       } else {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
+          MaterialPageRoute(
+            builder: (context) => const LoginPage(),
+          ),
         );
       }
     } catch (e) {
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const LoginPage()),
+        MaterialPageRoute(
+          builder: (context) => const LoginPage(),
+        ),
       );
     } finally {
       if (mounted) {
@@ -62,16 +66,20 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final AppColors colors =
+        widget.isDarkMode ? AppColors.dark : AppColors.light;
+
     return AuthBackground(
+      darkMode: widget.isDarkMode,
       child: Center(
         child: _isLoading
             ? CircularProgressIndicator(
-                color: AppColors.foreground,
+                color: colors.foreground,
               )
-            : const Text(
+            : Text(
                 'Checking authentication...',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: colors.foreground,
                   fontSize: 18,
                 ),
               ),
