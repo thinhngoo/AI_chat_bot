@@ -12,6 +12,7 @@ abstract class AppColors {
   Color get secondary;
   Color get secondaryForeground;
   Color get accent;
+  Color get accentForeground;
   Color get muted;
 
   // Component colors
@@ -52,7 +53,7 @@ class DarkColors implements AppColors {
 
   // Active colors
   @override
-  final Color primary = const Color(0xFF4F46E5);
+  final Color primary = const Color(0xFF1A8CD8);
   @override
   final Color primaryForeground = const Color(0xFFFFFFFF);
   @override
@@ -60,7 +61,9 @@ class DarkColors implements AppColors {
   @override
   final Color secondaryForeground = const Color(0xFFFFFFFF);
   @override
-  final Color accent = const Color(0xFF6366F1);
+  final Color accent = const Color(0xFFFFFFFF);
+  @override
+  final Color accentForeground = const Color(0xFF0A0A0A);
   @override
   final Color muted = const Color(0xFF7F868C);
 
@@ -104,13 +107,13 @@ class LightColors implements AppColors {
 
   // Main colors
   @override
-  final Color background = const Color(0xFFF8F9FA);
+  final Color background = const Color(0xFFF2F4F7);
   @override
-  final Color foreground = const Color(0xFF0A0A0A);
+  final Color foreground = const Color(0xFF0F1419);
 
   // Active colors
   @override
-  final Color primary = const Color(0xFF4F46E5);
+  final Color primary = const Color(0xFF1A8CD8);
   @override
   final Color primaryForeground = const Color(0xFFFFFFFF);
   @override
@@ -118,19 +121,21 @@ class LightColors implements AppColors {
   @override
   final Color secondaryForeground = const Color(0xFF1B1C20);
   @override
-  final Color accent = const Color(0xFF6366F1);
+  final Color accent = const Color(0xFF000000);
+  @override
+  final Color accentForeground = const Color(0xFFFFFFFF);
   @override
   final Color muted = const Color(0xFF9CA3AF);
 
   // Button colors
   @override
-  final Color card = const Color(0xFFE9ECEF);
+  final Color card = const Color(0xFFFFFFFF);
   @override
-  final Color cardForeground = const Color(0xFF1B1C20);
+  final Color cardForeground = const Color(0xFF0F1419);
   @override
-  final Color button = const Color(0xFFE9ECEF);
+  final Color button = const Color(0xFFFFFFFF);
   @override
-  final Color buttonForeground = const Color(0xFF1B1C20);
+  final Color buttonForeground = const Color(0xFF0F1419);
   @override
   final Color input = const Color(0xFFFFFFFF);
   @override

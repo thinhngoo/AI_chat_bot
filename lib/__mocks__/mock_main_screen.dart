@@ -46,34 +46,54 @@ class _MockMainScreenState extends State<MockMainScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _getIconForIndex(_currentIndex),
-              size: 120,
-              color: colors.primary,
+      body: Stack(
+        children: [
+          // Main content
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _getIconForIndex(_currentIndex),
+                  size: 120,
+                  color: colors.primary,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  _screenNames[_currentIndex],
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: colors.primary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'This is a placeholder for the ${_screenNames[_currentIndex].toLowerCase()} screen',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: colors.foreground,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
-            Text(
-              _screenNames[_currentIndex],
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: colors.primary,
+          ),
+
+          // Overlay when menu is open
+          if (_isDialOpen)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isDialOpen = false;
+                  });
+                },
+                child: Container(
+                  color: Colors.black.withAlpha(160),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'This is a placeholder for the ${_screenNames[_currentIndex].toLowerCase()} screen',
-              style: TextStyle(
-                fontSize: 16,
-                color: colors.foreground,
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
       floatingActionButton: _buildSpeedDial(),
     );
@@ -101,18 +121,19 @@ class _MockMainScreenState extends State<MockMainScreen> {
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         if (_isDialOpen) ...[
-          _buildDialOption(Icons.workspace_premium, 'Pro', 4),
-          const SizedBox(height: 10),
+          _buildDialOption(Icons.paid, 'Billing', 4),
+          const SizedBox(height: 16),
           _buildDialOption(Icons.format_quote, 'Prompts', 3),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
           _buildDialOption(Icons.email, 'Email', 2),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
           _buildDialOption(Icons.smart_toy, 'Bots', 1),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
           _buildDialOption(Icons.chat_bubble, 'Chat', 0),
-          const SizedBox(height: 10),
+          const SizedBox(height: 20),
         ],
         FloatingActionButton(
           onPressed: () {
@@ -120,10 +141,10 @@ class _MockMainScreenState extends State<MockMainScreen> {
               _isDialOpen = !_isDialOpen;
             });
           },
-          backgroundColor: colors.primary,
+          backgroundColor: colors.button,
           child: Icon(
             _isDialOpen ? Icons.close : Icons.menu,
-            color: colors.primaryForeground,
+            color: colors.buttonForeground.withAlpha(180),
           ),
         ),
       ],
@@ -134,19 +155,38 @@ class _MockMainScreenState extends State<MockMainScreen> {
     final AppColors colors = _isDarkMode ? AppColors.dark : AppColors.light;
     final isSelected = _currentIndex == index;
 
-    return FloatingActionButton.extended(
-      onPressed: () {
-        setState(() {
-          _currentIndex = index;
-          _isDialOpen = false;
-        });
-      },
-      backgroundColor: isSelected ? colors.primary : colors.button,
-      foregroundColor:
-          isSelected ? colors.primaryForeground : colors.buttonForeground,
-      icon: Icon(icon),
-      label: Text(label),
-      heroTag: 'fab_$index',
+    return SizedBox(
+      width: 240,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white.withAlpha(160),
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(width: 12),
+          FloatingActionButton(
+            onPressed: () {
+              setState(() {
+                _currentIndex = index;
+                _isDialOpen = false;
+              });
+            },
+            backgroundColor: isSelected ? colors.accent : colors.button,
+            heroTag: 'fab_$index',
+            child: Icon(
+              icon,
+              color: isSelected
+                  ? colors.accentForeground
+                  : colors.buttonForeground,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
