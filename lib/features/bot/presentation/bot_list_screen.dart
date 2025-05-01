@@ -12,38 +12,39 @@ class BotListScreen extends StatefulWidget {
   State<BotListScreen> createState() => _BotListScreenState();
 }
 
-class _BotListScreenState extends State<BotListScreen> with SingleTickerProviderStateMixin {
+class _BotListScreenState extends State<BotListScreen>
+    with SingleTickerProviderStateMixin {
   final Logger _logger = Logger();
   final BotService _botService = BotService();
-  
+
   bool _isLoading = true;
   String _errorMessage = '';
   List<AIBot> _bots = [];
   String _searchQuery = '';
-  
+
   // Animation controller for refresh indicator
   late AnimationController _refreshIconController;
-  
+
   final TextEditingController _searchController = TextEditingController();
-  
+
   @override
   void initState() {
     super.initState();
     _fetchBots();
-    
+
     _refreshIconController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
   }
-  
+
   @override
   void dispose() {
     _refreshIconController.dispose();
     _searchController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _fetchBots() async {
     try {
       setState(() {
@@ -51,9 +52,9 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
         _isLoading = true;
         _refreshIconController.repeat();
       });
-      
+
       final bots = await _botService.getBots();
-      
+
       if (mounted) {
         setState(() {
           _bots = bots;
@@ -63,14 +64,14 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
       }
     } catch (e) {
       _logger.e('Error fetching bots: $e');
-      
+
       if (mounted) {
         setState(() {
           _errorMessage = e.toString();
           _isLoading = false;
           _refreshIconController.stop();
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString()}'),
@@ -80,21 +81,21 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
       }
     }
   }
-  
+
   Future<void> _deleteBot(AIBot bot) async {
     try {
       setState(() {
         _isLoading = true;
       });
-      
+
       await _botService.deleteBot(bot.id);
-      
+
       if (mounted) {
         setState(() {
           _bots.removeWhere((b) => b.id == bot.id);
           _isLoading = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Bot "${bot.name}" deleted successfully'),
@@ -112,12 +113,12 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
       }
     } catch (e) {
       _logger.e('Error deleting bot: $e');
-      
+
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error deleting bot: ${e.toString()}'),
@@ -127,23 +128,27 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
       }
     }
   }
-  
+
   void _editBot(AIBot bot) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => BotDetailScreen(botId: bot.id),
-      ),
-    ).then((_) => _fetchBots());
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => BotDetailScreen(botId: bot.id),
+          ),
+        )
+        .then((_) => _fetchBots());
   }
-  
+
   void _createBot() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const CreateBotScreen(),
-      ),
-    ).then((_) => _fetchBots());
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => const CreateBotScreen(),
+          ),
+        )
+        .then((_) => _fetchBots());
   }
-  
+
   // Get filtered bots based on search query
   List<AIBot> get _filteredBots {
     if (_searchQuery.isEmpty) {
@@ -151,15 +156,15 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
     }
     return _bots.where((bot) {
       return bot.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-             bot.description.toLowerCase().contains(_searchQuery.toLowerCase());
+          bot.description.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bot Management'),
@@ -185,21 +190,21 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
                 hintText: 'Search bots...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12.0),
                 ),
                 filled: true,
-                fillColor: isDarkMode 
+                fillColor: isDarkMode
                     ? Colors.grey.shade800.withOpacity(0.5)
                     : Colors.grey.shade50,
               ),
@@ -210,7 +215,7 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
               },
             ),
           ),
-          
+
           // Stats summary
           if (!_isLoading && _errorMessage.isEmpty && _bots.isNotEmpty)
             Padding(
@@ -234,13 +239,14 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
                     avatar: CircleAvatar(
                       backgroundColor: theme.colorScheme.primary,
                       radius: 10,
-                      child: const Icon(Icons.public, size: 12, color: Colors.white),
+                      child: const Icon(Icons.public,
+                          size: 12, color: Colors.white),
                     ),
                   ),
                 ],
               ),
             ),
-          
+
           // Main content
           Expanded(
             child: _isLoading
@@ -278,7 +284,8 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
                                 Icon(
                                   Icons.adb,
                                   size: 72,
-                                  color: theme.colorScheme.primary.withOpacity(0.5),
+                                  color: theme.colorScheme.primary
+                                      .withOpacity(0.5),
                                 ),
                                 const SizedBox(height: 16),
                                 const Text(
@@ -331,7 +338,8 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
                                       'Try a different search term',
                                       style: TextStyle(
                                         fontSize: 16,
-                                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                        color: theme.colorScheme.onSurface
+                                            .withOpacity(0.7),
                                       ),
                                     ),
                                     const SizedBox(height: 16),
@@ -354,7 +362,7 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
                                   itemCount: _filteredBots.length,
                                   itemBuilder: (context, index) {
                                     final bot = _filteredBots[index];
-                                    
+
                                     return BotCard(
                                       bot: bot,
                                       onEdit: () => _editBot(bot),
@@ -368,15 +376,17 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
           ),
         ],
       ),
-      floatingActionButton: !_isLoading && _errorMessage.isEmpty ? FloatingActionButton.extended(
-        onPressed: _createBot,
-        icon: const Icon(Icons.add),
-        label: const Text('Create Bot'),
-        tooltip: 'Create a new bot',
-      ) : null,
+      floatingActionButton: !_isLoading && _errorMessage.isEmpty
+          ? FloatingActionButton.extended(
+              onPressed: _createBot,
+              icon: const Icon(Icons.add),
+              label: const Text('Create Bot'),
+              tooltip: 'Create a new bot',
+            )
+          : null,
     );
   }
-  
+
   Future<void> _confirmDelete(AIBot bot) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -399,7 +409,7 @@ class _BotListScreenState extends State<BotListScreen> with SingleTickerProvider
         ],
       ),
     );
-    
+
     if (confirmed == true) {
       _deleteBot(bot);
     }
@@ -413,7 +423,7 @@ class BotCard extends StatelessWidget {
   final VoidCallback onDelete;
   final ThemeData theme;
   final bool isDarkMode;
-  
+
   const BotCard({
     super.key,
     required this.bot,
@@ -422,13 +432,13 @@ class BotCard extends StatelessWidget {
     required this.theme,
     required this.isDarkMode,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     // Determine model icon and color based on the model name
     IconData modelIcon = Icons.smart_toy;
     Color modelColor = theme.colorScheme.primary;
-    
+
     if (bot.model.contains('gpt')) {
       modelIcon = Icons.psychology;
       modelColor = Colors.green;
@@ -439,7 +449,7 @@ class BotCard extends StatelessWidget {
       modelIcon = Icons.lightbulb;
       modelColor = Colors.orange;
     }
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
       elevation: 2,
@@ -472,7 +482,7 @@ class BotCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  
+
                   // Bot info
                   Expanded(
                     child: Column(
@@ -487,7 +497,9 @@ class BotCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          bot.description.isNotEmpty ? bot.description : 'No description',
+                          bot.description.isNotEmpty
+                              ? bot.description
+                              : 'No description',
                           style: TextStyle(
                             fontSize: 14,
                             color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -496,14 +508,14 @@ class BotCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 8),
-                        
+
                         // Model info and status
                         Row(
                           children: [
                             // Model info
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8, 
+                                horizontal: 8,
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
@@ -530,14 +542,14 @@ class BotCard extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            
+
                             const SizedBox(width: 8),
-                            
+
                             // Published status
                             if (bot.isPublished)
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, 
+                                  horizontal: 8,
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
@@ -564,18 +576,19 @@ class BotCard extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                            
+
                             const Spacer(),
-                            
+
                             // Knowledge base count
                             if (bot.knowledgeBaseIds.isNotEmpty)
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, 
+                                  horizontal: 8,
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: theme.colorScheme.secondary.withOpacity(0.1),
+                                  color: theme.colorScheme.secondary
+                                      .withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Row(
@@ -605,9 +618,9 @@ class BotCard extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Action buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -620,9 +633,9 @@ class BotCard extends StatelessWidget {
                       color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
-                  
+
                   const Spacer(),
-                  
+
                   // Edit button
                   OutlinedButton.icon(
                     onPressed: onEdit,
@@ -635,9 +648,9 @@ class BotCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(width: 8),
-                  
+
                   // Delete button
                   OutlinedButton.icon(
                     onPressed: onDelete,
@@ -659,7 +672,7 @@ class BotCard extends StatelessWidget {
       ),
     );
   }
-  
+
   // Helper method to format dates
   String _formatDate(DateTime date) {
     final now = DateTime.now();

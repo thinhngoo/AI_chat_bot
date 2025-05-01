@@ -18,24 +18,24 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     AuthService(),
     Logger(),
   );
-  
+
   bool _isLoading = true;
   Subscription? _subscription;
-  
+
   @override
   void initState() {
     super.initState();
     _loadSubscriptionStatus();
   }
-  
+
   Future<void> _loadSubscriptionStatus() async {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       final subscription = await _subscriptionService.getCurrentSubscription();
-      
+
       setState(() {
         _subscription = subscription;
         _isLoading = false;
@@ -44,10 +44,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       setState(() {
         _isLoading = false;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load subscription information: $e')),
+          SnackBar(
+              content: Text('Failed to load subscription information: $e')),
         );
       }
     }
@@ -64,7 +65,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           : _buildContent(),
     );
   }
-  
+
   Widget _buildContent() {
     if (_subscription?.isPro == true) {
       // User has an active Pro subscription - show subscription info
@@ -74,7 +75,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       return _buildUpgradePromo();
     }
   }
-  
+
   Widget _buildSubscriptionInfo() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -93,8 +94,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               Text(
                 'Pro Subscription Active',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -122,7 +123,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       ],
     );
   }
-  
+
   Widget _buildUpgradePromo() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -138,7 +139,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          
+
           // Feature highlights
           _buildFeatureItem(
             Icons.speed,
@@ -160,9 +161,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             'Priority Support',
             'Get help when you need it',
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           ElevatedButton(
             onPressed: () {
               Navigator.push(
@@ -186,7 +187,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       ),
     );
   }
-  
+
   Widget _buildFeatureItem(IconData icon, String title, String description) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -232,7 +233,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       ),
     );
   }
-  
+
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
   }

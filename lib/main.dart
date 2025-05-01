@@ -5,6 +5,7 @@ import 'core/services/auth/auth_service.dart';
 import 'core/constants/app_colors.dart';
 import 'features/auth/presentation/auth_check_screen.dart';
 import 'features/subscription/services/ad_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,10 +31,55 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _isDarkMode = false;
+  static const String _isDarkModeKey = 'is_dark_mode';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadThemePreference();
+  }
+
+  Future<void> _loadThemePreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedDarkMode = prefs.getBool(_isDarkModeKey);
+
+      // If there's a saved preference, use it
+      if (savedDarkMode != null) {
+        setState(() {
+          _isDarkMode = savedDarkMode;
+        });
+      } else {
+        // Otherwise, use the device preference
+        final brightness =
+            WidgetsBinding.instance.platformDispatcher.platformBrightness;
+        setState(() {
+          _isDarkMode = brightness == Brightness.dark;
+        });
+      }
+    } catch (e) {
+      // If there's an error, default to system preference
+      final brightness =
+          WidgetsBinding.instance.platformDispatcher.platformBrightness;
+      setState(() {
+        _isDarkMode = brightness == Brightness.dark;
+      });
+    }
+  }
+
+  Future<void> _saveThemePreference(bool isDark) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_isDarkModeKey, isDark);
+    } catch (e) {
+      // Silently handle error
+    }
+  }
 
   void toggleTheme() {
     setState(() {
       _isDarkMode = !_isDarkMode;
+      _saveThemePreference(_isDarkMode);
     });
   }
 
@@ -45,8 +91,7 @@ class _MyAppState extends State<MyApp> {
       theme: _buildTheme(isDark: _isDarkMode),
       initialRoute: '/',
       routes: {
-        '/': (context) =>
-            AuthCheckScreen(toggleTheme: toggleTheme, isDarkMode: _isDarkMode),
+        '/': (context) => AuthCheckScreen(toggleTheme: toggleTheme),
       },
     );
   }
@@ -57,10 +102,13 @@ class _MyAppState extends State<MyApp> {
     return ThemeData(
       useMaterial3: true,
       brightness: isDark ? Brightness.dark : Brightness.light,
+      scaffoldBackgroundColor: colors.background,
 
       // Card theme
       cardTheme: CardTheme(
         elevation: 2,
+        color: colors.card,
+        surfaceTintColor: colors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
 
@@ -68,12 +116,14 @@ class _MyAppState extends State<MyApp> {
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(width: 2),
+          borderSide: BorderSide(width: 2, color: colors.primary),
         ),
         filled: true,
+        fillColor: colors.input,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
@@ -82,6 +132,8 @@ class _MyAppState extends State<MyApp> {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
+          backgroundColor: colors.button,
+          foregroundColor: colors.buttonForeground,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -90,6 +142,8 @@ class _MyAppState extends State<MyApp> {
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
+          foregroundColor: colors.primary,
+          side: BorderSide(color: colors.border),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -98,6 +152,7 @@ class _MyAppState extends State<MyApp> {
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
+          foregroundColor: colors.primary,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -106,27 +161,36 @@ class _MyAppState extends State<MyApp> {
 
       // Dialog theme
       dialogTheme: DialogTheme(
+        backgroundColor: colors.card,
+        surfaceTintColor: colors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
 
       // Chip theme
       chipTheme: ChipThemeData(
+        backgroundColor: colors.secondary,
+        labelStyle: TextStyle(color: colors.secondaryForeground),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
 
       // Snackbar theme
-      snackBarTheme: const SnackBarThemeData(
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: colors.card,
+        contentTextStyle: TextStyle(color: colors.cardForeground),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
       ),
 
       // App bar theme
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         elevation: 0,
+        backgroundColor: colors.background,
+        foregroundColor: colors.foreground,
         centerTitle: false,
         titleTextStyle: TextStyle(
+          color: colors.foreground,
           fontSize: 20,
           fontWeight: FontWeight.bold,
         ),

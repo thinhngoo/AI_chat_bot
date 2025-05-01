@@ -28,7 +28,7 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
     super.initState();
     _checkSubscriptionStatus();
   }
-  
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -60,10 +60,10 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
       }
     }
   }
-  
+
   Future<void> _loadAd() async {
     if (_isPro || _adService == null) return;
-    
+
     try {
       await _adService!.loadBannerAd();
       if (mounted) {
@@ -82,15 +82,56 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
     if (_isPro) {
       return const SizedBox.shrink();
     }
-    
-    // Instead of using AdWidget which is unavailable, show a placeholder
+
+    // Show loading spinner when ad is not yet loaded
+    if (!_isAdLoaded) {
+      return FutureBuilder(
+        // TEMPORARY: Remove this after implementing AdWidget
+        future: Future.delayed(const Duration(seconds: 5)),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Container(
+              width: double.infinity,
+              height: 50,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+                  width: 0.5,
+                ),
+              ),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            );
+          } else {
+            return _buildAdPlaceholder(context);
+          }
+        },
+      );
+    }
+
+    // Show ad placeholder when ad is loaded
+    return _buildAdPlaceholder(context);
+  }
+
+  Widget _buildAdPlaceholder(BuildContext context) {
     return Container(
       width: double.infinity,
       height: 50,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 40),
-        border: Border.all(color: Colors.grey.withValues(alpha: 100), width: 0.5),
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+          width: 0.5,
+        ),
       ),
       child: const Text(
         'Ad Banner Placeholder',

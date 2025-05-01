@@ -174,7 +174,6 @@ class _SignupPageState extends State<SignupPage> {
     final AppColors colors = AppColors.dark;
 
     return AuthBackground(
-      darkMode: true,
       child: SafeArea(
         child: _isSuccess
             ? Center(child: _buildSuccessCard())

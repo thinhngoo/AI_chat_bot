@@ -173,7 +173,6 @@ class _LoginPageState extends State<LoginPage>
     final AppColors colors = AppColors.dark;
 
     return AuthBackground(
-      darkMode: true,
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24.0, 60.0, 24.0, 24.0),
         child: Column(

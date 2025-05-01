@@ -7,10 +7,8 @@ import '../../main_screen.dart';
 
 class AuthCheckScreen extends StatefulWidget {
   final Function toggleTheme;
-  final bool isDarkMode;
 
-  const AuthCheckScreen(
-      {super.key, required this.toggleTheme, required this.isDarkMode});
+  const AuthCheckScreen({super.key, required this.toggleTheme});
 
   @override
   State<AuthCheckScreen> createState() => _AuthCheckScreenState();
@@ -37,7 +35,6 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
           MaterialPageRoute(
               builder: (context) => MainScreen(
                     toggleTheme: widget.toggleTheme,
-                    isDarkMode: widget.isDarkMode,
                   )),
         );
       } else {
@@ -66,11 +63,9 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final AppColors colors =
-        widget.isDarkMode ? AppColors.dark : AppColors.light;
+    final AppColors colors = AppColors.dark;
 
     return AuthBackground(
-      darkMode: widget.isDarkMode,
       child: Center(
         child: _isLoading
             ? CircularProgressIndicator(

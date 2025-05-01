@@ -4,18 +4,16 @@ import '../../core/constants/app_colors.dart';
 /// Background with synthwave grid and gradient overlay for auth screens
 class AuthBackground extends StatelessWidget {
   final Widget child;
-  final bool darkMode;
 
   const AuthBackground({
     super.key,
     required this.child,
-    this.darkMode = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final AppColors colors = darkMode ? AppColors.dark : AppColors.light;
+    final AppColors colors = AppColors.dark;
 
     return Scaffold(
       backgroundColor: colors.background,

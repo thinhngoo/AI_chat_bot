@@ -8,12 +8,10 @@ import 'subscription/presentation/subscription_info_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final Function toggleTheme;
-  final bool isDarkMode;
 
   const MainScreen({
     super.key,
     required this.toggleTheme,
-    required this.isDarkMode,
   });
 
   @override
@@ -23,7 +21,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   bool _isDialOpen = false;
-  bool _showLabels = true;
+  bool _showLabels = false;
 
   late final List<Widget> _screens;
 
@@ -33,11 +31,9 @@ class _MainScreenState extends State<MainScreen> {
 
     // Initialize screens - pass parameters where needed
     _screens = [
-      ChatScreen(
-          toggleTheme: widget.toggleTheme, isDarkMode: widget.isDarkMode),
+      ChatScreen(toggleTheme: widget.toggleTheme),
       const BotListScreen(),
-      EmailScreen(
-          toggleTheme: widget.toggleTheme, isDarkMode: widget.isDarkMode),
+      EmailScreen(toggleTheme: widget.toggleTheme),
       const PromptManagementScreen(),
       const SubscriptionInfoScreen(),
     ];
@@ -45,6 +41,8 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -64,8 +62,8 @@ class _MainScreenState extends State<MainScreen> {
                   });
                 },
                 child: Container(
-                  color: widget.isDarkMode
-                      ? Colors.white.withAlpha(60)
+                  color: isDarkMode
+                      ? Colors.black.withAlpha(160)
                       : Colors.black.withAlpha(60),
                 ),
               ),
@@ -82,13 +80,12 @@ class _MainScreenState extends State<MainScreen> {
                     _showLabels = !_showLabels;
                   });
                 },
-                backgroundColor: widget.isDarkMode
-                    ? AppColors.dark.button
-                    : AppColors.light.button,
+                backgroundColor:
+                    isDarkMode ? AppColors.dark.button : AppColors.light.button,
                 heroTag: 'toggle_labels',
                 child: Icon(
                   _showLabels ? Icons.visibility : Icons.visibility_off,
-                  color: widget.isDarkMode
+                  color: isDarkMode
                       ? AppColors.dark.buttonForeground.withAlpha(180)
                       : AppColors.light.buttonForeground.withAlpha(180),
                 ),
@@ -102,8 +99,9 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildSpeedDial() {
-    final AppColors colors =
-        widget.isDarkMode ? AppColors.dark : AppColors.light;
+    final AppColors colors = Theme.of(context).brightness == Brightness.dark
+        ? AppColors.dark
+        : AppColors.light;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -128,6 +126,13 @@ class _MainScreenState extends State<MainScreen> {
             });
           },
           backgroundColor: colors.button,
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: Theme.of(context).brightness == Brightness.dark
+                ? BorderSide(color: colors.border, width: 1)
+                : BorderSide.none,
+          ),
           child: Icon(
             _isDialOpen ? Icons.close : Icons.menu,
             color: colors.buttonForeground.withAlpha(180),
@@ -138,8 +143,9 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildDialOption(IconData icon, String label, int index) {
-    final AppColors colors =
-        widget.isDarkMode ? AppColors.dark : AppColors.light;
+    final AppColors colors = Theme.of(context).brightness == Brightness.dark
+        ? AppColors.dark
+        : AppColors.light;
     final bool isSelected = _currentIndex == index;
 
     return SizedBox(

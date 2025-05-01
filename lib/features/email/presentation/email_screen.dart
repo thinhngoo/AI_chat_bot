@@ -6,16 +6,15 @@ import '../../../widgets/common/typing_indicator.dart';
 import '../../../features/subscription/services/subscription_service.dart';
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../core/services/auth/auth_service.dart';
+import '../../../core/constants/app_colors.dart';
 import 'email_compose_screen.dart';
 
 class EmailScreen extends StatefulWidget {
   final Function toggleTheme;
-  final bool isDarkMode;
-  
+
   const EmailScreen({
     super.key,
     required this.toggleTheme,
-    required this.isDarkMode,
   });
 
   @override
@@ -29,38 +28,42 @@ class _EmailScreenState extends State<EmailScreen> {
     AuthService(),
     Logger(),
   );
-  
-  final TextEditingController _originalEmailController = TextEditingController();
+
+  final TextEditingController _originalEmailController =
+      TextEditingController();
   final FocusNode _emailFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
-  
+
   bool _isLoading = false;
   bool _isPro = false;
   String _errorMessage = '';
   List<EmailSuggestion> _suggestions = [];
-  
+
   // Sample emails for users to use as examples
   final List<Map<String, String>> _sampleEmails = [
     {
       'title': 'Project Deadline Extension',
-      'content': 'Hi Team,\n\nI\'m writing to inform you that we need to extend the project deadline by two weeks. The client has requested additional features which need time to implement properly.\n\nPlease adjust your schedules accordingly. We can discuss this further in our team meeting tomorrow.\n\nBest regards,\nMike'
+      'content':
+          'Hi Team,\n\nI\'m writing to inform you that we need to extend the project deadline by two weeks. The client has requested additional features which need time to implement properly.\n\nPlease adjust your schedules accordingly. We can discuss this further in our team meeting tomorrow.\n\nBest regards,\nMike'
     },
     {
       'title': 'Interview Invitation',
-      'content': 'Dear Candidate,\n\nThank you for applying for the Software Developer position at our company. We were impressed with your profile and would like to invite you for an interview.\n\nCould you please let us know your availability next week? We are flexible between 9 AM and 5 PM.\n\nLooking forward to meeting you.\n\nBest regards,\nHR Team'
+      'content':
+          'Dear Candidate,\n\nThank you for applying for the Software Developer position at our company. We were impressed with your profile and would like to invite you for an interview.\n\nCould you please let us know your availability next week? We are flexible between 9 AM and 5 PM.\n\nLooking forward to meeting you.\n\nBest regards,\nHR Team'
     },
     {
       'title': 'Customer Complaint',
-      'content': 'Hello,\n\nI\'m very disappointed with the service I received yesterday at your store location. I purchased a product that was defective and when I returned it, your staff was unhelpful and rude.\n\nI\'ve been a loyal customer for years and expect better treatment. I would appreciate if you could look into this matter.\n\nThank you,\nAn Unhappy Customer'
+      'content':
+          'Hello,\n\nI\'m very disappointed with the service I received yesterday at your store location. I purchased a product that was defective and when I returned it, your staff was unhelpful and rude.\n\nI\'ve been a loyal customer for years and expect better treatment. I would appreciate if you could look into this matter.\n\nThank you,\nAn Unhappy Customer'
     },
   ];
-  
+
   @override
   void initState() {
     super.initState();
     _checkSubscriptionStatus();
   }
-  
+
   @override
   void dispose() {
     _originalEmailController.dispose();
@@ -68,7 +71,7 @@ class _EmailScreenState extends State<EmailScreen> {
     _scrollController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _checkSubscriptionStatus() async {
     try {
       final subscription = await _subscriptionService.getCurrentSubscription();
@@ -81,33 +84,33 @@ class _EmailScreenState extends State<EmailScreen> {
       _logger.e('Error checking subscription status: $e');
     }
   }
-  
+
   Future<void> _getSuggestions() async {
     final originalEmail = _originalEmailController.text.trim();
-    
+
     if (originalEmail.isEmpty) {
       setState(() {
         _errorMessage = 'Please enter an email to get suggestions';
       });
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
       _errorMessage = '';
       _suggestions = [];
     });
-    
+
     try {
       final suggestions = await _emailService.getSuggestions(originalEmail);
-      
+
       if (!mounted) return;
-      
+
       setState(() {
         _suggestions = suggestions;
         _isLoading = false;
       });
-      
+
       // Scroll to suggestions when they're loaded
       if (_suggestions.isNotEmpty) {
         await Future.delayed(const Duration(milliseconds: 100));
@@ -121,24 +124,24 @@ class _EmailScreenState extends State<EmailScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      
+
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
       });
     }
   }
-  
+
   Future<void> _navigateToComposeScreen(EmailActionType actionType) async {
     final originalEmail = _originalEmailController.text.trim();
-    
+
     if (originalEmail.isEmpty) {
       setState(() {
         _errorMessage = 'Please enter an email to compose a response';
       });
       return;
     }
-    
+
     // Navigate to compose screen with selected action type
     final result = await Navigator.push(
       context,
@@ -146,11 +149,10 @@ class _EmailScreenState extends State<EmailScreen> {
         builder: (context) => EmailComposeScreen(
           originalEmail: originalEmail,
           actionType: actionType,
-          isDarkMode: widget.isDarkMode,
         ),
       ),
     );
-    
+
     // Handle result if needed (e.g., show a success message)
     if (result == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -161,17 +163,17 @@ class _EmailScreenState extends State<EmailScreen> {
       );
     }
   }
-  
+
   void _useSampleEmail(int index) {
     if (index < 0 || index >= _sampleEmails.length) return;
-    
+
     setState(() {
       _originalEmailController.text = _sampleEmails[index]['content'] ?? '';
       _suggestions = [];
       _errorMessage = '';
     });
   }
-  
+
   void _clearEmail() {
     setState(() {
       _originalEmailController.text = '';
@@ -180,32 +182,36 @@ class _EmailScreenState extends State<EmailScreen> {
     });
     _emailFocusNode.requestFocus();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-    
+    final AppColors colors = Theme.of(context).brightness == Brightness.dark
+        ? AppColors.dark
+        : AppColors.light;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Email Composer'),
+        centerTitle: true,
         actions: [
           // Pro subscription indicator
           if (_isPro)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Icon(
-                Icons.workspace_premium,
-                color: Colors.amber,
+                Icons.verified,
+                color: colors.primary,
               ),
             ),
-          
+
           // Light/dark mode toggle
           IconButton(
             icon: Icon(
-              isDarkMode ? Icons.light_mode : Icons.dark_mode,
+              Icons.dark_mode,
+              color: theme.colorScheme.onSurface.withAlpha(200),
             ),
-            tooltip: isDarkMode ? 'Light mode' : 'Dark mode',
+            tooltip: 'Toggle theme',
             onPressed: () => widget.toggleTheme(),
           ),
         ],
@@ -216,7 +222,7 @@ class _EmailScreenState extends State<EmailScreen> {
           children: [
             // Show ad banner for free users
             if (!_isPro) const AdBannerWidget(),
-            
+
             Expanded(
               child: ListView(
                 controller: _scrollController,
@@ -237,7 +243,7 @@ class _EmailScreenState extends State<EmailScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Email input section
                   Text(
                     'Paste the email you received:',
@@ -253,26 +259,27 @@ class _EmailScreenState extends State<EmailScreen> {
                       fillColor: theme.inputDecorationTheme.fillColor,
                       filled: true,
                       suffixIcon: _originalEmailController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: _clearEmail,
-                            tooltip: 'Clear',
-                          )
-                        : null,
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: _clearEmail,
+                              tooltip: 'Clear',
+                            )
+                          : null,
                     ),
                     maxLines: 6,
                     textInputAction: TextInputAction.newline,
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Sample emails section
                   Wrap(
                     spacing: 8.0,
                     runSpacing: 8.0,
                     children: [
                       const Text('Try with sample: '),
-                      ...List.generate(_sampleEmails.length, (index) => 
-                        ActionChip(
+                      ...List.generate(
+                        _sampleEmails.length,
+                        (index) => ActionChip(
                           label: Text(_sampleEmails[index]['title']!),
                           onPressed: () => _useSampleEmail(index),
                         ),
@@ -280,7 +287,7 @@ class _EmailScreenState extends State<EmailScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Get suggestions button
                   SizedBox(
                     width: double.infinity,
@@ -294,7 +301,7 @@ class _EmailScreenState extends State<EmailScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  
+
                   Text(
                     'Or select a specific email type to compose:',
                     style: TextStyle(
@@ -303,30 +310,30 @@ class _EmailScreenState extends State<EmailScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Error message
                   if (_errorMessage.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.all(12.0),
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 26), // 0.1 opacity
+                        color: colors.error.withAlpha(26),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.withValues(alpha: 128)), // 0.5 opacity
+                        border: Border.all(color: colors.error.withAlpha(128)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline, color: Colors.red),
+                          Icon(Icons.error_outline, color: colors.error),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _errorMessage,
-                              style: const TextStyle(color: Colors.red),
+                              style: TextStyle(color: colors.error),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  
+
                   // Loading indicator
                   if (_isLoading)
                     Center(
@@ -340,7 +347,7 @@ class _EmailScreenState extends State<EmailScreen> {
                         ],
                       ),
                     ),
-                  
+
                   // Suggestions
                   if (_suggestions.isNotEmpty) ...[
                     const Divider(),
@@ -352,12 +359,13 @@ class _EmailScreenState extends State<EmailScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Grid of suggestion cards
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         childAspectRatio: 1.5,
                         crossAxisSpacing: 12,
@@ -370,9 +378,9 @@ class _EmailScreenState extends State<EmailScreen> {
                       },
                     ),
                   ],
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // All email actions
                   Text(
                     'Compose a specific type of email:',
@@ -381,7 +389,7 @@ class _EmailScreenState extends State<EmailScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Email action types
                   GridView.count(
                     crossAxisCount: 3,
@@ -398,9 +406,9 @@ class _EmailScreenState extends State<EmailScreen> {
                       _buildActionCard(EmailActionType.negative),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Email formatting options
                   Text(
                     'Email formatting options:',
@@ -409,7 +417,7 @@ class _EmailScreenState extends State<EmailScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Formatting options
                   GridView.count(
                     crossAxisCount: 3,
@@ -433,10 +441,10 @@ class _EmailScreenState extends State<EmailScreen> {
       ),
     );
   }
-  
+
   Widget _buildSuggestionCard(EmailSuggestion suggestion) {
     final theme = Theme.of(context);
-    
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -482,7 +490,8 @@ class _EmailScreenState extends State<EmailScreen> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () => _navigateToComposeScreen(suggestion.actionType),
+                    onPressed: () =>
+                        _navigateToComposeScreen(suggestion.actionType),
                     child: const Text('Use this'),
                   ),
                 ],
@@ -493,10 +502,10 @@ class _EmailScreenState extends State<EmailScreen> {
       ),
     );
   }
-  
+
   Widget _buildActionCard(EmailActionType actionType) {
     final theme = Theme.of(context);
-    
+
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
