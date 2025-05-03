@@ -214,9 +214,8 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final AppColors colors = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.dark
-        : AppColors.light;
+    final isDarkMode = theme.brightness == Brightness.dark;
+    final AppColors colors = isDarkMode ? AppColors.dark : AppColors.light;
 
     return PopScope(
       canPop: !_hasUnsavedChanges || _isSaving,
@@ -270,7 +269,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 0, 8, 0),
               child: IconButton(
-                icon: const Icon(Icons.copy),
+                icon: Icon(Icons.copy),
                 tooltip: 'Copy to clipboard',
                 onPressed: _copyToClipboard,
               ),
@@ -341,8 +340,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                 hintText: 'Email recipients',
                                 prefixIcon: Icons.person,
                                 keyboardType: TextInputType.emailAddress,
-                                darkMode: Theme.of(context).brightness ==
-                                    Brightness.dark,
+                                darkMode: isDarkMode,
                               ),
 
                               // Show/hide CC and BCC
@@ -366,8 +364,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                   hintText: 'Carbon copy recipients',
                                   prefixIcon: Icons.people,
                                   keyboardType: TextInputType.emailAddress,
-                                  darkMode: Theme.of(context).brightness ==
-                                      Brightness.dark,
+                                  darkMode: isDarkMode,
                                 ),
                                 TextButton(
                                   onPressed: () =>
@@ -388,8 +385,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                 label: 'Subject',
                                 hintText: 'Email subject',
                                 prefixIcon: Icons.subject,
-                                darkMode: Theme.of(context).brightness ==
-                                    Brightness.dark,
+                                darkMode: isDarkMode,
                                 focusNode: _subjectFocusNode,
                               ),
 
@@ -403,8 +399,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                 maxLines: 12,
                                 textCapitalization:
                                     TextCapitalization.sentences,
-                                darkMode: Theme.of(context).brightness ==
-                                    Brightness.dark,
+                                darkMode: isDarkMode,
                                 focusNode: _bodyFocusNode,
                               ),
 
@@ -520,7 +515,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                         child: Row(
                           children: [
                             Expanded(
-                              child: CustomButton(
+                              child: LargeButton(
                                 label: 'Save Draft',
                                 icon: Icons.save,
                                 onPressed: _isLoading || _isSaving
@@ -536,7 +531,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: CustomButton(
+                              child: LargeButton(
                                 label: 'Send Email',
                                 icon: Icons.send,
                                 onPressed: _isLoading || _isSaving

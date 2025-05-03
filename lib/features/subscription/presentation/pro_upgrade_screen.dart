@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:ai_chat_bot/core/constants/app_colors.dart';
 import 'package:flutter/material.dart';
 import '../services/iap_service.dart';
 import '../services/subscription_service.dart';
@@ -6,6 +7,9 @@ import '../models/pricing_model.dart';
 import '../models/subscription_model.dart';
 import 'widgets/feature_highlights.dart';
 import '../../../core/services/auth/auth_service.dart';
+import '../../../widgets/custom_text_field.dart';
+import '../../../widgets/custom_button.dart';
+import '../../../widgets/loading.dart';
 import 'package:logger/logger.dart';
 
 class ProUpgradeScreen extends StatefulWidget {
@@ -21,13 +25,18 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
     AuthService(),
     Logger(),
   );
-  
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
   final TextEditingController _cardNumberController = TextEditingController();
   final TextEditingController _expiryController = TextEditingController();
   final TextEditingController _cvvController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
-  
+
+  // Field error states
+  String? _cardNumberError;
+  String? _expiryError;
+  String? _cvvError;
+  String? _nameError;
+
   List<PricingPlan> _plans = [];
   Subscription? _currentSubscription;
   PricingPlan? _selectedPlan;
@@ -35,21 +44,68 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
   bool _isLoading = true;
   bool _isProcessing = false;
   String _errorMessage = '';
-  
+
   @override
   void initState() {
     super.initState();
     _initializeData();
-    
+
+    // TEMPORARY
+    //setState(() {
+    //   _isLoading = false;
+    //   _isProcessing = false;
+    //   _errorMessage = 'some error';
+    //   _plans = [
+    //     PricingPlan(
+    //       id: '1',
+    //       name: 'Pro',
+    //       description: 'Pro subscription',
+    //       planType: SubscriptionPlan.pro,
+    //       monthlyPrice: 10,
+    //       yearlyPrice: 100,
+    //       features: [
+    //         'Unlimited tokens',
+    //         'Unlimited messages',
+    //         'Unlimited images',
+    //         'Unlimited videos',
+    //         'Unlimited audio',
+    //         'Unlimited documents',
+    //         'Unlimited emails',
+    //       ],
+    //     ),
+    //   ];
+    //   _selectedPlan = _plans.firstWhere(
+    //     (plan) => plan.planType == SubscriptionPlan.pro,
+    //     orElse: () => _plans.first,
+    //   );
+    //   _isYearly = true;
+    // });
+ 
     // Pre-fill test credit card for demo
-    _cardNumberController.text = "4242 4242 4242 4242";
-    _expiryController.text = "12/25";
-    _cvvController.text = "123";
-    _nameController.text = "Test User";
+    _cardNumberController.text = '4242424242424242';
+    _expiryController.text = '12/25';
+    _cvvController.text = '123';
+    _nameController.text = 'Test User';
+
+    // Set up listeners to validate on change
+    _cardNumberController.addListener(_validateForm);
+    _expiryController.addListener(_validateForm);
+    _cvvController.addListener(_validateForm);
+    _nameController.addListener(_validateForm);
+
+    // Initial validation
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _validateForm();
+    });
   }
 
   @override
   void dispose() {
+    _cardNumberController.removeListener(_validateForm);
+    _expiryController.removeListener(_validateForm);
+    _cvvController.removeListener(_validateForm);
+    _nameController.removeListener(_validateForm);
+
     _cardNumberController.dispose();
     _expiryController.dispose();
     _cvvController.dispose();
@@ -57,15 +113,27 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
     super.dispose();
   }
 
+  void _validateForm() {
+    if (!mounted) return;
+
+    setState(() {
+      _cardNumberError = _validateCardNumber(_cardNumberController.text);
+      _expiryError = _validateExpiry(_expiryController.text);
+      _cvvError = _validateCVV(_cvvController.text);
+      _nameError = _validateName(_nameController.text);
+    });
+  }
+
   Future<void> _initializeData() async {
     try {
       // Load subscription plans and current subscription
       final plans = await _subscriptionService.getAvailablePlans();
-      final currentSubscription = await _subscriptionService.getCurrentSubscription();
-      
-      // Initialize IAP service 
+      final currentSubscription =
+          await _subscriptionService.getCurrentSubscription();
+
+      // Initialize IAP service
       await _iapService.initializeIAP();
-      
+
       if (mounted) {
         setState(() {
           _plans = plans;
@@ -80,57 +148,63 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Failed to load subscription information. Please try again.';
+          _errorMessage =
+              'Failed to load subscription information. Please try again.';
           _isLoading = false;
         });
       }
     }
   }
-  
+
   Future<void> _processPayment() async {
-    if (_formKey.currentState?.validate() != true) {
+    _validateForm();
+
+    if (_cardNumberError != null ||
+        _expiryError != null ||
+        _cvvError != null ||
+        _nameError != null) {
       return;
     }
-    
+
     // Validation for test card
     final cardNumber = _cardNumberController.text.replaceAll(' ', '');
     if (cardNumber != '4242424242424242') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please use the test card 4242 4242 4242 4242')),
+        const SnackBar(
+            content: Text('Please use the test card 4242 4242 4242 4242')),
       );
       return;
     }
-    
+
     if (_selectedPlan == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a subscription plan')),
       );
       return;
     }
-    
+
     setState(() {
       _isProcessing = true;
       _errorMessage = '';
     });
-    
+
     try {
       // Call subscription service to process the payment and upgrade
       final success = await _subscriptionService.upgradeToPro(
         paymentMethodId: 'pm_card_visa', // Simulated payment method ID
         isYearly: _isYearly,
       );
-      
+
       if (success && mounted) {
         // Show success dialog
         await showDialog(
-          context: context, 
+          context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
             title: const Text('Subscription Activated'),
             content: const Text(
-              'Your Pro subscription has been activated successfully! '
-              'You now have unlimited tokens and access to all premium features.'
-            ),
+                'Your Pro subscription has been activated successfully! '
+                'You now have unlimited tokens and access to all premium features.'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -139,7 +213,7 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
             ],
           ),
         );
-        
+
         // Return to previous screen
         if (mounted) {
           Navigator.of(context).pop(true);
@@ -159,30 +233,33 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
       }
     }
   }
-  
+
   Future<void> _restorePurchases() async {
     setState(() {
       _isProcessing = true;
       _errorMessage = '';
     });
-    
+
     try {
       final success = await _iapService.restorePurchases();
-      
+
       if (success && mounted) {
         // Refresh subscription status
-        final subscription = await _subscriptionService.getCurrentSubscription(forceRefresh: true);
-        
+        final subscription = await _subscriptionService.getCurrentSubscription(
+            forceRefresh: true);
+
         if (mounted) {
           if (subscription.isPro) {
             // Show success message
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Pro subscription restored successfully!')),
+              const SnackBar(
+                  content: Text('Pro subscription restored successfully!')),
             );
             Navigator.of(context).pop(true);
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No active subscription found to restore')),
+              const SnackBar(
+                  content: Text('No active subscription found to restore')),
             );
           }
         }
@@ -205,64 +282,69 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
       }
     }
   }
-  
+
   String? _validateCardNumber(String? value) {
     if (value == null || value.isEmpty) {
       return 'Card number is required';
     }
-    
+
     final cleanedValue = value.replaceAll(' ', '');
     if (cleanedValue.length != 16) {
       return 'Card number must be 16 digits';
     }
-    
+
     if (cleanedValue != '4242424242424242') {
       return 'Please use the test card number';
     }
-    
+
     return null;
   }
-  
+
   String? _validateExpiry(String? value) {
     if (value == null || value.isEmpty) {
       return 'Expiry date is required';
     }
-    
+
     if (!RegExp(r'^\d{2}/\d{2}$').hasMatch(value)) {
       return 'Use format MM/YY';
     }
-    
+
     return null;
   }
-  
+
   String? _validateCVV(String? value) {
     if (value == null || value.isEmpty) {
       return 'CVV is required';
     }
-    
+
     if (value.length < 3) {
       return 'CVV must be at least 3 digits';
     }
-    
+
     return null;
   }
-  
+
   String? _validateName(String? value) {
     if (value == null || value.isEmpty) {
       return 'Name on card is required';
     }
-    
+
     return null;
   }
-  
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Upgrade to Pro'),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? LoadingIndicator(
+              message: 'Loading subscription plans...',
+            )
           : SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -271,12 +353,12 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                   children: [
                     // Price cards
                     _buildPricingCard(),
-                    const SizedBox(height: 20),
-                    
+                    const SizedBox(height: 40),
+
                     // Payment section
                     _buildPaymentForm(),
-                    const SizedBox(height: 20),
-                    
+                    const SizedBox(height: 32),
+
                     // Error message
                     if (_errorMessage.isNotEmpty)
                       Padding(
@@ -289,43 +371,42 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                           ),
                         ),
                       ),
-                    
+
                     // Payment button
-                    ElevatedButton(
+                    LargeButton(
+                      label: _isProcessing ? 'Processing...' : 'Upgrade Now',
                       onPressed: _isProcessing ? null : _processPayment,
-                      child: _isProcessing
-                          ? const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                                SizedBox(width: 10),
-                                Text('Processing...'),
-                              ],
-                            )
-                          : const Text('Upgrade Now'),
+                      isPrimary: true,
+                      isDarkMode: isDarkMode,
+                      icon: _isProcessing ? null : Icons.rocket_launch,
                     ),
-                    
+
+                    const SizedBox(height: 16),
+
                     // Restore purchases
-                    TextButton(
+                    LargeButton(
+                      label: 'Restore Previous Purchase',
                       onPressed: _isProcessing ? null : _restorePurchases,
-                      child: const Text('Restore Previous Purchase'),
+                      isPrimary: false,
+                      isDarkMode: isDarkMode,
+                      icon: Icons.restore,
                     ),
-                    
+
                     // Legal info
-                    const SizedBox(height: 8),
-                    Text(
-                      'By upgrading, you agree to our Terms of Service and Privacy Policy. '
-                      'Subscriptions will automatically renew unless canceled at least 24 hours '
-                      'before the end of the current period.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    const SizedBox(height: 16),
+                    Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'By upgrading, you agree to our Terms of Service and Privacy Policy. '
+                          'Subscriptions will automatically renew unless canceled at least 24 hours '
+                          'before the end of the current period.',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey,
+                                  ),
+                          textAlign: TextAlign.center,
+                        )),
+
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -333,12 +414,15 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
             ),
     );
   }
-  
+
   Widget _buildPricingCard() {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    final colors = isDarkMode ? AppColors.dark : AppColors.light;
     if (_selectedPlan == null) {
       return const SizedBox.shrink();
     }
-    
+
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -350,23 +434,23 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
             // Plan name
             Text(
               _selectedPlan!.name,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: theme.textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
-            
+
+            const SizedBox(height: 2),
+
             // Plan description
             Text(
               _selectedPlan!.description,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Colors.grey,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: colors.muted,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 20),
-            
+
+            const SizedBox(height: 12),
+
             // Billing options toggle
             Center(
               child: SegmentedButton<bool>(
@@ -382,6 +466,34 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                     icon: Icon(Icons.date_range),
                   ),
                 ],
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.resolveWith<Color>(
+                    (Set<WidgetState> states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return theme.colorScheme.primary;
+                      }
+                      return theme.colorScheme.surface;
+                    },
+                  ),
+                  foregroundColor: WidgetStateProperty.resolveWith<Color>(
+                    (Set<WidgetState> states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return theme.colorScheme.onPrimary;
+                      }
+                      return theme.colorScheme.onSurface;
+                    },
+                  ),
+                  side: WidgetStateProperty.resolveWith<BorderSide>(
+                    (Set<WidgetState> states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return BorderSide.none;
+                      }
+                      final colors =
+                          isDarkMode ? AppColors.dark : AppColors.light;
+                      return BorderSide(color: colors.border);
+                    },
+                  ),
+                ),
                 selected: {_isYearly},
                 onSelectionChanged: (Set<bool> newSelection) {
                   setState(() {
@@ -391,7 +503,7 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // Price info
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -401,131 +513,147 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                   _isYearly
                       ? _selectedPlan!.formattedMonthlyPriceYearly
                       : _selectedPlan!.formattedMonthlyPrice,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
+                  style: theme.textTheme.headlineLarge,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   _isYearly ? '/ month' : '/ month',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: theme.textTheme.bodyLarge,
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            
+
+            const SizedBox(height: 2),
+
             // Yearly billing note
             if (_isYearly)
               Center(
                 child: Text(
                   'Billed annually as ${_selectedPlan!.formattedAnnualPrice}',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colors.muted,
+                  ),
                 ),
               ),
-              
+
+            const SizedBox(height: 4),
+
             // Savings badge for yearly
             if (_isYearly && _selectedPlan!.yearlySavingsPercent > 0)
               Center(
                 child: Chip(
-                  backgroundColor: Colors.green.shade100,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: colors.success.withAlpha(180),
+                    ),
+                  ),
+                  backgroundColor: colors.success.withAlpha(30),
                   label: Text(
                     'Save ${_selectedPlan!.yearlySavingsPercent.round()}%',
-                    style: const TextStyle(
-                      color: Colors.green,
+                    style: TextStyle(
+                      color: colors.success,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ),
-            
+
             const SizedBox(height: 20),
-            
-            // Features list
+
             FeatureHighlights(features: _selectedPlan!.features),
           ],
         ),
       ),
     );
   }
-  
+
   Widget _buildPaymentForm() {
-    return Form(
-      key: _formKey,
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Payment Details',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    const double fieldSpacing = 24.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Payment Details',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 20),
-              
-              // Card number
-              TextFormField(
-                controller: _cardNumberController,
-                decoration: const InputDecoration(
-                  labelText: 'Card Number',
-                  hintText: 'Use test card: 4242 4242 4242 4242',
-                  prefixIcon: Icon(Icons.credit_card),
-                ),
-                keyboardType: TextInputType.number,
-                validator: _validateCardNumber,
-              ),
-              const SizedBox(height: 16),
-              
-              // Expiry and CVV in a row
-              Row(
+        ),
+        const SizedBox(height: 20),
+
+        // Card number
+        FloatingLabelTextField(
+          controller: _cardNumberController,
+          label: 'Card Number',
+          hintText: 'Enter your card number',
+          prefixIcon: Icons.credit_card,
+          keyboardType: TextInputType.number,
+          errorText: _cardNumberError,
+          darkMode: isDarkMode,
+          onChanged: (_) => _validateForm(),
+        ),
+        const SizedBox(height: fieldSpacing),
+
+        // Expiry and CVV in a row
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Expiry date
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Expiry date
-                  Expanded(
-                    child: TextFormField(
-                      controller: _expiryController,
-                      decoration: const InputDecoration(
-                        labelText: 'Expiry Date',
-                        hintText: 'MM/YY',
-                      ),
-                      validator: _validateExpiry,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // CVV
-                  Expanded(
-                    child: TextFormField(
-                      controller: _cvvController,
-                      decoration: const InputDecoration(
-                        labelText: 'CVV',
-                        hintText: '123',
-                      ),
-                      obscureText: true,
-                      keyboardType: TextInputType.number,
-                      validator: _validateCVV,
-                    ),
+                  FloatingLabelTextField(
+                    controller: _expiryController,
+                    label: 'Expiry Date',
+                    hintText: 'Enter your expiry date',
+                    prefixIcon: Icons.date_range,
+                    keyboardType: TextInputType.datetime,
+                    errorText: _expiryError,
+                    darkMode: isDarkMode,
+                    onChanged: (_) => _validateForm(),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              
-              // Name on card
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name on Card',
-                  prefixIcon: Icon(Icons.person),
-                ),
-                validator: _validateName,
+            ),
+            const SizedBox(width: 16),
+            // CVV
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FloatingLabelTextField(
+                    controller: _cvvController,
+                    label: 'CVV',
+                    hintText: 'Enter your CVV',
+                    prefixIcon: Icons.credit_card,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    errorText: _cvvError,
+                    darkMode: isDarkMode,
+                    onChanged: (_) => _validateForm(),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ),
+        const SizedBox(height: fieldSpacing),
+
+        // Name on card
+        FloatingLabelTextField(
+          controller: _nameController,
+          label: 'Name on Card',
+          prefixIcon: Icons.person,
+          hintText: 'Enter your name as it appears on your card',
+          keyboardType: TextInputType.name,
+          errorText: _nameError,
+          darkMode: isDarkMode,
+          onChanged: (_) => _validateForm(),
+        ),
+      ],
     );
   }
 }

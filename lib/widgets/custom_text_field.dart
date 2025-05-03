@@ -118,7 +118,7 @@ class CustomTextField extends StatelessWidget {
         ),
         if (errorText != null)
           Padding(
-            padding: const EdgeInsets.only(top: 8.0, left: 12.0),
+            padding: const EdgeInsets.only(left: 12, top: 4),
             child: Text(
               errorText!,
               style: TextStyle(
@@ -263,7 +263,7 @@ class FloatingLabelTextField extends StatelessWidget {
         ),
         if (errorText != null)
           Padding(
-            padding: const EdgeInsets.only(top: 8.0, left: 12.0),
+            padding: const EdgeInsets.only(left: 12, top: 4),
             child: Text(
               errorText!,
               style: TextStyle(

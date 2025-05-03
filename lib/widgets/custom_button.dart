@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 
-class CustomButton extends StatelessWidget {
+class LargeButton extends StatelessWidget {
   final String label;
   final IconData? icon;
   final VoidCallback? onPressed;
@@ -14,7 +14,7 @@ class CustomButton extends StatelessWidget {
   final double borderRadius;
   final double elevation;
 
-  const CustomButton({
+  const LargeButton({
     super.key,
     required this.label,
     this.icon,
@@ -82,6 +82,63 @@ class CustomButton extends StatelessWidget {
               style: buttonStyle,
               child: buttonChild,
             ),
+    );
+  }
+}
+
+class MiniGhostButton extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final VoidCallback? onPressed;
+  final Color? color;
+  final bool isDarkMode;
+  final double iconSize;
+  final double fontSize;
+  final FontWeight fontWeight;
+  final EdgeInsetsGeometry padding;
+  final double borderRadius;
+
+  const MiniGhostButton({
+    super.key,
+    required this.label,
+    this.icon,
+    this.onPressed,
+    this.color,
+    this.isDarkMode = false,
+    this.iconSize = 20.0,
+    this.fontSize = 14.0,
+    this.fontWeight = FontWeight.w500,
+    this.padding = const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+    this.borderRadius = 12.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors colors = isDarkMode ? AppColors.dark : AppColors.light;
+    final buttonColor = color ?? colors.primary;
+
+    return TextButton.icon(
+      onPressed: onPressed,
+      icon: Icon(
+        icon,
+        color: buttonColor,
+        size: iconSize,
+      ),
+      label: Text(
+        label,
+        style: TextStyle(
+          color: buttonColor,
+          fontWeight: fontWeight,
+          fontSize: fontSize,
+        ),
+      ),
+      style: TextButton.styleFrom(
+        backgroundColor: buttonColor.withAlpha(20),
+        padding: padding,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(borderRadius),
+        ),
+      ),
     );
   }
 }

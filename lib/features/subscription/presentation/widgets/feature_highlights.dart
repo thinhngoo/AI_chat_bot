@@ -10,6 +10,11 @@ class FeatureHighlights extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Split features into two columns
+    final int halfLength = (features.length / 2).ceil();
+    final firstColumn = features.sublist(0, halfLength);
+    final secondColumn = features.sublist(halfLength);
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       child: Column(
@@ -17,12 +22,29 @@ class FeatureHighlights extends StatelessWidget {
         children: [
           Text(
             'Features Include:',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 12),
-          ...features.map((feature) => _buildFeatureItem(feature, context)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // First column
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: firstColumn.map((feature) => _buildFeatureItem(feature, context)).toList(),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Second column
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: secondColumn.map((feature) => _buildFeatureItem(feature, context)).toList(),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

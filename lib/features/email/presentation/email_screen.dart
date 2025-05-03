@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../models/email_model.dart';
 import '../services/email_service.dart';
-import '../../../widgets/typing_indicator.dart';
 import '../../../features/subscription/services/subscription_service.dart';
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/custom_text_field.dart';
 import '../../../widgets/custom_button.dart';
+import '../../../widgets/loading.dart';
+import '../../../widgets/typing_indicator.dart';
 import 'email_compose_screen.dart';
 
 class EmailScreen extends StatefulWidget {
@@ -272,27 +273,12 @@ class _EmailScreenState extends State<EmailScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        TextButton.icon(
+                        MiniGhostButton(
+                          label: 'Clear email',
+                          icon: Icons.delete_outline,
                           onPressed: _clearEmail,
-                          icon: Icon(
-                            Icons.delete_outline,
-                            color: colors.delete,
-                          ),
-                          label: Text(
-                            'Clear email',
-                            style: TextStyle(
-                              color: colors.delete,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          style: TextButton.styleFrom(
-                            backgroundColor: colors.delete.withAlpha(20),
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 14, horizontal: 24),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
+                          color: colors.delete,
+                          isDarkMode: isDarkMode,
                         ),
                       ],
                     ),
@@ -336,7 +322,7 @@ class _EmailScreenState extends State<EmailScreen> {
                   const SizedBox(height: 16),
 
                   // Get suggestions button
-                  CustomButton(
+                  LargeButton(
                     label: 'Get AI Suggestions',
                     icon: Icons.auto_awesome,
                     onPressed:

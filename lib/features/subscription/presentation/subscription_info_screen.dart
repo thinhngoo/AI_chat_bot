@@ -6,6 +6,9 @@ import '../services/subscription_service.dart';
 import 'pro_upgrade_screen.dart';
 import 'package:logger/logger.dart';
 import '../../../core/services/auth/auth_service.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../widgets/custom_button.dart';
+import '../../../widgets/loading.dart';
 
 class SubscriptionInfoScreen extends StatefulWidget {
   const SubscriptionInfoScreen({super.key});
@@ -28,6 +31,36 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
   @override
   void initState() {
     super.initState();
+    // TEMPORARY
+    // setState(() {
+    //   _isLoading = false;
+    //   _errorMessage = '';
+    //   _subscription = Subscription(
+    //     id: '1',
+    //     plan: SubscriptionPlan.free,
+    //     // plan: SubscriptionPlan.pro,
+    //     startDate: DateTime.now(),
+    //     // endDate: DateTime.now().add(const Duration(days: 30)),
+    //     autoRenew: true,
+    //     features: {
+    //       'Unlimited tokens': false,
+    //       'Unlimited requests': false,
+    //       'Unlimited models': false,
+    //     },
+    //   );
+    //   _usageStats = UsageStats(
+    //     totalTokensUsed: 401,
+    //     totalTokensLimit: 400,
+    //     currentPeriodTokensUsed: 20,
+    //     periodStart: DateTime.now(),
+    //     periodEnd: DateTime.now().add(const Duration(days: 30)),
+    //     modelBreakdown: {
+    //       'gpt-4o': (0.2 * 300).round(),
+    //       'gpt-4o-mini': (0.4 * 40).round(),
+    //       'claude-3-haiku': (0.3 * 60).round(),
+    //     },
+    //   );
+    // });
     _loadSubscriptionData();
   }
 
@@ -143,19 +176,29 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final AppColors colors = isDarkMode ? AppColors.dark : AppColors.light;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Subscription'),
+        centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadSubscriptionData,
-            tooltip: 'Refresh',
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadSubscriptionData,
+              tooltip: 'Refresh',
+            ),
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? LoadingIndicator(
+              message: 'Loading subscription data...',
+            )
           : _errorMessage.isNotEmpty
               ? Center(
                   child: Padding(
@@ -163,15 +206,26 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        Icon(
+                          Icons.error,
+                          color: colors.error,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 16),
                         Text(
                           _errorMessage,
-                          style: const TextStyle(color: Colors.red),
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: colors.error,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
-                        ElevatedButton(
+                        MiniGhostButton(
+                          label: 'Try Again',
+                          icon: Icons.refresh,
                           onPressed: _loadSubscriptionData,
-                          child: const Text('Try Again'),
+                          color: colors.foreground,
+                          isDarkMode: isDarkMode,
                         ),
                       ],
                     ),
@@ -179,13 +233,32 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                 )
               : _subscription != null
                   ? _buildSubscriptionInfo()
-                  : const Center(
-                      child: Text('No subscription information available')),
+                  : Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: colors.muted,
+                            size: 48,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No subscription information available',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: colors.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
     );
   }
 
   Widget _buildSubscriptionInfo() {
     final isPro = _subscription!.isPro;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final AppColors colors = isDarkMode ? AppColors.dark : AppColors.light;
     final theme = Theme.of(context);
 
     return RefreshIndicator(
@@ -198,9 +271,6 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
           children: [
             // Plan info card
             Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -222,25 +292,26 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                           children: [
                             Text(
                               isPro ? 'Pro Plan' : 'Free Plan',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: theme.textTheme.headlineMedium,
                             ),
                             if (_subscription!.endDate != null)
                               Text(
                                 'Expires ${_formatDate(_subscription!.endDate!)}',
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: theme.colorScheme.onSurface
-                                      .withOpacity(0.7),
+                                      .withAlpha(128),
                                 ),
                               ),
                           ],
                         ),
                         const Spacer(),
                         if (!isPro)
-                          ElevatedButton(
+                          MiniGhostButton(
+                            label: 'Upgrade',
+                            icon: Icons.workspace_premium,
                             onPressed: _navigateToUpgradeScreen,
-                            child: const Text('Upgrade'),
+                            color: colors.cardForeground,
+                            isDarkMode: isDarkMode,
                           ),
                       ],
                     ),
@@ -269,71 +340,50 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
 
             // Token usage section
-            Text(
-              'Token Usage',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-
             if (_usageStats != null) ...[
               Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        'Token Usage',
+                        style: theme.textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 16),
+
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Total tokens used:',
-                                style: theme.textTheme.titleSmall,
-                              ),
-                              Text(
-                                _usageStats!.formattedTotalTokensUsed,
-                                style: theme.textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            'Total tokens used',
+                            style: theme.textTheme.bodyMedium,
                           ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'Tokens remaining:',
-                                style: theme.textTheme.titleSmall,
-                              ),
-                              Text(
-                                _usageStats!.tokensRemainingFormatted,
-                                style: theme.textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: isPro ? Colors.green : null,
-                                ),
-                              ),
-                            ],
+                          const Spacer(),
+                          Text(
+                            '${_usageStats != null ? NumberFormat.compact().format(_usageStats!.totalTokensUsed) : "None"} / ${_usageStats != null ? NumberFormat.compact().format(_usageStats!.totalTokensLimit) : "No Limit"}',
+                            style: theme.textTheme.bodyMedium,
                           ),
                         ],
                       ),
-                      if (!isPro && _usageStats!.totalTokensLimit > 0) ...[
-                        const SizedBox(height: 16),
-                        LinearProgressIndicator(
-                          value: _usageStats!.usagePercentage,
-                          backgroundColor: theme.colorScheme.surfaceVariant,
-                          borderRadius: BorderRadius.circular(4),
+                      
+                      const SizedBox(height: 4),
+
+                      LinearProgressIndicator(
+                        minHeight: 8,
+                        borderRadius: BorderRadius.circular(16),
+                        value: _usageStats!.usagePercentage,
+                        backgroundColor:
+                            theme.colorScheme.onSurface.withAlpha(30),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color.lerp(Colors.green, Colors.red, _usageStats!.usagePercentage) ?? Colors.red,
                         ),
-                        const SizedBox(height: 8),
+                      ),
+                      const SizedBox(height: 16),
+                      if (!isPro && _usageStats!.totalTokensLimit > 0) ...[
                         Text(
                           'Current period: ${_usageStats!.formattedPeriod}',
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -342,7 +392,6 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                         ),
                       ],
                       if (isPro) ...[
-                        const SizedBox(height: 16),
                         const Row(
                           children: [
                             Icon(Icons.all_inclusive, color: Colors.green),
@@ -362,51 +411,40 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
-
-              // Model breakdown section
-              Text(
-                'Usage by Model',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-
+              const SizedBox(height: 12),
+              
               Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        'Usage by Model',
+                        style: theme.textTheme.headlineMedium,
+                      ),
+                      
+                      const SizedBox(height: 16),
+
                       for (var model in _usageStats!.modelUsage)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 16.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                model.modelName,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
                               Row(
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      'Tokens used: ${NumberFormat.compact().format(model.tokensUsed)}',
+                                      model.modelName,
+                                      style:
+                                          theme.textTheme.bodyMedium,
                                     ),
                                   ),
                                   if (!isPro && model.tokenLimit > 0)
                                     Text(
-                                      'Remaining: ${model.remainingTokensFormatted}',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
+                                      '${model.remainingTokensFormatted} tokens left',
+                                      style: theme.textTheme.bodyMedium,
                                     )
                                   else if (isPro)
                                     const Text(
@@ -419,14 +457,20 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                                 ],
                               ),
                               if (!isPro && model.tokenLimit > 0) ...[
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 4),
                                 LinearProgressIndicator(
+                                  minHeight: 8,
+                                  borderRadius: BorderRadius.circular(16),
                                   value: model.usagePercentage,
                                   backgroundColor:
-                                      theme.colorScheme.surfaceVariant,
-                                  borderRadius: BorderRadius.circular(4),
+                                      theme.colorScheme.onSurface.withAlpha(30),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Color.lerp(Colors.green, Colors.red, model.usagePercentage) ?? Colors.red,
+                                  ),
                                 ),
                               ],
+                              
+                              const SizedBox(height: 8),
                             ],
                           ),
                         ),
@@ -440,13 +484,11 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
 
             // Upgrade button at bottom (if not Pro)
             if (!isPro)
-              ElevatedButton.icon(
+              LargeButton(
+                label: 'Upgrade to Pro for Unlimited Tokens',
+                icon: Icons.workspace_premium,
                 onPressed: _navigateToUpgradeScreen,
-                icon: const Icon(Icons.workspace_premium),
-                label: const Text('Upgrade to Pro for Unlimited Tokens'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
+                isDarkMode: isDarkMode,
               ),
 
             const SizedBox(height: 40),
