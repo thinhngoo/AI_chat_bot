@@ -12,7 +12,7 @@ import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../features/subscription/services/ad_manager.dart';
 import '../../../features/subscription/services/subscription_service.dart';
 import 'assistant_management_screen.dart';
-import '../../auth/presentation/login_page.dart';
+import '../../../core/constants/app_colors.dart';
 
 class ChatScreen extends StatefulWidget {
   final Function toggleTheme;
@@ -53,7 +53,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   // Animation controllers
   late AnimationController _sendButtonController;
 
-  String _selectedAssistantId = 'gpt-4o-mini';
+  String _selectedAssistantId = 'gpt-4o';
 
   // Prompt selector state
   bool _showPromptSelector = false;
@@ -711,50 +711,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             },
           ),
         ),
-        title: const Text(
-          'AI Chat Bot',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: AssistantSelector(
+          selectedAssistantId: _selectedAssistantId,
+          onSelect: (id) {
+            setState(() {
+              _selectedAssistantId = id;
+            });
+          },
         ),
+        centerTitle: true,
         actions: [
-          // Assistant selector dropdown
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: theme.dividerColor),
-            ),
-            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedAssistantId,
-                isDense: true,
-                icon: const Icon(Icons.arrow_drop_down),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'gpt-4o-mini',
-                    child: Text('GPT-4o mini'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'gemini-1.5-flash-latest',
-                    child: Text('Gemini 1.5 Flash'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'gpt-4o',
-                    child: Text('GPT-4o'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedAssistantId = value;
-                    });
-                  }
-                },
-              ),
-            ),
-          ),
-
           // Light/dark mode toggle
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -767,34 +733,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               tooltip: isDarkMode ? 'Light mode' : 'Dark mode',
               onPressed: () => widget.toggleTheme(),
             ),
-          ),
-
-          // Settings/logout menu
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'logout') {
-                _authService.signOut().then((_) {
-                  if (context.mounted) {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                          builder: (context) => const LoginPage()),
-                    );
-                  }
-                });
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem<String>(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout),
-                    SizedBox(width: 8),
-                    Text('Đăng xuất'),
-                  ],
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -1185,6 +1123,239 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               ),
             )
           : null,
+    );
+  }
+}
+
+class AssistantSelector extends StatefulWidget {
+  final String selectedAssistantId;
+  final ValueChanged<String> onSelect;
+
+  const AssistantSelector({
+    super.key,
+    required this.selectedAssistantId,
+    required this.onSelect,
+  });
+
+  @override
+  State<AssistantSelector> createState() => _AssistantSelectorState();
+}
+
+class Assistant {
+  final String id;
+  final String name;
+  final String description;
+
+  const Assistant({
+    required this.id,
+    required this.name,
+    required this.description,
+  });
+}
+
+class _AssistantSelectorState extends State<AssistantSelector> {
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  final assistants = [
+    Assistant(
+        id: 'gpt-4.1',
+        name: 'GPT 4o',
+        description: 'Maximum intelligence and context'),
+    Assistant(
+        id: 'gpt-4o',
+        name: 'GPT 4o',
+        description: 'Faster, but less than GPT-4.1'),
+    Assistant(id: 'o4-mini', name: 'GPT 4o mini', description: 'Small and fast'),
+    Assistant(
+        id: 'grok-3',
+        name: 'Grok 3',
+        description: 'Maximum intelligence and context'),
+    Assistant(
+        id: 'grok-2',
+        name: 'Grok 2',
+        description: 'Faster, but less than Grok 3'),
+  ];
+
+  void _showMenu() {
+    _overlayEntry = _buildOverlayEntry();
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _hideMenu() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  OverlayEntry _buildOverlayEntry() {
+    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+    final offset = renderBox.localToGlobal(Offset.zero);
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
+    return OverlayEntry(
+      builder: (context) => GestureDetector(
+        onTap: _hideMenu,
+        behavior: HitTestBehavior.translucent,
+        child: Stack(
+          children: [
+            Positioned(
+              left: offset.dx,
+              top: offset.dy + size.height + 6,
+              width: 280,
+              child: CompositedTransformFollower(
+                link: _layerLink,
+                showWhenUnlinked: false,
+                offset: Offset(-(270-size.width)/2, size.height + 6),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      border: isDarkMode
+                          ? Border.all(color: theme.dividerColor.withAlpha(120))
+                          : null,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(18),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var assistant in assistants)
+                          _buildMenuOption(
+                            id: assistant.id,
+                            title: assistant.name,
+                            subtitle: assistant.description,
+                            selected:
+                                widget.selectedAssistantId == assistant.id,
+                            onTap: () {
+                              widget.onSelect(assistant.id);
+                              _hideMenu();
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuOption({
+    required String id,
+    required String title,
+    required String subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    final color = isDarkMode ? AppColors.dark : AppColors.light;
+
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        color: selected
+            ? theme.colorScheme.primary.withAlpha(10)
+            : Colors.transparent,
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsets.only(right: 10),
+              decoration: BoxDecoration(
+                color: selected ? theme.colorScheme.primary : color.muted,
+                shape: BoxShape.circle,
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight:
+                          selected ? FontWeight.bold : FontWeight.normal,
+                      color: selected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 13,
+                      color: selected
+                          ? theme.colorScheme.primary.withAlpha(200)
+                          : color.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check, color: theme.colorScheme.primary, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    String title = assistants.firstWhere((element) => element.id == widget.selectedAssistantId).name;
+
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: GestureDetector(
+        onTap: () {
+          if (_overlayEntry == null) {
+            _showMenu();
+          } else {
+            _hideMenu();
+          }
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: theme.textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

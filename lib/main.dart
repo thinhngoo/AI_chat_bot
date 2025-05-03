@@ -287,7 +287,8 @@ class _MyAppState extends State<MyApp> {
           color: colors.foreground,
         ),
       ),
-
+      
+      dividerColor: colors.border,
       colorScheme: isDark
           ? ColorScheme.dark(
               primary: colors.primary,

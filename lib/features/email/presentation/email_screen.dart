@@ -8,7 +8,6 @@ import '../../../core/services/auth/auth_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/custom_text_field.dart';
 import '../../../widgets/custom_button.dart';
-import '../../../widgets/loading.dart';
 import '../../../widgets/typing_indicator.dart';
 import 'email_compose_screen.dart';
 
