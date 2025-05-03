@@ -243,27 +243,33 @@ class _MainScreenState extends State<MainScreen> {
     // Show confirmation dialog
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             style: TextButton.styleFrom(
               foregroundColor: colors.muted,
             ),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _authService.signOut().then((_) {
-                if (context.mounted) {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (context) => const LoginPage()),
-                  );
-                }
-              });
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+
+              // Save the navigator before the async gap
+              final navigator = Navigator.of(context);
+
+              await _authService.signOut();
+
+              // Check if state is still mounted after async gap
+              if (mounted) {
+                navigator.pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (ctx) => const LoginPage()),
+                  (route) => false,
+                );
+              }
             },
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
