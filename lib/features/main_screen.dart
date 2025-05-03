@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/auth/auth_service.dart';
 import 'chat/presentation/chat_screen.dart';
 import 'bot/presentation/bot_list_screen.dart';
 import 'email/presentation/email_screen.dart';
 import 'prompt/presentation/prompt_management_screen.dart';
 import 'subscription/presentation/subscription_info_screen.dart';
+import 'auth/presentation/login_page.dart';
 
 class MainScreen extends StatefulWidget {
   final Function toggleTheme;
@@ -19,6 +21,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  final AuthService _authService = AuthService();
   int _currentIndex = 0;
   bool _isDialOpen = false;
   bool _showLabels = false;
@@ -32,10 +35,10 @@ class _MainScreenState extends State<MainScreen> {
     // Initialize screens - pass parameters where needed
     _screens = [
       ChatScreen(toggleTheme: widget.toggleTheme),
-      const BotListScreen(),
-      EmailScreen(toggleTheme: widget.toggleTheme),
-      const PromptManagementScreen(),
       const SubscriptionInfoScreen(),
+      const BotListScreen(),
+      const PromptManagementScreen(),
+      EmailScreen(toggleTheme: widget.toggleTheme),
     ];
   }
 
@@ -108,13 +111,15 @@ class _MainScreenState extends State<MainScreen> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         if (_isDialOpen) ...[
-          _buildDialOption(Icons.paid, 'Pro', 4),
+          _buildDialOption(Icons.logout, 'Logout', -1),
+          const SizedBox(height: 16),
+          _buildDialOption(Icons.email, 'Email', 4),
           const SizedBox(height: 16),
           _buildDialOption(Icons.format_quote, 'Prompts', 3),
           const SizedBox(height: 16),
-          _buildDialOption(Icons.email, 'Email', 2),
+          _buildDialOption(Icons.android, 'Bots', 2),
           const SizedBox(height: 16),
-          _buildDialOption(Icons.smart_toy, 'Bots', 1),
+          _buildDialOption(Icons.person, 'Account', 1),
           const SizedBox(height: 16),
           _buildDialOption(Icons.chat_bubble, 'Chat', 0),
           const SizedBox(height: 20),
@@ -146,7 +151,7 @@ class _MainScreenState extends State<MainScreen> {
     final AppColors colors = Theme.of(context).brightness == Brightness.dark
         ? AppColors.dark
         : AppColors.light;
-    final bool isSelected = _currentIndex == index;
+    final bool isSelected = index >= 0 && _currentIndex == index;
 
     return SizedBox(
       width: 240,
@@ -156,17 +161,25 @@ class _MainScreenState extends State<MainScreen> {
           if (_showLabels)
             GestureDetector(
               onTap: () {
-                setState(() {
-                  _currentIndex = index;
-                  _isDialOpen = false;
-                });
+                if (index >= 0) {
+                  setState(() {
+                    _currentIndex = index;
+                    _isDialOpen = false;
+                  });
+                } else {
+                  _handleLogout();
+                }
               },
               child: Container(
                 width: 100,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isSelected ? colors.primary : colors.button,
+                  color: isSelected
+                      ? colors.primary
+                      : index == -1
+                          ? Colors.redAccent
+                          : colors.button,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 alignment: Alignment.center,
@@ -175,7 +188,9 @@ class _MainScreenState extends State<MainScreen> {
                   style: TextStyle(
                     color: isSelected
                         ? colors.primaryForeground
-                        : colors.buttonForeground,
+                        : index == -1
+                            ? Colors.white.withAlpha(240)
+                            : colors.buttonForeground,
                     fontWeight:
                         isSelected ? FontWeight.w900 : FontWeight.normal,
                     fontSize: isSelected ? 16 : 14,
@@ -186,19 +201,74 @@ class _MainScreenState extends State<MainScreen> {
           SizedBox(width: _showLabels ? 12 : 0),
           FloatingActionButton(
             onPressed: () {
-              setState(() {
-                _currentIndex = index;
-                _isDialOpen = false;
-              });
+              if (index >= 0) {
+                setState(() {
+                  _currentIndex = index;
+                  _isDialOpen = false;
+                });
+              } else {
+                // Handle logout
+                _handleLogout();
+              }
             },
-            backgroundColor: isSelected ? colors.primary : colors.button,
+            backgroundColor: isSelected
+                ? colors.primary
+                : index == -1
+                    ? Colors.redAccent
+                    : colors.button,
             heroTag: 'fab_$index',
             child: Icon(
               icon,
               color: isSelected
                   ? colors.primaryForeground
-                  : colors.buttonForeground.withAlpha(200),
+                  : index == -1
+                      ? Colors.white.withAlpha(240)
+                      : colors.buttonForeground.withAlpha(200),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleLogout() {
+    // Close the menu
+    setState(() {
+      _isDialOpen = false;
+    });
+    final AppColors colors = Theme.of(context).brightness == Brightness.dark
+        ? AppColors.dark
+        : AppColors.light;
+
+    // Show confirmation dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: colors.muted,
+            ),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _authService.signOut().then((_) {
+                if (context.mounted) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                  );
+                }
+              });
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Logout'),
           ),
         ],
       ),

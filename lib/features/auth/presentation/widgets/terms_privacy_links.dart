@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_colors.dart';
 
 /// Reusable Terms and Privacy Policy links widget
 class TermsAndPrivacyLinks extends StatelessWidget {
   final String introText;
-  final bool darkMode;
 
   const TermsAndPrivacyLinks({
     super.key,
-    this.introText = 'Bằng cách đăng nhập, bạn đồng ý với',
-    this.darkMode = true,
+    this.introText = 'By logging in, you agree to our',
   });
 
   @override
   Widget build(BuildContext context) {
-    final AppColors colors = darkMode ? AppColors.dark : AppColors.light;
+    final AppColors colors = AppColors.dark;
 
     return Column(
       children: [
@@ -37,17 +35,16 @@ class TermsAndPrivacyLinks extends StatelessWidget {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
-                'Điều khoản',
+                'Terms',
                 style: TextStyle(
                   color: colors.muted,
-                  decoration: TextDecoration.underline,
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
                 ),
               ),
             ),
             Text(
-              'và',
+              'and',
               style: TextStyle(
                 color: colors.muted,
                 fontSize: 14,
@@ -61,10 +58,9 @@ class TermsAndPrivacyLinks extends StatelessWidget {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
-                'Chính sách bảo mật',
+                'Privacy Policy',
                 style: TextStyle(
                   color: colors.muted,
-                  decoration: TextDecoration.underline,
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
                 ),

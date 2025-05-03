@@ -32,6 +32,8 @@ abstract class AppColors {
   Color get errorForeground;
   Color get success;
   Color get successForeground;
+  Color get delete;
+  Color get deleteForeground;
 
   /// Access theme colors
   static final DarkColors dark = DarkColors();
@@ -83,7 +85,7 @@ class DarkColors implements AppColors {
 
   // Border colors
   @override
-  final Color border = const Color(0xFF2C2C2C);
+  final Color border = Colors.grey.shade700;
   @override
   final Color ring = const Color(0xFFD4C9C9);
 
@@ -96,6 +98,10 @@ class DarkColors implements AppColors {
   final Color success = const Color(0xFF81C784);
   @override
   final Color successForeground = const Color(0xFF388E3C);
+  @override
+  final Color delete = const Color(0xFFE57373);
+  @override
+  final Color deleteForeground = const Color(0xFFFFFFFF);
 }
 
 /// Light theme colors implementation
@@ -143,9 +149,9 @@ class LightColors implements AppColors {
 
   // Border colors
   @override
-  final Color border = const Color(0xFFD1D5DB);
+  final Color border = Colors.grey.shade400;
   @override
-  final Color ring = const Color(0xFF6366F1);
+  final Color ring = Colors.black.withAlpha(180);
 
   // Additional colors
   @override
@@ -156,4 +162,8 @@ class LightColors implements AppColors {
   final Color success = const Color(0xFF22C55E);
   @override
   final Color successForeground = const Color(0xFFFFFFFF);
+  @override
+  final Color delete = const Color(0xFFEF4444);
+  @override
+  final Color deleteForeground = const Color(0xFFFFFFFF);
 }

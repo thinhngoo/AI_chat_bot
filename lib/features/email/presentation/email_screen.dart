@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../models/email_model.dart';
 import '../services/email_service.dart';
-import '../../../widgets/common/typing_indicator.dart';
+import '../../../widgets/typing_indicator.dart';
 import '../../../features/subscription/services/subscription_service.dart';
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../widgets/custom_text_field.dart';
+import '../../../widgets/custom_button.dart';
 import 'email_compose_screen.dart';
 
 class EmailScreen extends StatefulWidget {
@@ -186,13 +188,12 @@ class _EmailScreenState extends State<EmailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final AppColors colors = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.dark
-        : AppColors.light;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final AppColors colors = isDarkMode ? AppColors.dark : AppColors.light;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Email Composer'),
+        title: Text('Email Composer'),
         centerTitle: true,
         actions: [
           // Pro subscription indicator
@@ -206,13 +207,18 @@ class _EmailScreenState extends State<EmailScreen> {
             ),
 
           // Light/dark mode toggle
-          IconButton(
-            icon: Icon(
-              Icons.dark_mode,
-              color: theme.colorScheme.onSurface.withAlpha(200),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: IconButton(
+              icon: Icon(
+                isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                color: isDarkMode
+                    ? Colors.white.withAlpha(240)
+                    : Colors.amberAccent,
+              ),
+              tooltip: 'Toggle theme',
+              onPressed: () => widget.toggleTheme(),
             ),
-            tooltip: 'Toggle theme',
-            onPressed: () => widget.toggleTheme(),
           ),
         ],
       ),
@@ -231,83 +237,114 @@ class _EmailScreenState extends State<EmailScreen> {
                   // Section title
                   Text(
                     'AI Email Assistant',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: theme.textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Get AI help composing professional emails for any situation',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withAlpha(179),
+                      color: colors.muted,
                     ),
                   ),
                   const SizedBox(height: 24),
 
                   // Email input section
                   Text(
-                    'Paste the email you received:',
-                    style: theme.textTheme.titleMedium,
+                    'First, paste the email you received:',
+                    style: theme.textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 8),
-                  TextFormField(
+                  CustomTextField(
                     controller: _originalEmailController,
-                    focusNode: _emailFocusNode,
-                    decoration: InputDecoration(
-                      hintText: 'Paste the email you want to respond to...',
-                      border: const OutlineInputBorder(),
-                      fillColor: theme.inputDecorationTheme.fillColor,
-                      filled: true,
-                      suffixIcon: _originalEmailController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: _clearEmail,
-                              tooltip: 'Clear',
-                            )
-                          : null,
-                    ),
+                    label: 'Email Content',
+                    hintText: 'Paste the email you want to respond to...',
                     maxLines: 6,
-                    textInputAction: TextInputAction.newline,
+                    darkMode: isDarkMode,
+                    textCapitalization: TextCapitalization.sentences,
+                    keyboardType: TextInputType.multiline,
+                    onChanged: (_) {
+                      setState(() {}); // Trigger rebuild to update button state
+                    },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  // Delete button
+                  if (_originalEmailController.text.isNotEmpty)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton.icon(
+                          onPressed: _clearEmail,
+                          icon: Icon(
+                            Icons.delete_outline,
+                            color: colors.delete,
+                          ),
+                          label: Text(
+                            'Clear email',
+                            style: TextStyle(
+                              color: colors.delete,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            backgroundColor: colors.delete.withAlpha(20),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 14, horizontal: 24),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 12),
 
                   // Sample emails section
                   Wrap(
+                    alignment: WrapAlignment.start,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     spacing: 8.0,
                     runSpacing: 8.0,
                     children: [
-                      const Text('Try with sample: '),
-                      ...List.generate(
-                        _sampleEmails.length,
-                        (index) => ActionChip(
-                          label: Text(_sampleEmails[index]['title']!),
-                          onPressed: () => _useSampleEmail(index),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: Text(
+                          'Try with sample:',
+                          style: theme.textTheme.bodyMedium,
                         ),
                       ),
+                      ...List.generate(
+                        _sampleEmails.length,
+                        (index) => InkWell(
+                          onTap: () => _useSampleEmail(index),
+                          child: Chip(
+                            label: Text(_sampleEmails[index]['title']!),
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              color: colors.cardForeground,
+                            ),
+                            backgroundColor: colors.card,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(color: colors.border),
+                            ),
+                            padding: const EdgeInsets.all(0),
+                          ),
+                        ),
+                      )
                     ],
                   ),
                   const SizedBox(height: 16),
 
                   // Get suggestions button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _getSuggestions,
-                      icon: const Icon(Icons.auto_awesome),
-                      label: const Text('Get AI Suggestions'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  Text(
-                    'Or select a specific email type to compose:',
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurface.withAlpha(153),
-                      fontSize: 12,
-                    ),
+                  CustomButton(
+                    label: 'Get AI Suggestions',
+                    icon: Icons.auto_awesome,
+                    onPressed:
+                        _isLoading || _originalEmailController.text.isEmpty
+                            ? null
+                            : _getSuggestions,
+                    isPrimary: true,
+                    isDarkMode: isDarkMode,
                   ),
                   const SizedBox(height: 24),
 
@@ -335,28 +372,32 @@ class _EmailScreenState extends State<EmailScreen> {
                     ),
 
                   // Loading indicator
-                  if (_isLoading)
-                    Center(
-                      child: Column(
-                        children: [
-                          const CircularProgressIndicator(),
-                          const SizedBox(height: 16),
-                          TypingIndicator(isTyping: true),
-                          const SizedBox(height: 8),
-                          const Text('Getting email suggestions...'),
-                        ],
+                  if (_isLoading) ...[
+                    const SizedBox(height: 30),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TypingIndicator(isTyping: true),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Getting email suggestions...',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colors.foreground.withAlpha(128),
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
+                    const SizedBox(height: 24),
+                  ],
 
                   // Suggestions
                   if (_suggestions.isNotEmpty) ...[
-                    const Divider(),
                     const SizedBox(height: 8),
                     Text(
                       'Suggested responses:',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: theme.textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 16),
 
@@ -379,13 +420,15 @@ class _EmailScreenState extends State<EmailScreen> {
                     ),
                   ],
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 30),
 
                   // All email actions
                   Text(
-                    'Compose a specific type of email:',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    'Choose your response type:',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      color: _originalEmailController.text.isEmpty
+                          ? colors.muted
+                          : null,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -411,9 +454,11 @@ class _EmailScreenState extends State<EmailScreen> {
 
                   // Email formatting options
                   Text(
-                    'Email formatting options:',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    'Select tone and style:',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      color: _originalEmailController.text.isEmpty
+                          ? colors.muted
+                          : null,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -444,59 +489,56 @@ class _EmailScreenState extends State<EmailScreen> {
 
   Widget _buildSuggestionCard(EmailSuggestion suggestion) {
     final theme = Theme.of(context);
+    final colors =
+        theme.brightness == Brightness.dark ? AppColors.dark : AppColors.light;
+    final bool isDisabled = _originalEmailController.text.isEmpty;
 
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: () => _navigateToComposeScreen(suggestion.actionType),
+        onTap: isDisabled
+            ? null
+            : () => _navigateToComposeScreen(suggestion.actionType),
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Icon and action type
-              Row(
-                children: [
-                  Icon(
-                    suggestion.actionType.icon,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    suggestion.actionType.label,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+        child: Opacity(
+          opacity: isDisabled ? 0.5 : 1.0,
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Icon and action type
+                Row(
+                  children: [
+                    Icon(
+                      suggestion.actionType.icon,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      suggestion.actionType.label,
+                      style: theme.textTheme.headlineSmall,
+                    ),
+                  ],
+                ),
+                Divider(
+                  color: colors.border,
+                ),
+                // Preview content
+                Expanded(
+                  child: Text(
+                    suggestion.content,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withAlpha(204),
                     ),
                   ),
-                ],
-              ),
-              const Divider(),
-              // Preview content
-              Expanded(
-                child: Text(
-                  suggestion.content,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: theme.colorScheme.onSurface.withAlpha(204),
-                  ),
                 ),
-              ),
-              // Action button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () =>
-                        _navigateToComposeScreen(suggestion.actionType),
-                    child: const Text('Use this'),
-                  ),
-                ],
-              ),
-            ],
+                // Action button
+              ],
+            ),
           ),
         ),
       ),
@@ -505,32 +547,36 @@ class _EmailScreenState extends State<EmailScreen> {
 
   Widget _buildActionCard(EmailActionType actionType) {
     final theme = Theme.of(context);
+    final colors =
+        theme.brightness == Brightness.dark ? AppColors.dark : AppColors.light;
+    final bool isDisabled = _originalEmailController.text.isEmpty;
 
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: () => _navigateToComposeScreen(actionType),
+        onTap: isDisabled ? null : () => _navigateToComposeScreen(actionType),
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                actionType.icon,
-                size: 32,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                actionType.label,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+        child: Opacity(
+          opacity: isDisabled ? 0.5 : 1.0,
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  actionType.icon,
+                  size: 36,
+                  color: isDisabled ? colors.muted : colors.primary,
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  actionType.label,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineSmall,
+                ),
+              ],
+            ),
           ),
         ),
       ),

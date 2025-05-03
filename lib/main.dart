@@ -116,16 +116,35 @@ class _MyAppState extends State<MyApp> {
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colors.border),
+          borderSide: BorderSide(
+            width: 1,
+          ),
         ),
+        // enabledBorder: OutlineInputBorder(
+        //   borderRadius: BorderRadius.circular(12),
+        //   borderSide: BorderSide(
+        //     width: 1,
+        //   ),
+        // ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(width: 2, color: colors.primary),
+          borderSide: BorderSide(
+            width: 1.5,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            width: 1,
+          ),
         ),
         filled: true,
-        fillColor: colors.input,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 40,
+          minHeight: 40,
+        ),
       ),
 
       // Button themes
@@ -136,7 +155,7 @@ class _MyAppState extends State<MyApp> {
           foregroundColor: colors.buttonForeground,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
         ),
       ),
 
@@ -163,14 +182,27 @@ class _MyAppState extends State<MyApp> {
       dialogTheme: DialogTheme(
         backgroundColor: colors.card,
         surfaceTintColor: colors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        titleTextStyle: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: colors.cardForeground,
+        ),
+        contentTextStyle: TextStyle(
+          fontSize: 16,
+          color: colors.cardForeground,
+        ),
       ),
 
       // Chip theme
       chipTheme: ChipThemeData(
-        backgroundColor: colors.secondary,
-        labelStyle: TextStyle(color: colors.secondaryForeground),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        backgroundColor: colors.card,
+        labelStyle: TextStyle(color: colors.cardForeground),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
 
       // Snackbar theme
@@ -190,13 +222,72 @@ class _MyAppState extends State<MyApp> {
         foregroundColor: colors.foreground,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          color: colors.foreground,
           fontSize: 20,
           fontWeight: FontWeight.bold,
+          color: colors.foreground,
         ),
       ),
 
-      // Scaffold background color and color scheme
+      textTheme: TextTheme(
+        displayLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: colors.foreground,
+        ),
+        displayMedium: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: colors.foreground,
+        ),
+        displaySmall: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: colors.foreground,
+        ),
+        headlineLarge: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w600,
+          color: colors.foreground,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: colors.foreground,
+        ),
+        headlineSmall: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: colors.foreground,
+        ),
+        titleLarge: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: colors.foreground,
+        ),
+        titleMedium: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: colors.foreground,
+        ),
+        titleSmall: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: colors.foreground,
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 16,
+          color: colors.foreground,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14,
+          color: colors.foreground,
+        ),
+        bodySmall: TextStyle(
+          fontSize: 12,
+          color: colors.foreground,
+        ),
+      ),
+
       colorScheme: isDark
           ? ColorScheme.dark(
               primary: colors.primary,

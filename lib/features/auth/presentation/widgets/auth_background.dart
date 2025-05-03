@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_colors.dart';
 
 /// Background with synthwave grid and gradient overlay for auth screens
 class AuthBackground extends StatelessWidget {

@@ -3,9 +3,11 @@ import 'package:logger/logger.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/utils/validators/input_validator.dart';
-import '../../../widgets/auth/auth_widgets.dart';
+import 'widgets/auth_widgets.dart';
 import 'signup_page.dart';
 import 'dart:async';
+import '../../../widgets/custom_text_field.dart';
+import './widgets/custom_password_field.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -22,9 +24,9 @@ class _LoginPageState extends State<LoginPage>
   final Logger _logger = Logger();
 
   bool _isLoading = false;
+  bool _showCursor = true;
   String? _emailErrorMessage;
   String? _passwordErrorMessage;
-  bool _showCursor = true;
   late Timer _cursorTimer;
 
   @override
@@ -109,7 +111,7 @@ class _LoginPageState extends State<LoginPage>
           e.toString().contains('user not found') ||
           e.toString().contains('EMAIL_PASSWORD_MISMATCH') ||
           e.toString().contains('Wrong e-mail or password')) {
-        errorMsg = 'Email hoặc mật khẩu không đúng. Vui lòng thử lại.';
+        errorMsg = 'Incorrect email or password. Please try again.';
         setState(() {
           _passwordErrorMessage = errorMsg;
           _isLoading = false;
@@ -118,14 +120,14 @@ class _LoginPageState extends State<LoginPage>
       } else if (e.toString().contains('network') ||
           e.toString().contains('connect')) {
         errorMsg =
-            'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet của bạn.';
+            'Network connection error. Please check your internet connection.';
       } else if (e.toString().toLowerCase().contains('scope') ||
           e.toString().toLowerCase().contains('permission')) {
         errorMsg =
-            'Không thể đăng nhập với đầy đủ quyền truy cập. Vui lòng thử lại.';
+            'Unable to login with full access permissions. Please try again.';
       } else {
         // Use a more user-friendly error message
-        errorMsg = 'Lỗi đăng nhập: ${e.toString()}';
+        errorMsg = 'Login error: ${e.toString()}';
       }
 
       setState(() {
@@ -144,7 +146,7 @@ class _LoginPageState extends State<LoginPage>
     // Validate email
     if (_emailController.text.trim().isEmpty) {
       setState(() {
-        _emailErrorMessage = 'Vui lòng nhập email';
+        _emailErrorMessage = 'Please enter your email';
       });
       return false;
     }
@@ -152,7 +154,7 @@ class _LoginPageState extends State<LoginPage>
     if (!InputValidator.isValidEmail(_emailController.text.trim())) {
       // Updated class name
       setState(() {
-        _emailErrorMessage = 'Email không hợp lệ';
+        _emailErrorMessage = 'Invalid email format';
       });
       return false;
     }
@@ -160,7 +162,7 @@ class _LoginPageState extends State<LoginPage>
     // Validate password
     if (_passwordController.text.isEmpty) {
       setState(() {
-        _passwordErrorMessage = 'Vui lòng nhập mật khẩu';
+        _passwordErrorMessage = 'Please enter your password';
       });
       return false;
     }
@@ -174,7 +176,7 @@ class _LoginPageState extends State<LoginPage>
 
     return AuthBackground(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24.0, 60.0, 24.0, 24.0),
+        padding: const EdgeInsets.fromLTRB(24.0, 120.0, 24.0, 24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -193,7 +195,7 @@ class _LoginPageState extends State<LoginPage>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Trải nghiệm ngay',
+                  'Understand the universe',
                   style: TextStyle(
                     fontSize: 24,
                     color: colors.muted,
@@ -223,15 +225,6 @@ class _LoginPageState extends State<LoginPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    'Đăng nhập',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: colors.foreground,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
                   _buildEmailField(),
                   const SizedBox(height: 16),
                   _buildPasswordField(),
@@ -244,8 +237,8 @@ class _LoginPageState extends State<LoginPage>
             const SizedBox(height: 20),
 
             AuthLinkWidget(
-              questionText: 'Chưa có tài khoản?',
-              linkText: 'Đăng ký ngay',
+              questionText: 'Don\'t have an account?',
+              linkText: 'Sign up now',
               onPressed: () {
                 Navigator.push(
                   context,
@@ -254,14 +247,12 @@ class _LoginPageState extends State<LoginPage>
                   ),
                 );
               },
-              darkMode: true,
             ),
 
             const SizedBox(height: 30),
 
             TermsAndPrivacyLinks(
-              introText: 'Bằng cách đăng nhập, bạn đồng ý với',
-              darkMode: true,
+              introText: 'By logging in, you agree to our',
             ),
           ],
         ),
@@ -270,10 +261,10 @@ class _LoginPageState extends State<LoginPage>
   }
 
   Widget _buildEmailField() {
-    return CustomFormField(
+    return CustomTextField(
       controller: _emailController,
       label: 'Email',
-      hintText: 'Nhập email của bạn',
+      hintText: 'Enter your email',
       errorText: _emailErrorMessage,
       prefixIcon: Icons.email_outlined,
       keyboardType: TextInputType.emailAddress,
@@ -283,25 +274,22 @@ class _LoginPageState extends State<LoginPage>
   }
 
   Widget _buildPasswordField() {
-    return CustomFormField(
+    return CustomPasswordField(
       controller: _passwordController,
-      label: 'Mật khẩu',
-      hintText: 'Nhập mật khẩu của bạn',
+      label: 'Password',
+      hintText: 'Enter your password',
       errorText: _passwordErrorMessage,
-      prefixIcon: Icons.lock_outline,
-      obscureText: true,
       onChanged: (_) => setState(() => _passwordErrorMessage = null),
-      onSubmit: _login,
+      onSubmitted: (_) => _login(),
       darkMode: true,
     );
   }
 
   Widget _buildLoginButton() {
     return SubmitButton(
-      label: 'Đăng nhập',
+      label: 'Login',
       onPressed: _login,
       isLoading: _isLoading,
-      darkMode: true,
     );
   }
 

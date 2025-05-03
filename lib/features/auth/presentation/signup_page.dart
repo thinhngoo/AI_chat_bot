@@ -3,8 +3,11 @@ import 'package:logger/logger.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/utils/validators/input_validator.dart';
-import '../../../widgets/auth/auth_widgets.dart';
+import 'widgets/auth_widgets.dart';
 import 'login_page.dart';
+import '../../../widgets/custom_text_field.dart';
+import './widgets/custom_password_field.dart';
+import 'dart:async';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -24,6 +27,8 @@ class _SignupPageState extends State<SignupPage> {
 
   bool _isLoading = false;
   bool _isSuccess = false;
+  bool _showCursor = true;
+  late Timer _cursorTimer;
 
   // Add separate error messages for each field
   String? _nameErrorMessage;
@@ -34,6 +39,11 @@ class _SignupPageState extends State<SignupPage> {
   @override
   void initState() {
     super.initState();
+    _cursorTimer = Timer.periodic(const Duration(milliseconds: 600), (timer) {
+      setState(() {
+        _showCursor = !_showCursor;
+      });
+    });
   }
 
   Future<void> _signup() async {
@@ -77,31 +87,31 @@ class _SignupPageState extends State<SignupPage> {
       String errorMsg = e.toString();
 
       // Convert error message to user-friendly text and assign to appropriate field
-      if (errorMsg.contains('Email đã được sử dụng') ||
+      if (errorMsg.contains('Email is already in use') ||
           errorMsg.contains('already exists') ||
           errorMsg.contains('email')) {
         setState(() {
           _emailErrorMessage =
-              'Email đã được sử dụng. Vui lòng sử dụng email khác.';
+              'Email is already in use. Please use a different email.';
           _isLoading = false;
         });
       } else if (errorMsg.contains('weak-password') ||
           errorMsg.contains('mật khẩu')) {
         setState(() {
           _passwordErrorMessage =
-              'Mật khẩu quá yếu. Vui lòng chọn mật khẩu mạnh hơn.';
+              'Password is too weak. Please choose a stronger password.';
           _isLoading = false;
         });
       } else if (errorMsg.contains('network')) {
         setState(() {
           _confirmPasswordErrorMessage =
-              'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet của bạn.';
+              'Network connection error. Please check your internet connection.';
           _isLoading = false;
         });
       } else {
         // Use a more user-friendly error message
         setState(() {
-          _confirmPasswordErrorMessage = 'Lỗi đăng ký: $errorMsg';
+          _confirmPasswordErrorMessage = 'Registration error: $errorMsg';
           _isLoading = false;
         });
       }
@@ -123,7 +133,7 @@ class _SignupPageState extends State<SignupPage> {
     // Validate name
     if (_nameController.text.trim().isEmpty) {
       setState(() {
-        _nameErrorMessage = 'Vui lòng nhập tên của bạn';
+        _nameErrorMessage = 'Please enter your name';
       });
       return false;
     }
@@ -131,14 +141,14 @@ class _SignupPageState extends State<SignupPage> {
     // Validate email
     if (_emailController.text.trim().isEmpty) {
       setState(() {
-        _emailErrorMessage = 'Vui lòng nhập email';
+        _emailErrorMessage = 'Please enter your email';
       });
       return false;
     }
 
     if (!InputValidator.isValidEmail(_emailController.text.trim())) {
       setState(() {
-        _emailErrorMessage = 'Email không hợp lệ';
+        _emailErrorMessage = 'Invalid email format';
       });
       return false;
     }
@@ -146,14 +156,14 @@ class _SignupPageState extends State<SignupPage> {
     // Validate password
     if (_passwordController.text.isEmpty) {
       setState(() {
-        _passwordErrorMessage = 'Vui lòng nhập mật khẩu';
+        _passwordErrorMessage = 'Please enter your password';
       });
       return false;
     }
 
     if (!InputValidator.isValidPassword(_passwordController.text)) {
       setState(() {
-        _passwordErrorMessage = 'Mật khẩu không đáp ứng các yêu cầu bảo mật';
+        _passwordErrorMessage = 'Password does not meet security requirements';
       });
       return false;
     }
@@ -161,7 +171,7 @@ class _SignupPageState extends State<SignupPage> {
     // Validate confirm password
     if (_confirmPasswordController.text != _passwordController.text) {
       setState(() {
-        _confirmPasswordErrorMessage = 'Mật khẩu xác nhận không khớp';
+        _confirmPasswordErrorMessage = 'Passwords do not match';
       });
       return false;
     }
@@ -192,6 +202,31 @@ class _SignupPageState extends State<SignupPage> {
                       ),
                     ),
 
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Start your journey',
+                          style: TextStyle(
+                            fontSize: 24,
+                            color: colors.muted,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        SizedBox(
+                          width: 15,
+                          child: Text(
+                            _showCursor ? '_' : ' ',
+                            style: TextStyle(
+                              fontSize: 24,
+                              color: colors.muted,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
                     const SizedBox(height: 40),
 
                     _buildSignupForm(),
@@ -199,8 +234,8 @@ class _SignupPageState extends State<SignupPage> {
                     const SizedBox(height: 20),
 
                     AuthLinkWidget(
-                      questionText: 'Đã có tài khoản?',
-                      linkText: 'Đăng nhập ngay',
+                      questionText: 'Already have an account?',
+                      linkText: 'Login now',
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
@@ -209,12 +244,10 @@ class _SignupPageState extends State<SignupPage> {
                           ),
                         );
                       },
-                      darkMode: true,
                     ),
                     const SizedBox(height: 30),
                     TermsAndPrivacyLinks(
-                      introText: 'Bằng cách đăng ký, bạn đồng ý với',
-                      darkMode: true,
+                      introText: 'By signing up, you agree to our',
                     ),
                   ],
                 ),
@@ -224,34 +257,23 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildSignupForm() {
-    final AppColors colors = AppColors.dark;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          'Đăng ký tài khoản',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: colors.foreground,
-          ),
-        ),
-        const SizedBox(height: 24),
-        CustomFormField(
+        CustomTextField(
           controller: _nameController,
-          label: 'Họ và tên',
-          hintText: 'Nhập họ và tên của bạn',
+          label: 'Full Name',
+          hintText: 'Enter your full name',
           errorText: _nameErrorMessage,
           prefixIcon: Icons.person_outline,
           onChanged: (_) => setState(() => _nameErrorMessage = null),
           darkMode: true,
         ),
         const SizedBox(height: 16),
-        CustomFormField(
+        CustomTextField(
           controller: _emailController,
           label: 'Email',
-          hintText: 'Nhập email của bạn',
+          hintText: 'Enter your email',
           errorText: _emailErrorMessage,
           prefixIcon: Icons.email_outlined,
           keyboardType: TextInputType.emailAddress,
@@ -259,13 +281,11 @@ class _SignupPageState extends State<SignupPage> {
           darkMode: true,
         ),
         const SizedBox(height: 16),
-        CustomFormField(
+        CustomPasswordField(
           controller: _passwordController,
-          label: 'Mật khẩu',
-          hintText: 'Nhập mật khẩu của bạn',
+          label: 'Password',
+          hintText: 'Enter your password',
           errorText: _passwordErrorMessage,
-          prefixIcon: Icons.lock_outline,
-          obscureText: true,
           onChanged: (value) {
             setState(() {
               _passwordErrorMessage = null;
@@ -290,23 +310,20 @@ class _SignupPageState extends State<SignupPage> {
           ),
         ),
         const SizedBox(height: 16),
-        CustomFormField(
+        CustomPasswordField(
           controller: _confirmPasswordController,
-          label: 'Xác nhận mật khẩu',
-          hintText: 'Nhập lại mật khẩu của bạn',
+          label: 'Confirm Password',
+          hintText: 'Re-enter your password',
           errorText: _confirmPasswordErrorMessage,
-          prefixIcon: Icons.lock_outline,
-          obscureText: true,
           onChanged: (_) => setState(() => _confirmPasswordErrorMessage = null),
-          onSubmit: _signup,
+          onSubmitted: (_) => _signup(),
           darkMode: true,
         ),
         const SizedBox(height: 24),
         SubmitButton(
-          label: 'Đăng ký',
+          label: 'Sign Up',
           onPressed: _signup,
           isLoading: _isLoading,
-          darkMode: true,
         ),
       ],
     );
@@ -327,7 +344,7 @@ class _SignupPageState extends State<SignupPage> {
           ),
           const SizedBox(height: 24),
           Text(
-            'Đăng ký thành công!',
+            'Registration Successful!',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -337,7 +354,7 @@ class _SignupPageState extends State<SignupPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Tài khoản ${_emailController.text} đã được tạo thành công.',
+            'Account ${_emailController.text} has been created successfully.',
             style: TextStyle(
               fontSize: 16,
               color: colors.muted,
@@ -346,7 +363,7 @@ class _SignupPageState extends State<SignupPage> {
           ),
           const SizedBox(height: 24),
           SubmitButton(
-            label: 'Đăng nhập ngay',
+            label: 'Login Now',
             onPressed: () {
               Navigator.pushReplacement(
                 context,
@@ -355,7 +372,6 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               );
             },
-            darkMode: true,
           ),
         ],
       ),
@@ -368,6 +384,7 @@ class _SignupPageState extends State<SignupPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _cursorTimer.cancel();
     super.dispose();
   }
 }
@@ -410,7 +427,7 @@ class _PasswordStrengthBar extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                'Độ mạnh: ',
+                'Strength: ',
                 style: TextStyle(
                   color: darkMode ? colors.muted : Colors.grey[700],
                   fontSize: 12,
@@ -463,12 +480,12 @@ class _PasswordStrengthBar extends StatelessWidget {
   }
 
   String _getStrengthText(int score) {
-    if (score == 0) return 'Chưa nhập';
-    if (score < 30) return 'Rất yếu';
-    if (score < 50) return 'Yếu';
-    if (score < 70) return 'Trung bình';
-    if (score < 90) return 'Mạnh';
-    return 'Rất mạnh';
+    if (score == 0) return 'Not entered';
+    if (score < 30) return 'Very weak';
+    if (score < 50) return 'Weak';
+    if (score < 70) return 'Medium';
+    if (score < 90) return 'Strong';
+    return 'Very strong';
   }
 
   Color _getStrengthColor(int score) {
@@ -500,23 +517,23 @@ class _PasswordRequirementWidget extends StatelessWidget {
 
     final requirements = [
       {
-        'text': 'Ít nhất 8 ký tự',
+        'text': 'At least 8 characters',
         'isMet': password.length >= 8,
       },
       {
-        'text': 'Ít nhất 1 chữ hoa',
+        'text': 'At least 1 uppercase letter',
         'isMet': password.contains(RegExp(r'[A-Z]')),
       },
       {
-        'text': 'Ít nhất 1 chữ thường',
+        'text': 'At least 1 lowercase letter',
         'isMet': password.contains(RegExp(r'[a-z]')),
       },
       {
-        'text': 'Ít nhất 1 chữ số',
+        'text': 'At least 1 number',
         'isMet': password.contains(RegExp(r'[0-9]')),
       },
       {
-        'text': 'Ít nhất 1 ký tự đặc biệt',
+        'text': 'At least 1 special character',
         'isMet': password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]')),
       },
     ];
@@ -530,7 +547,7 @@ class _PasswordRequirementWidget extends StatelessWidget {
       children: [
         if (showTitle) ...[
           Text(
-            'Yêu cầu mật khẩu:',
+            'Password Requirements:',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,

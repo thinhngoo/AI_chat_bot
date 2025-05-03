@@ -4,8 +4,9 @@ import 'package:logger/logger.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/email_model.dart';
 import '../services/email_service.dart';
-import '../../../widgets/common/typing_indicator.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../widgets/custom_text_field.dart';
+import '../../../widgets/custom_button.dart';
 
 class EmailComposeScreen extends StatefulWidget {
   final String originalEmail;
@@ -34,12 +35,12 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
   final FocusNode _bodyFocusNode = FocusNode();
 
   bool _isLoading = true;
-  bool _isSaving = false;
-  bool _isImproving = false;
+  bool _showCcBcc = false;
+  final bool _isSaving = false;
+  final bool _isImproving = false;
+  final bool _hasUnsavedChanges = false;
   String _errorMessage = '';
   EmailDraft _emailDraft = EmailDraft();
-  bool _showCcBcc = false;
-  bool _hasUnsavedChanges = false;
 
   @override
   void initState() {
@@ -201,7 +202,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
       );
 
       // If user wants to save, return true (which will lead back to the parent with a "true" result)
-      if (result == true) {
+      if (result == true && mounted) {
         Navigator.of(context).pop(true);
         return false;
       }
@@ -266,10 +267,13 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
             ),
 
             // Copy button
-            IconButton(
-              icon: const Icon(Icons.copy),
-              tooltip: 'Copy to clipboard',
-              onPressed: _copyToClipboard,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 8, 0),
+              child: IconButton(
+                icon: const Icon(Icons.copy),
+                tooltip: 'Copy to clipboard',
+                onPressed: _copyToClipboard,
+              ),
             ),
           ],
         ),
@@ -278,9 +282,10 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const CircularProgressIndicator(),
+                    CircularProgressIndicator(
+                      color: colors.foreground.withAlpha(160),
+                    ),
                     const SizedBox(height: 16),
-                    TypingIndicator(isTyping: true),
                     const SizedBox(height: 8),
                     Text(
                       'Composing ${widget.actionType.label.toLowerCase()} email...',
@@ -330,14 +335,14 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               // To field
-                              TextFormField(
+                              FloatingLabelTextField(
                                 controller: _toController,
-                                decoration: const InputDecoration(
-                                  labelText: 'To',
-                                  hintText: 'Email recipients',
-                                  prefixIcon: Icon(Icons.person),
-                                ),
+                                label: 'To',
+                                hintText: 'Email recipients',
+                                prefixIcon: Icons.person,
                                 keyboardType: TextInputType.emailAddress,
+                                darkMode: Theme.of(context).brightness ==
+                                    Brightness.dark,
                               ),
 
                               // Show/hide CC and BCC
@@ -355,14 +360,14 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                               // CC fields (shown conditionally)
                               if (_showCcBcc) ...[
                                 const SizedBox(height: 16),
-                                TextFormField(
+                                FloatingLabelTextField(
                                   controller: _ccController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Cc',
-                                    hintText: 'Carbon copy recipients',
-                                    prefixIcon: Icon(Icons.people),
-                                  ),
+                                  label: 'Cc',
+                                  hintText: 'Carbon copy recipients',
+                                  prefixIcon: Icons.people,
                                   keyboardType: TextInputType.emailAddress,
+                                  darkMode: Theme.of(context).brightness ==
+                                      Brightness.dark,
                                 ),
                                 TextButton(
                                   onPressed: () =>
@@ -378,30 +383,29 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                               const SizedBox(height: 16),
 
                               // Subject field
-                              TextFormField(
+                              FloatingLabelTextField(
                                 controller: _subjectController,
+                                label: 'Subject',
+                                hintText: 'Email subject',
+                                prefixIcon: Icons.subject,
+                                darkMode: Theme.of(context).brightness ==
+                                    Brightness.dark,
                                 focusNode: _subjectFocusNode,
-                                decoration: const InputDecoration(
-                                  labelText: 'Subject',
-                                  hintText: 'Email subject',
-                                  prefixIcon: Icon(Icons.subject),
-                                ),
                               ),
 
                               const SizedBox(height: 16),
 
                               // Email body
-                              TextFormField(
+                              FloatingLabelTextField(
                                 controller: _bodyController,
-                                focusNode: _bodyFocusNode,
+                                label: 'Message',
+                                hintText: 'Compose your email...',
                                 maxLines: 12,
-                                decoration: const InputDecoration(
-                                  labelText: 'Message',
-                                  alignLabelWithHint: true,
-                                  hintText: 'Compose your email...',
-                                ),
                                 textCapitalization:
                                     TextCapitalization.sentences,
+                                darkMode: Theme.of(context).brightness ==
+                                    Brightness.dark,
+                                focusNode: _bodyFocusNode,
                               ),
 
                               const SizedBox(height: 24),
@@ -409,45 +413,66 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                               // AI suggestions to improve the email
                               Text(
                                 'Improve this email:',
-                                style: theme.textTheme.titleMedium,
+                                style: theme.textTheme.bodyMedium,
                               ),
                               const SizedBox(height: 8),
 
                               // Horizontal scrolling list of improvement options
                               SizedBox(
-                                height: 100,
-                                child: ListView(
-                                  scrollDirection: Axis.horizontal,
+                                height: 85,
+                                child: Row(
                                   children: [
-                                    _buildImprovementCard(
-                                        EmailActionType.formal),
-                                    _buildImprovementCard(
-                                        EmailActionType.informal),
-                                    _buildImprovementCard(
-                                        EmailActionType.shorter),
-                                    _buildImprovementCard(
-                                        EmailActionType.detailed),
-                                    _buildImprovementCard(
-                                        EmailActionType.urgent),
+                                    Expanded(
+                                        child: _buildImprovementCard(
+                                            EmailActionType.formal)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child: _buildImprovementCard(
+                                            EmailActionType.informal)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child: _buildImprovementCard(
+                                            EmailActionType.shorter)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child: _buildImprovementCard(
+                                            EmailActionType.detailed)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child: _buildImprovementCard(
+                                            EmailActionType.urgent)),
                                   ],
                                 ),
                               ),
 
                               // Show original email
                               const SizedBox(height: 24),
-                              ExpansionTile(
-                                title: const Text('Original Email'),
-                                initiallyExpanded: false,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: colors.card,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(widget.originalEmail),
+                              Theme(
+                                data: Theme.of(context).copyWith(
+                                  dividerColor: Colors.transparent,
+                                ),
+                                child: ExpansionTile(
+                                  title: Text(
+                                    'Original Email',
+                                    style: theme.textTheme.bodyMedium,
                                   ),
-                                ],
+                                  collapsedIconColor: colors.primary,
+                                  iconColor: colors.primary,
+                                  initiallyExpanded: false,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: colors.card,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        widget.originalEmail,
+                                        style: theme.textTheme.bodyMedium,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -457,7 +482,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                       // Improvement loading indicator
                       if (_isImproving)
                         Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          padding: const EdgeInsets.symmetric(vertical: 16.0),
                           color: colors.background,
                           child: Center(
                             child: Row(
@@ -468,7 +493,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: colors.primary,
+                                    color: colors.foreground.withAlpha(160),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -495,29 +520,31 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                         child: Row(
                           children: [
                             Expanded(
-                              child: ElevatedButton.icon(
+                              child: CustomButton(
+                                label: 'Save Draft',
+                                icon: Icons.save,
                                 onPressed: _isLoading || _isSaving
                                     ? null
                                     : () {
                                         // Return true to indicate the email was saved
                                         Navigator.pop(context, true);
                                       },
-                                icon: const Icon(Icons.save),
-                                label: const Text('Save Draft'),
+                                isPrimary: false,
+                                isDarkMode: Theme.of(context).brightness ==
+                                    Brightness.dark,
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: ElevatedButton.icon(
+                              child: CustomButton(
+                                label: 'Send Email',
+                                icon: Icons.send,
                                 onPressed: _isLoading || _isSaving
                                     ? null
                                     : _shareEmail,
-                                icon: const Icon(Icons.send),
-                                label: const Text('Send Email'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: colors.primary,
-                                  foregroundColor: colors.primaryForeground,
-                                ),
+                                isPrimary: true,
+                                isDarkMode: Theme.of(context).brightness ==
+                                    Brightness.dark,
                               ),
                             ),
                           ],
@@ -538,32 +565,34 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
     return InkWell(
       onTap: _isLoading || _isImproving ? null : () => _improveEmail(),
       borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: _isImproving ? colors.primary.withAlpha(40) : null,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: colors.primary.withAlpha(100),
-            width: 1.0,
+      child: AspectRatio(
+        aspectRatio: 1.0,
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: _isImproving ? colors.primary.withAlpha(40) : null,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: colors.primary.withAlpha(100),
+              width: 1.0,
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              actionType.icon,
-              color: colors.primary,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              actionType.label,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                actionType.icon,
+                color: colors.primary,
+                size: 24,
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                actionType.label,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
         ),
       ),
     );

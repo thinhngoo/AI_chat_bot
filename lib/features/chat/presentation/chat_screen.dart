@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../../../core/services/auth/auth_service.dart';
-import '../../../widgets/common/typing_indicator.dart';
+import '../../../widgets/typing_indicator.dart';
 import '../services/chat_service.dart';
 import '../models/conversation_message.dart';
 import '../../../features/prompt/presentation/prompt_selector.dart';
@@ -756,14 +756,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           ),
 
           // Light/dark mode toggle
-          IconButton(
-            icon: Icon(
-              isDarkMode ? Icons.light_mode : Icons.dark_mode,
-              semanticLabel:
-                  isDarkMode ? 'Switch to light mode' : 'Switch to dark mode',
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: IconButton(
+              icon: Icon(
+                isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                semanticLabel:
+                    isDarkMode ? 'Switch to light mode' : 'Switch to dark mode',
+              ),
+              tooltip: isDarkMode ? 'Light mode' : 'Dark mode',
+              onPressed: () => widget.toggleTheme(),
             ),
-            tooltip: isDarkMode ? 'Light mode' : 'Dark mode',
-            onPressed: () => widget.toggleTheme(),
           ),
 
           // Settings/logout menu

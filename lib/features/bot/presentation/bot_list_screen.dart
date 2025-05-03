@@ -35,6 +35,8 @@ class _BotListScreenState extends State<BotListScreen>
     _refreshIconController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
+
+      // _fetchBots();
     );
   }
 

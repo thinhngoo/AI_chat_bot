@@ -1,24 +1,22 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_colors.dart';
 
 /// Submit button with loading state
 class SubmitButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
   final bool isLoading;
-  final bool darkMode;
 
   const SubmitButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.isLoading = false,
-    this.darkMode = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final AppColors colors = darkMode ? AppColors.dark : AppColors.light;
+    final AppColors colors = AppColors.dark;
 
     return SizedBox(
       width: double.infinity,
@@ -31,7 +29,7 @@ class SubmitButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(27),
           ),
-          elevation: darkMode ? 0 : 1,
+          elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
         child: isLoading
