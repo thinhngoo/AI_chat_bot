@@ -697,18 +697,22 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final bool isDarkMode = theme.brightness == Brightness.dark;
+    final colors = isDarkMode ? AppColors.dark : AppColors.light;
 
     return Scaffold(
       drawer: _buildChatHistoryDrawer(theme, isDarkMode),
       appBar: AppBar(
         leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
-            tooltip: 'Chat History',
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
+          builder: (context) => Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: IconButton(
+              icon: const Icon(Icons.menu),
+              tooltip: 'Chat History',
+              onPressed: () {
+                Scaffold.of(context).openDrawer();
+              },
+            ),
           ),
         ),
         title: AssistantSelector(
@@ -958,8 +962,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
             // Message input area
             Container(
+              padding: const EdgeInsets.fromLTRB(6, 4, 6, 8),
+              margin:
+                  const EdgeInsets.symmetric(horizontal: 4.0, vertical: 6.0),
               decoration: BoxDecoration(
-                color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                color: colors.input,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: colors.border,
+                  width: 1,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withAlpha(13),
@@ -968,131 +980,129 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   ),
                 ],
               ),
-              padding: const EdgeInsets.all(12.0),
+              clipBehavior: Clip.antiAlias,
               child: SafeArea(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                child: Column(
                   children: [
-                    // Voice input button
-                    IconButton(
-                      icon: Icon(
-                        Icons.mic_none,
-                        color: theme.colorScheme.primary,
-                      ),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Voice input coming soon')),
-                        );
-                      },
-                    ),
-
-                    // Message text field
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: isDarkMode
-                                ? Colors.grey[700]!
-                                : Colors.grey[300]!,
-                            width: 1,
-                          ),
+                    // Message text field row
+                    TextField(
+                      controller: _messageController,
+                      focusNode: _messageFocusNode,
+                      maxLines: null,
+                      minLines: 1,
+                      textInputAction: TextInputAction.newline,
+                      keyboardType: TextInputType.multiline,
+                      decoration: InputDecoration(
+                        fillColor: colors.input,
+                        filled: true,
+                        hintText: 'Type a message or / for prompts...',
+                        border: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: 12, horizontal: 8),
+                        isDense: true,
+                        hintStyle: TextStyle(
                           color:
-                              isDarkMode ? Colors.grey[850] : Colors.grey[50],
+                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: TextField(
-                            controller: _messageController,
-                            focusNode: _messageFocusNode,
-                            maxLines: null,
-                            minLines: 1,
-                            textInputAction: TextInputAction.newline,
-                            keyboardType: TextInputType.multiline,
-                            decoration: InputDecoration(
-                              hintText: 'Type a message or / for prompts...',
-                              border: InputBorder.none,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 12),
-                              isDense: true,
-                              hintStyle: TextStyle(
-                                color: isDarkMode
-                                    ? Colors.grey[400]
-                                    : Colors.grey[600],
+                      ),
+                      onSubmitted: (_) => _sendMessage(),
+                      onChanged: (text) {
+                        setState(() {
+                          // This forces the send button to update
+                        });
+                      },
+                    ),
+
+                    // Buttons row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            // Voice input button
+                            IconButton(
+                              icon: Icon(
+                                Icons.mic_none,
+                                color: colors.muted,
                               ),
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Voice input coming soon')),
+                                );
+                              },
                             ),
-                            onSubmitted: (_) => _sendMessage(),
-                            onChanged: (text) {
-                              setState(() {
-                                // This forces the send button to update
-                              });
-                            },
-                          ),
+
+                            // Image upload button
+                            IconButton(
+                              icon: Icon(
+                                Icons.image_outlined,
+                                color: colors.muted,
+                              ),
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content:
+                                          Text('Image upload coming soon')),
+                                );
+                              },
+                            ),
+                          ],
                         ),
-                      ),
-                    ),
 
-                    // Image upload button
-                    IconButton(
-                      icon: Icon(
-                        Icons.image_outlined,
-                        color: theme.colorScheme.primary,
-                      ),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Image upload coming soon')),
-                        );
-                      },
-                    ),
+                        // Send button
+                        AnimatedBuilder(
+                          animation: _sendButtonController,
+                          builder: (context, child) {
+                            final bool showLoading =
+                                _sendButtonController.status ==
+                                        AnimationStatus.forward ||
+                                    _sendButtonController.status ==
+                                        AnimationStatus.completed;
 
-                    // Send button
-                    const SizedBox(width: 4),
-                    AnimatedBuilder(
-                      animation: _sendButtonController,
-                      builder: (context, child) {
-                        final bool showLoading = _sendButtonController.status ==
-                                AnimationStatus.forward ||
-                            _sendButtonController.status ==
-                                AnimationStatus.completed;
-
-                        return Material(
-                          color: theme.colorScheme.primary,
-                          borderRadius: BorderRadius.circular(24),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(24),
-                            onTap: (_messageController.text.trim().isNotEmpty &&
-                                    !_isSending)
-                                ? _sendMessage
-                                : null,
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              child: showLoading
-                                  ? SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                          theme.colorScheme.onPrimary,
+                            return Material(
+                              color: _messageController.text.isNotEmpty
+                                  ? colors.inputForeground
+                                  : colors.muted.withAlpha(30),
+                              borderRadius: BorderRadius.circular(24),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(24),
+                                onTap: (_messageController.text
+                                            .trim()
+                                            .isNotEmpty &&
+                                        !_isSending)
+                                    ? _sendMessage
+                                    : null,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  child: showLoading
+                                      ? SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              colors.muted,
+                                            ),
+                                          ),
+                                        )
+                                      : Icon(
+                                          Icons.arrow_upward,
+                                          color: _messageController.text
+                                                  .trim()
+                                                  .isEmpty
+                                              ? colors.muted.withAlpha(128)
+                                              : colors.input,
+                                          size: 24,
                                         ),
-                                      ),
-                                    )
-                                  : Icon(
-                                      Icons.send_rounded,
-                                      color:
-                                          _messageController.text.trim().isEmpty
-                                              ? theme.colorScheme.onPrimary
-                                                  .withAlpha(128)
-                                              : theme.colorScheme.onPrimary,
-                                      size: 24,
-                                    ),
-                            ),
-                          ),
-                        );
-                      },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1165,7 +1175,8 @@ class _AssistantSelectorState extends State<AssistantSelector> {
         id: 'gpt-4o',
         name: 'GPT 4o',
         description: 'Faster, but less than GPT-4.1'),
-    Assistant(id: 'o4-mini', name: 'GPT 4o mini', description: 'Small and fast'),
+    Assistant(
+        id: 'o4-mini', name: 'GPT 4o mini', description: 'Small and fast'),
     Assistant(
         id: 'grok-3',
         name: 'Grok 3',
@@ -1206,7 +1217,7 @@ class _AssistantSelectorState extends State<AssistantSelector> {
               child: CompositedTransformFollower(
                 link: _layerLink,
                 showWhenUnlinked: false,
-                offset: Offset(-(270-size.width)/2, size.height + 6),
+                offset: Offset(-(270 - size.width) / 2, size.height + 6),
                 child: Material(
                   color: Colors.transparent,
                   child: Container(
@@ -1321,7 +1332,9 @@ class _AssistantSelectorState extends State<AssistantSelector> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    String title = assistants.firstWhere((element) => element.id == widget.selectedAssistantId).name;
+    String title = assistants
+        .firstWhere((element) => element.id == widget.selectedAssistantId)
+        .name;
 
     return CompositedTransformTarget(
       link: _layerLink,

@@ -6,6 +6,7 @@ class LargeButton extends StatelessWidget {
   final IconData? icon;
   final VoidCallback? onPressed;
   final bool isPrimary;
+  final bool isDelete;
   final bool isDarkMode;
   final bool fullWidth;
   final double height;
@@ -20,6 +21,7 @@ class LargeButton extends StatelessWidget {
     this.icon,
     this.onPressed,
     this.isPrimary = true,
+    this.isDelete = false,
     this.isDarkMode = false,
     this.fullWidth = true,
     this.height = 60.0,
@@ -52,8 +54,12 @@ class LargeButton extends StatelessWidget {
     );
 
     final buttonStyle = ElevatedButton.styleFrom(
-      foregroundColor: isPrimary ? colors.primaryForeground : null,
-      backgroundColor: isPrimary ? colors.primary : null,
+      foregroundColor: isDelete 
+          ? colors.deleteForeground 
+          : isPrimary ? colors.primaryForeground : null,
+      backgroundColor: isDelete 
+          ? colors.delete 
+          : isPrimary ? colors.primary : null,
       padding: const EdgeInsets.symmetric(vertical: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(borderRadius),

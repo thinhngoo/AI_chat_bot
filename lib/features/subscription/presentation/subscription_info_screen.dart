@@ -9,6 +9,7 @@ import '../../../core/services/auth/auth_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../widgets/loading.dart';
+import '../../auth/presentation/login_page.dart';
 
 class SubscriptionInfoScreen extends StatefulWidget {
   const SubscriptionInfoScreen({super.key});
@@ -18,6 +19,7 @@ class SubscriptionInfoScreen extends StatefulWidget {
 }
 
 class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
+  final AuthService _authService = AuthService();
   final SubscriptionService _subscriptionService = SubscriptionService(
     AuthService(),
     Logger(),
@@ -169,6 +171,27 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('Failed to cancel subscription: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    final navigator = Navigator.of(context);
+    
+    try {
+      final success = await _authService.signOut();
+
+      if (success && mounted) {
+        navigator.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (ctx) => const LoginPage()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to logout: ${e.toString()}')),
         );
       }
     }
@@ -490,6 +513,18 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                 onPressed: _navigateToUpgradeScreen,
                 isDarkMode: isDarkMode,
               ),
+
+            const SizedBox(height: 20),
+            
+            // Logout button
+            LargeButton(
+              label: 'Logout',
+              icon: Icons.logout,
+              onPressed: _handleLogout,
+              isDarkMode: isDarkMode,
+              isPrimary: false,
+              isDelete: true,
+            ),
 
             const SizedBox(height: 40),
           ],
