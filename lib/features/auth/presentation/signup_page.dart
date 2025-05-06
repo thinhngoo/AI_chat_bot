@@ -5,7 +5,7 @@ import '../../../core/services/auth/auth_service.dart';
 import '../../../core/utils/validators/input_validator.dart';
 import 'widgets/auth_widgets.dart';
 import 'login_page.dart';
-import '../../../widgets/custom_text_field.dart';
+import '../../../widgets/text_field.dart';
 import './widgets/custom_password_field.dart';
 import 'dart:async';
 

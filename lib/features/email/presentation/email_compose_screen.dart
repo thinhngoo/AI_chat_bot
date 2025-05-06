@@ -5,8 +5,8 @@ import 'package:share_plus/share_plus.dart';
 import '../models/email_model.dart';
 import '../services/email_service.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../widgets/custom_text_field.dart';
-import '../../../widgets/custom_button.dart';
+import '../../../widgets/text_field.dart';
+import '../../../widgets/button.dart';
 
 class EmailComposeScreen extends StatefulWidget {
   final String originalEmail;

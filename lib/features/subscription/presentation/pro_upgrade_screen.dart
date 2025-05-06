@@ -7,9 +7,9 @@ import '../models/pricing_model.dart';
 import '../models/subscription_model.dart';
 import 'widgets/feature_highlights.dart';
 import '../../../core/services/auth/auth_service.dart';
-import '../../../widgets/custom_text_field.dart';
-import '../../../widgets/custom_button.dart';
-import '../../../widgets/loading.dart';
+import '../../../widgets/text_field.dart';
+import '../../../widgets/button.dart';
+import '../../../widgets/information.dart';
 import 'package:logger/logger.dart';
 
 class ProUpgradeScreen extends StatefulWidget {
@@ -342,7 +342,7 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
         title: const Text('Upgrade to Pro'),
       ),
       body: _isLoading
-          ? LoadingIndicator(
+          ? InformationIndicator(
               message: 'Loading subscription plans...',
             )
           : SingleChildScrollView(

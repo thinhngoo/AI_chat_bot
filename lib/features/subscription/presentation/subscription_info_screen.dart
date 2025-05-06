@@ -7,8 +7,8 @@ import 'pro_upgrade_screen.dart';
 import 'package:logger/logger.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../widgets/custom_button.dart';
-import '../../../widgets/loading.dart';
+import '../../../widgets/button.dart';
+import '../../../widgets/information.dart';
 import '../../auth/presentation/login_page.dart';
 
 class SubscriptionInfoScreen extends StatefulWidget {
@@ -219,7 +219,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
         ],
       ),
       body: _isLoading
-          ? LoadingIndicator(
+          ? InformationIndicator(
               message: 'Loading subscription data...',
             )
           : _errorMessage.isNotEmpty

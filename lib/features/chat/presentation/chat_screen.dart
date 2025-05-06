@@ -13,6 +13,7 @@ import '../../../features/subscription/services/ad_manager.dart';
 import '../../../features/subscription/services/subscription_service.dart';
 import 'assistant_management_screen.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../widgets/information.dart';
 
 class ChatScreen extends StatefulWidget {
   final Function toggleTheme;
@@ -62,7 +63,20 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _fetchConversationHistory();
+    // TEMPORARY
+    setState(() {
+      _isLoading = false;
+      _messages = [
+        ConversationMessage(
+          query: 'Hello, how are you?',
+          answer: 'I am fine, thank you!',
+          createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          files: [],
+        ),
+      ];
+    });
+
+    // _fetchConversationHistory();
     _checkSubscriptionStatus();
 
     _sendButtonController = AnimationController(
@@ -88,24 +102,18 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   void _handleMessageChanged() {
     final text = _messageController.text;
 
-    // Check if text starts with a slash
-    if (text.startsWith('/')) {
-      if (!_showPromptSelector) {
-        setState(() {
-          _showPromptSelector = true;
-          _promptQuery = text;
-        });
-      } else {
-        setState(() {
-          _promptQuery = text;
-        });
-      }
-    } else {
-      if (_showPromptSelector) {
+    // Check if text starts with a slash and show the prompt selector dialog
+    if (text.startsWith('/') && !_showPromptSelector) {
+      setState(() {
+        _showPromptSelector = true;
+      });
+
+      // Show the dialog and reset flag when closed
+      PromptSelector.show(context, text, _handlePromptSelected).then((_) {
         setState(() {
           _showPromptSelector = false;
         });
-      }
+      });
     }
   }
 
@@ -116,7 +124,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _messageController.selection = TextSelection.fromPosition(
         TextPosition(offset: content.length),
       );
-      _showPromptSelector = false;
     });
 
     // Focus on the text field
@@ -241,14 +248,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       );
 
       setState(() {
-        _messages = [userMessage, ..._messages];
+        _messages = [..._messages, userMessage];
       });
 
-      // Auto-scroll to top when a new message is added
+      // Auto-scroll to bottom when a new message is added
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
-            0,
+            _scrollController.position.maxScrollExtent,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
@@ -279,10 +286,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               _currentConversationId ??= conversationId;
 
               if (_messages.isNotEmpty) {
-                _messages[0] = ConversationMessage(
+                _messages[_messages.length - 1] = ConversationMessage(
                   query: message,
                   answer: answer,
-                  createdAt: _messages[0].createdAt,
+                  createdAt: _messages[_messages.length - 1].createdAt,
                   files: [],
                 );
               }
@@ -319,10 +326,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 _currentConversationId = conversationId;
 
                 if (_messages.isNotEmpty) {
-                  _messages[0] = ConversationMessage(
+                  _messages[_messages.length - 1] = ConversationMessage(
                     query: message,
                     answer: answer,
-                    createdAt: _messages[0].createdAt,
+                    createdAt: _messages[_messages.length - 1].createdAt,
                     files: [],
                   );
                 }
@@ -370,10 +377,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
       setState(() {
         if (_messages.isNotEmpty) {
-          _messages[0] = ConversationMessage(
+          _messages[_messages.length - 1] = ConversationMessage(
             query: message,
             answer: 'Error: $errorMessage',
-            createdAt: _messages[0].createdAt,
+            createdAt: _messages[_messages.length - 1].createdAt,
             files: [],
           );
         }
@@ -753,59 +760,25 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 _messages.isEmpty)
               Expanded(
                 child: _isLoading
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const CircularProgressIndicator(),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Loading conversations...',
-                              style: TextStyle(
-                                color:
-                                    theme.colorScheme.onSurface.withAlpha(179),
-                              ),
-                            ),
-                          ],
-                        ),
+                    ? InformationIndicator(
+                        variant: InformationVariant.loading,
+                        message: 'Loading conversations...',
                       )
                     : _errorMessage.isNotEmpty && _messages.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 32.0),
-                                  child: Text(
-                                    _errorMessage,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(fontSize: 16),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                ElevatedButton.icon(
-                                  onPressed: _fetchConversationHistory,
-                                  icon: const Icon(Icons.refresh),
-                                  label: const Text('Retry'),
-                                ),
-                              ],
-                            ),
+                        ? InformationIndicator(
+                            variant: InformationVariant.error,
+                            message: _errorMessage,
+                            buttonText: 'Retry',
+                            onButtonPressed: _fetchConversationHistory,
                           )
                         : Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
-                                  Icons.chat_bubble_outline,
+                                  Icons.chat_bubble,
                                   size: 64,
-                                  color:
-                                      theme.colorScheme.primary.withAlpha(128),
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'Send a message to start chatting!',
-                                  style: TextStyle(fontSize: 16),
+                                  color: colors.muted.withAlpha(128),
                                 ),
                               ],
                             ),
@@ -815,75 +788,44 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             // Chat messages
             if (!_isLoading && _errorMessage.isEmpty && _messages.isNotEmpty)
               Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDarkMode
-                        ? const Color(0xFF121212)
-                        : const Color(0xFFF5F5F5),
-                    backgroundBlendMode: BlendMode.multiply,
-                  ),
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    reverse: true,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      final isUserMessage =
-                          message.query != null && message.query.isNotEmpty;
-                      final messageText =
-                          isUserMessage ? message.query : message.answer;
-                      final messageDate = DateTime.fromMillisecondsSinceEpoch(
-                          message.createdAt * 1000);
-                      final isLastMessage = index == _messages.length - 1;
+                child: ListView.builder(
+                  controller: _scrollController,
+                  reverse: false,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  itemCount: _messages.length,
+                  itemBuilder: (context, index) {
+                    final message = _messages[index];
+                    final isUserMessage =
+                        message.query != null && message.query.isNotEmpty;
+                    final messageText =
+                        isUserMessage ? message.query : message.answer;
+                    final messageDate = DateTime.fromMillisecondsSinceEpoch(
+                        message.createdAt * 1000);
+                    final isLastMessage = index == _messages.length - 1;
 
+                    // Display both query and answer for each message
+                    if (isUserMessage) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 16.0),
                         child: Column(
-                          crossAxisAlignment: isUserMessage
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // User query
                             Row(
-                              mainAxisAlignment: isUserMessage
-                                  ? MainAxisAlignment.end
-                                  : MainAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.end,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (!isUserMessage) ...[
-                                  CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: theme.colorScheme.primary,
-                                    child: Text(
-                                      'AI',
-                                      style: TextStyle(
-                                        color: theme.colorScheme.onPrimary,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                ],
                                 Flexible(
                                   child: Container(
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
-                                      color: isUserMessage
-                                          ? theme.colorScheme.primary
-                                          : isDarkMode
-                                              ? const Color(0xFF2D2D2D)
-                                              : Colors.white,
+                                      color: theme.colorScheme.surface,
                                       borderRadius: BorderRadius.only(
                                         topLeft: const Radius.circular(20),
                                         topRight: const Radius.circular(20),
-                                        bottomLeft: isUserMessage
-                                            ? const Radius.circular(20)
-                                            : const Radius.circular(4),
-                                        bottomRight: isUserMessage
-                                            ? const Radius.circular(4)
-                                            : const Radius.circular(20),
+                                        bottomLeft: const Radius.circular(20),
+                                        bottomRight: const Radius.circular(4),
                                       ),
                                       boxShadow: [
                                         BoxShadow(
@@ -894,71 +836,58 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                       ],
                                     ),
                                     child: SelectableText(
-                                      messageText,
+                                      message.query,
                                       style: TextStyle(
-                                        color: isUserMessage
-                                            ? theme.colorScheme.onPrimary
-                                            : theme.colorScheme.onSurface,
+                                        color: theme.colorScheme.onSurface,
                                         height: 1.4,
                                       ),
                                     ),
                                   ),
                                 ),
-                                if (isUserMessage) ...[
-                                  const SizedBox(width: 8),
-                                  CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: isDarkMode
-                                        ? Colors.grey[700]
-                                        : Colors.grey[300],
-                                    child: const Icon(
-                                      Icons.person,
-                                      size: 18,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
                               ],
                             ),
+                            const SizedBox(height: 16),
+
+                            // AI answer - simplified, no bubble UI
                             Padding(
-                              padding: EdgeInsets.only(
-                                left: isUserMessage ? 0 : 40,
-                                right: isUserMessage ? 40 : 0,
-                                top: 4,
-                              ),
-                              child: Text(
-                                '${messageDate.hour}:${messageDate.minute.toString().padLeft(2, '0')}',
+                              padding: const EdgeInsets.only(left: 8, right: 16),
+                              child: SelectableText(
+                                message.answer,
                                 style: TextStyle(
-                                  fontSize: 10,
-                                  color: theme.colorScheme.onSurface
-                                      .withAlpha(153),
+                                  color: theme.colorScheme.onSurface,
+                                  height: 1.4,
                                 ),
                               ),
                             ),
                           ],
                         ),
                       );
-                    },
-                  ),
+                    } else {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0, left: 8, right: 16),
+                        child: SelectableText(
+                          messageText,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface,
+                            height: 1.4,
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 ),
               ),
 
             // Show typing indicator when AI is thinking
-            if (_isTyping)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
-                  child: TypingIndicator(isTyping: _isTyping),
-                ),
-              ),
-
-            // Prompt selector
-            PromptSelector(
-              onPromptSelected: _handlePromptSelected,
-              isVisible: _showPromptSelector,
-              query: _promptQuery,
-            ),
+            // if (_isTyping)
+            // if (true)
+            //   Align(
+            //     alignment: Alignment.centerLeft,
+            //     child: Padding(
+            //       padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
+            //       child: TypingIndicator(isTyping: true),
+            //     ),
+            //   ),
 
             // Message input area
             Container(
@@ -992,6 +921,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                       minLines: 1,
                       textInputAction: TextInputAction.newline,
                       keyboardType: TextInputType.multiline,
+                      cursorColor: colors.inputForeground,
                       decoration: InputDecoration(
                         fillColor: colors.input,
                         filled: true,
@@ -1046,6 +976,19 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                       content:
                                           Text('Image upload coming soon')),
                                 );
+                              },
+                            ),
+
+                            // Prompt selector
+                            IconButton(
+                              icon: Icon(
+                                Icons.format_quote,
+                                color: colors.muted,
+                              ),
+                              onPressed: () {
+                                // Show the prompt selector dialog directly with empty query
+                                PromptSelector.show(
+                                    context, '', _handlePromptSelected);
                               },
                             ),
                           ],
@@ -1113,7 +1056,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       ),
       floatingActionButton: _messages.isNotEmpty
           ? Container(
-              margin: const EdgeInsets.only(bottom: 70),
+              margin: const EdgeInsets.only(bottom: 90),
               child: FloatingActionButton(
                 onPressed: () {
                   setState(() {
@@ -1127,12 +1070,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     ),
                   );
                 },
-                mini: true,
                 tooltip: 'New chat',
-                child: const Icon(Icons.add),
+                backgroundColor: colors.card,
+                child: const Icon(Icons.add, size: 24),
               ),
             )
           : null,
+      floatingActionButtonLocation: _ShiftedFloatingActionButtonLocation(
+        FloatingActionButtonLocation.endFloat,
+        10.0, // Shift 8px to the right
+      ),
     );
   }
 }
@@ -1370,5 +1317,18 @@ class _AssistantSelectorState extends State<AssistantSelector> {
         ),
       ),
     );
+  }
+}
+
+class _ShiftedFloatingActionButtonLocation extends FloatingActionButtonLocation {
+  final FloatingActionButtonLocation location;
+  final double offsetX;
+
+  _ShiftedFloatingActionButtonLocation(this.location, this.offsetX);
+
+  @override
+  Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
+    final Offset offset = location.getOffset(scaffoldGeometry);
+    return Offset(offset.dx + offsetX, offset.dy);
   }
 }

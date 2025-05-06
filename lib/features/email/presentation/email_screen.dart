@@ -6,8 +6,8 @@ import '../../../features/subscription/services/subscription_service.dart';
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../widgets/custom_text_field.dart';
-import '../../../widgets/custom_button.dart';
+import '../../../widgets/text_field.dart';
+import '../../../widgets/button.dart';
 import '../../../widgets/typing_indicator.dart';
 import 'email_compose_screen.dart';
 

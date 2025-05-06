@@ -9,9 +9,9 @@ class TypingIndicator extends StatefulWidget {
   ///
   /// [isTyping] determines whether the typing animation is active
   const TypingIndicator({
-    Key? key,
+    super.key,
     required this.isTyping,
-  }) : super(key: key);
+  });
 
   @override
   State<TypingIndicator> createState() => _TypingIndicatorState();

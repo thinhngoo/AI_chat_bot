@@ -6,7 +6,7 @@ import '../../../core/utils/validators/input_validator.dart';
 import 'widgets/auth_widgets.dart';
 import 'signup_page.dart';
 import 'dart:async';
-import '../../../widgets/custom_text_field.dart';
+import '../../../widgets/text_field.dart';
 import './widgets/custom_password_field.dart';
 
 class LoginPage extends StatefulWidget {
