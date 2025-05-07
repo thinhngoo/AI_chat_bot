@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
+import 'dart:convert';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../widgets/typing_indicator.dart';
 import '../services/chat_service.dart';
@@ -14,6 +15,7 @@ import '../../../features/subscription/services/subscription_service.dart';
 import 'assistant_management_screen.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/information.dart';
+import '../../../features/subscription/presentation/subscription_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final Function toggleTheme;
@@ -262,8 +264,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         }
       });
 
-      _logger
-          .i('Sending message with conversation ID: $_currentConversationId');
+      _logger.i('Sending message with conversation ID: $_currentConversationId');
 
       // Try with retry logic if first attempt fails
       Map<String, dynamic> response;
@@ -273,26 +274,70 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           assistantId: _selectedAssistantId,
           conversationId: _currentConversationId,
         );
+        
+        _logger.i('Received response: ${jsonEncode(response)}');
 
         if (mounted) {
+          String answer = '';
+          String? newConversationId = _currentConversationId;
+          int? remainingUsage;
+          
+          // Extract conversation ID from different possible locations in response
+          if (response.containsKey('conversation_id')) {
+            newConversationId = response['conversation_id'];
+          }
+          
+          // Get remaining usage if available
+          if (response.containsKey('remaining_usage')) {
+            remainingUsage = response['remaining_usage'];
+            _logger.i('Remaining tokens: $remainingUsage');
+            
+            // If tokens are running low, show a warning
+            if (remainingUsage != null && remainingUsage < 10) {
+              // Show a warning once the message is processed
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('You are running low on tokens. Your remaining usage: $remainingUsage tokens.'),
+                      backgroundColor: Colors.orange,
+                      duration: const Duration(seconds: 5),
+                      action: SnackBarAction(
+                        label: 'Upgrade',
+                        onPressed: () {
+                          // Navigate to subscription screen
+                          _navigateToSubscriptionScreen();
+                          _logger.i('User clicked upgrade button from low tokens warning');
+                        },
+                      ),
+                    ),
+                  );
+                }
+              });
+            }
+          }
+          
+          // Update conversation ID if we got a new one
+          if (newConversationId != null && (_currentConversationId == null || _currentConversationId != newConversationId)) {
+            _currentConversationId = newConversationId;
+            _logger.i('Updated conversation ID to: $_currentConversationId');
+          }
+          
+          // Extract answer text
+          if (response.containsKey('answers') && 
+              response['answers'] is List && 
+              (response['answers'] as List).isNotEmpty) {
+            answer = (response['answers'] as List<dynamic>).first.toString();
+          }
+
           setState(() {
-            if (response.containsKey('answers') &&
-                response['answers'] is List &&
-                (response['answers'] as List).isNotEmpty) {
-              final answer = (response['answers'] as List<dynamic>).first;
-              final conversationId =
-                  response['conversation_id'] ?? _currentConversationId;
-
-              _currentConversationId ??= conversationId;
-
-              if (_messages.isNotEmpty) {
-                _messages[_messages.length - 1] = ConversationMessage(
-                  query: message,
-                  answer: answer,
-                  createdAt: _messages[_messages.length - 1].createdAt,
-                  files: [],
-                );
-              }
+            if (_messages.isNotEmpty) {
+              _messages[_messages.length - 1] = ConversationMessage(
+                query: message,
+                answer: answer,
+                createdAt: _messages[_messages.length - 1].createdAt,
+                files: [],
+              );
             }
             _isSending = false;
             _isTyping = false;
@@ -306,6 +351,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         }
       } catch (e) {
         _logger.e('Error sending message (first attempt): $e');
+        
+        // Check for token-related errors
+        if (e.toString().toLowerCase().contains('insufficient') || 
+            e.toString().toLowerCase().contains('token') ||
+            e.toString().toLowerCase().contains('quota') ||
+            e.toString().toLowerCase().contains('limit')) {
+          
+          // Handle insufficient tokens error
+          _handleInsufficientTokensError();
+          return;
+        }
 
         // If the message fails, try to create a new conversation
         if (_currentConversationId != null) {
@@ -316,15 +372,29 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               assistantId: _selectedAssistantId,
               conversationId: null, // Force creating a new conversation
             );
+            
+            _logger.i('Retry successful, received response: ${jsonEncode(response)}');
 
-            setState(() {
-              if (response.containsKey('answers') &&
-                  response['answers'] is List &&
+            if (mounted) {
+              String answer = '';
+              String? newConversationId;
+              
+              // Extract conversation ID
+              if (response.containsKey('conversation_id')) {
+                newConversationId = response['conversation_id'];
+              }
+              
+              _currentConversationId = newConversationId;
+              _logger.i('New conversation created with ID: $_currentConversationId');
+              
+              // Extract answer text
+              if (response.containsKey('answers') && 
+                  response['answers'] is List && 
                   (response['answers'] as List).isNotEmpty) {
-                final answer = (response['answers'] as List<dynamic>).first;
-                final conversationId = response['conversation_id'];
-                _currentConversationId = conversationId;
+                answer = (response['answers'] as List<dynamic>).first.toString();
+              }
 
+              setState(() {
                 if (_messages.isNotEmpty) {
                   _messages[_messages.length - 1] = ConversationMessage(
                     query: message,
@@ -333,21 +403,32 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     files: [],
                   );
                 }
-              }
-              _isSending = false;
-              _isTyping = false;
-              _sendButtonController.reverse();
-            });
+                _isSending = false;
+                _isTyping = false;
+                _sendButtonController.reverse();
+              });
+            }
           } catch (e2) {
             _logger.e('Error sending message (retry attempt): $e2');
+            
+            // Check if this is also a token error
+            if (e2.toString().toLowerCase().contains('insufficient') || 
+                e2.toString().toLowerCase().contains('token') ||
+                e2.toString().toLowerCase().contains('quota') ||
+                e2.toString().toLowerCase().contains('limit')) {
+              
+              // Handle insufficient tokens error
+              _handleInsufficientTokensError();
+              return;
+            }
 
             if (mounted) {
               setState(() {
                 if (_messages.isNotEmpty) {
-                  _messages[0] = ConversationMessage(
+                  _messages[_messages.length - 1] = ConversationMessage(
                     query: message,
                     answer: 'Error: ${e2.toString()}',
-                    createdAt: _messages[0].createdAt,
+                    createdAt: _messages[_messages.length - 1].createdAt,
                     files: [],
                   );
                 }
@@ -373,6 +454,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         errorMessage =
             'Error with conversation. Starting a new chat on next message.';
         _logger.i('Reset conversation ID due to error');
+      }
+      
+      // Check for token-related errors
+      else if (errorMessage.toLowerCase().contains('insufficient') || 
+               errorMessage.toLowerCase().contains('token') ||
+               errorMessage.toLowerCase().contains('quota') ||
+               errorMessage.toLowerCase().contains('limit')) {
+        
+        // Handle insufficient tokens error
+        _handleInsufficientTokensError();
+        return;
       }
 
       setState(() {
@@ -411,6 +503,54 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         );
       }
     }
+  }
+  
+  void _handleInsufficientTokensError() {
+    if (!mounted) return;
+    
+    // Update the UI to show error in message
+    setState(() {
+      if (_messages.isNotEmpty) {
+        _messages[_messages.length - 1] = ConversationMessage(
+          query: _messages[_messages.length - 1].query,
+          answer: 'Error: Insufficient tokens. Please upgrade your subscription to continue chatting.',
+          createdAt: _messages[_messages.length - 1].createdAt,
+          files: [],
+        );
+      }
+      _isSending = false;
+      _isTyping = false;
+      _sendButtonController.reverse();
+    });
+    
+    // Show a more detailed error with an action to upgrade
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('You have run out of tokens. Please upgrade your subscription to continue using the AI chat.'),
+          backgroundColor: Colors.deepOrange,
+          duration: const Duration(seconds: 10),
+          action: SnackBarAction(
+            label: 'Upgrade',
+            textColor: Colors.white,
+            onPressed: () {
+              // Navigate to subscription screen
+              _navigateToSubscriptionScreen();
+              _logger.i('User clicked upgrade button after seeing insufficient tokens error');
+            },
+          ),
+        ),
+      );
+    });
+  }
+  
+  // Helper method to navigate to the subscription screen
+  void _navigateToSubscriptionScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const SubscriptionScreen(),
+      ),
+    );
   }
 
   Widget _buildChatHistoryDrawer(ThemeData theme, bool isDarkMode) {

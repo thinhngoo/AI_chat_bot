@@ -42,7 +42,7 @@ class ChatService {
   /// - The server returns:
   ///   - 401: Authentication expired (attempts token refresh).
   ///   - 404: Conversation not found (invalid [conversationId]).
-  ///   - 500: Server error (possibly invalid ID or server issues).
+  ///   - 500: Server error (returns empty response).
   ///   - Other status codes: Generic failure with status code.
   Future<ConversationMessagesResponse> getConversationHistory(
     String conversationId, {
@@ -53,8 +53,10 @@ class ChatService {
     try {
       _logger.i('Fetching conversation history for ID: $conversationId');
       
-      // Build query parameters
-      final queryParams = <String, String>{};
+      // Build query parameters based on APIdog documentation
+      final queryParams = <String, String>{
+        'assistantModel': 'dify', // Required parameter per API docs
+      };
       
       if (assistantId != null) {
         queryParams['assistantId'] = assistantId;
@@ -80,7 +82,7 @@ class ChatService {
         throw 'No access token available. Please log in again.';
       }
       
-      // Prepare headers
+      // Prepare headers based on API documentation
       final headers = {
         'Authorization': 'Bearer $accessToken',
         'x-jarvis-guid': generateGuid(),
@@ -90,9 +92,15 @@ class ChatService {
       final response = await http.get(uri, headers: headers);
       
       _logger.i('Conversation history response status: ${response.statusCode}');
+      _logger.d('Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        
+        // Based on API documentation, the response format is:
+        // { "cursor": "string", "has_more": boolean, "limit": integer, 
+        //   "items": [ { "answer": "string", "createdAt": integer, "files": ["string"], "query": "string" } ] }
+        
         return ConversationMessagesResponse.fromJson(data);
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
@@ -110,6 +118,26 @@ class ChatService {
         } else {
           throw 'Authentication expired. Please log in again.';
         }
+      } else if (response.statusCode == 500) {
+        // For 500 errors, return empty response instead of throwing
+        _logger.w('Server returned 500 error for conversation history - returning empty response');
+        _logger.w('Response body: ${response.body}');
+        
+        String requestId = 'unknown';
+        try {
+          final errorData = jsonDecode(response.body);
+          requestId = errorData['requestId'] ?? 'unknown';
+          _logger.w('Request ID: $requestId');
+        } catch (e) {
+          // Ignore JSON parsing errors for error tracking
+        }
+        
+        // Return empty response
+        return ConversationMessagesResponse(
+          items: [],
+          hasMore: false,
+          nextCursor: null,
+        );
       } else {
         // Provide more specific error messages based on status code
         _logger.e('Failed to fetch conversation history: ${response.statusCode}');
@@ -117,8 +145,6 @@ class ChatService {
         
         if (response.statusCode == 404) {
           throw 'Conversation not found. The conversation ID may be invalid.';
-        } else if (response.statusCode == 500) {
-          throw 'Server error. This might be due to an invalid conversation ID or server issues.';
         } else {
           throw 'Failed to fetch conversation history: ${response.statusCode}';
         }
@@ -157,8 +183,8 @@ class ChatService {
       _logger.i('Fetching conversations list');
       
       // Build query parameters according to API documentation
-      const queryParams = {
-        'assistantModel': 'dify', // Required parameter
+      final queryParams = <String, String>{
+        'assistantModel': 'dify', // Required parameter per API docs
       };
       
       // Add optional parameters if provided
@@ -196,11 +222,13 @@ class ChatService {
       final response = await http.get(uri, headers: headers);
       
       _logger.i('Conversations list response status: ${response.statusCode}');
+      _logger.d('Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // Parse response according to documented format
+        // Parse response according to documented format from APIdog:
+        // { "cursor": "string", "has_more": boolean, "limit": integer, "items": [ { "title": "string", "id": "string", "createdAt": integer } ] }
         final items = List<Map<String, dynamic>>.from(data['items'] ?? []);
         final hasMore = data['has_more'] ?? false;
         
@@ -216,7 +244,6 @@ class ChatService {
         final refreshSuccess = await _authService.refreshToken();
         
         if (refreshSuccess) {
-          // Retry with new token
           return getConversations(
             cursor: cursor,
             limit: limit,
@@ -226,14 +253,17 @@ class ChatService {
           throw 'Authentication expired. Please log in again.';
         }
       } else if (response.statusCode == 500) {
-        // Handle server error - MODIFIED TO RETURN EMPTY LIST
+        // Handle server error - Return empty list with detailed logging
         String requestId = 'unknown';
+        String errorMessage = 'Server error';
         try {
           final errorData = jsonDecode(response.body);
           requestId = errorData['requestId'] ?? 'unknown';
+          errorMessage = errorData['message'] ?? 'Unknown server error';
+          _logger.w('Server error details: $errorMessage');
         } catch (e) {
           // Ignore JSON parsing errors for error tracking
-          _logger.d('Could not parse error response for requestId: $e');
+          _logger.d('Could not parse error response as JSON: $e');
         }
         
         _logger.w('Server returned 500 error (Request ID: $requestId) - treating as empty conversations list');
@@ -248,15 +278,19 @@ class ChatService {
         
         // Extract request ID if available for support
         String requestId = '';
+        String errorMessage = 'Failed to fetch conversations';
         try {
           final errorData = jsonDecode(response.body);
           requestId = errorData['requestId'] ?? '';
+          if (errorData['message'] != null) {
+            errorMessage = errorData['message'];
+          }
         } catch (e) {
           // Ignore JSON parsing errors for error tracking
           _logger.d('Could not parse error response for requestId: $e');
         }
         
-        throw 'Failed to fetch conversations: ${response.statusCode}${requestId.isNotEmpty ? ' (Request ID: $requestId)' : ''}';
+        throw '$errorMessage: ${response.statusCode}${requestId.isNotEmpty ? ' (Request ID: $requestId)' : ''}';
       }
     } catch (e) {
       _logger.e('Error fetching conversations: $e');
@@ -274,6 +308,8 @@ class ChatService {
   /// - [conversationId]: Continues an existing conversation if provided;
   ///   starts a new conversation if null or empty.
   /// - [files]: A list of file IDs to attach to the message.
+  /// - [maxRetries]: Maximum number of retries for 500 errors (default is 1).
+  /// - [currentRetry]: Current retry count (default is 0).
   ///
   /// Returns a [Future] that resolves to a [Map<String, dynamic>] containing
   /// the server response, including:
@@ -293,6 +329,8 @@ class ChatService {
     required String assistantId,
     String? conversationId,
     List<String>? files,
+    int maxRetries = 1,
+    int currentRetry = 0,
   }) async {
     try {
       _logger.i('Sending message to AI chat');
@@ -328,20 +366,10 @@ class ChatService {
           'model': 'dify',
           'name': _getAssistantName(assistantId),
         },
-        'files': [],
-        'type': 'regular',
+        'files': files ?? [],
       };
       
-      if (files != null && files.isNotEmpty) {
-        final formattedFiles = files.map((fileId) => {
-          'id': fileId,
-          'created_by_role': 'user'
-        }).toList();
-        
-        body['files'] = formattedFiles;
-        _logger.i('Including ${files.length} files in the message with created_by_role property');
-      }
-      
+      // Add metadata only if we have a conversation ID
       if (conversationId != null && conversationId.isNotEmpty) {
         body['metadata'] = {
           'conversation': {
@@ -362,11 +390,99 @@ class ChatService {
       );
       
       _logger.i('Send message response status: ${response.statusCode}');
+      _logger.d('Response body: ${response.body}');
       
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _logger.i('Message sent successfully, conversation ID: ${data['conversationId']}');
-        return data;
+      // Check for insufficient tokens error code (403 Forbidden is typically used for quota errors)
+      if (response.statusCode == 403) {
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['message'] != null && 
+              (errorData['message'].toString().toLowerCase().contains('insufficient') || 
+               errorData['message'].toString().toLowerCase().contains('token') ||
+               errorData['message'].toString().toLowerCase().contains('quota') ||
+               errorData['message'].toString().toLowerCase().contains('limit'))) {
+            
+            _logger.w('User has insufficient tokens: ${errorData['message']}');
+            throw 'You have insufficient tokens. Please upgrade your subscription to continue chatting.';
+          } else {
+            throw 'Error: ${errorData['message'] ?? 'Access denied (403)'}';
+          }
+        } catch (e) {
+          if (e is String) {
+            throw e;
+          }
+          throw 'Insufficient tokens or access denied. Please check your subscription.';
+        }
+      }
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        _logger.d('Response data structure: ${data.keys.join(", ")}');
+        
+        // According to API documentation, the response contains:
+        // - conversationId: Conversation identifier
+        // - message: The AI's response text
+        // - remainingUsage: Usage counter
+        
+        String? newConversationId = data['conversationId'];
+        String? messageText = data['message'];
+        int? remainingUsage = data['remainingUsage'];
+        
+        // Log remaining usage if available
+        if (remainingUsage != null) {
+          _logger.i('Remaining usage: $remainingUsage tokens');
+          
+          // Warn if tokens are running low (less than 10 remaining)
+          if (remainingUsage < 10) {
+            _logger.w('User is running low on tokens: $remainingUsage remaining');
+          }
+        }
+        
+        if (newConversationId != null) {
+          _logger.i('Message sent successfully, conversation ID: $newConversationId');
+        } else {
+          _logger.w('Could not extract conversation ID from response');
+        }
+        
+        if (messageText != null) {
+          // Return in standardized format for app usage including remaining tokens
+          return {
+            'conversation_id': newConversationId,
+            'answers': [messageText],
+            'remaining_usage': remainingUsage,
+          };
+        } else {
+          // Fallback to searching for answer in other possible fields
+          _logger.w('Standard message field not found, checking alternative fields');
+          
+          // Try other possible response formats
+          if (data.containsKey('response') && data['response'] is String) {
+            messageText = data['response'];
+          } else if (data.containsKey('content') && data['content'] is String) {
+            messageText = data['content'];
+          } else if (data.containsKey('text') && data['text'] is String) {
+            messageText = data['text'];
+          } else if (data.containsKey('answer') && data['answer'] is String) {
+            messageText = data['answer'];
+          }
+          
+          if (messageText != null) {
+            return {
+              'conversation_id': newConversationId,
+              'answers': [messageText],
+              'remaining_usage': remainingUsage,
+            };
+          }
+          
+          // If we still couldn't find the answer, log the entire response
+          _logger.w('Could not locate message in response. Full response: $data');
+          return {
+            'conversation_id': newConversationId,
+            'answers': ['I received a response but couldn\'t understand it. Please try again.'],
+            'original_response': data,
+            'remaining_usage': remainingUsage,
+          };
+        }
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');
@@ -386,22 +502,54 @@ class ChatService {
         _logger.e('Server returned 500 error - might be related to conversation handling');
         _logger.e('Response body: ${response.body}');
         
+        // Extract error details and requestId if available
         String errorMsg = 'Failed to send message (Server error 500)';
+        String requestId = 'unknown';
         try {
           final errorData = jsonDecode(response.body);
           if (errorData['message'] != null) {
             errorMsg = errorData['message'];
           }
           if (errorData['requestId'] != null) {
-            _logger.e('Request ID: ${errorData['requestId']}');
-            errorMsg += ' (Request ID: ${errorData['requestId']})';
+            requestId = errorData['requestId'];
+            _logger.e('Request ID: $requestId');
           }
         } catch (e) {
           // Ignore JSON parsing errors for error responses
           _logger.d('Could not parse error response as JSON: $e');
         }
         
-        throw 'Error sending message: $errorMsg. Try starting a new conversation.';
+        // If there are retries left and this is a conversation-related error, retry without conversation ID
+        if (conversationId != null && currentRetry < maxRetries) {
+          _logger.i('Retrying without conversation ID (attempt ${currentRetry + 1} of $maxRetries)');
+          // Wait briefly before retrying to avoid overwhelming the server
+          await Future.delayed(const Duration(milliseconds: 500));
+          return sendMessage(
+            content: content,
+            assistantId: assistantId,
+            conversationId: null, // Force starting a new conversation
+            files: files,
+            maxRetries: maxRetries,
+            currentRetry: currentRetry + 1,
+          );
+        }
+        
+        // Out of retries or not a conversation ID issue
+        throw 'Error sending message: $errorMsg. Try starting a new conversation. (Request ID: $requestId)';
+      } else if (response.statusCode == 402) {
+        // Payment required error - typically used for subscription or token errors
+        _logger.w('Payment required error (402) - likely insufficient tokens');
+        
+        try {
+          final errorData = jsonDecode(response.body);
+          final errorMsg = errorData['message'] ?? 'Insufficient tokens. Please upgrade your subscription.';
+          throw errorMsg;
+        } catch (e) {
+          if (e is String) {
+            throw e;
+          }
+          throw 'Insufficient tokens. Please upgrade your subscription to continue chatting.';
+        }
       } else {
         _logger.e('Failed to send message: ${response.statusCode}');
         _logger.e('Response body: ${response.body}');
@@ -412,9 +560,20 @@ class ChatService {
           final errorData = jsonDecode(response.body);
           if (errorData['message'] != null) {
             errorMessage = errorData['message'];
+            
+            // Check if the error is related to insufficient tokens
+            if (errorMessage.toLowerCase().contains('insufficient') || 
+                errorMessage.toLowerCase().contains('token') ||
+                errorMessage.toLowerCase().contains('quota') ||
+                errorMessage.toLowerCase().contains('limit')) {
+              throw 'You have insufficient tokens. Please upgrade your subscription to continue chatting.';
+            }
           }
         } catch (e) {
           // Ignore JSON parsing errors for error responses
+          if (e is String && (e.contains('insufficient') || e.contains('upgrade'))) {
+            throw e;  // Re-throw token error messages
+          }
           _logger.d('Could not parse error response as JSON: $e');
         }
         
