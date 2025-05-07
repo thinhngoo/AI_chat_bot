@@ -191,11 +191,23 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Prompt Management'),
+        centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
+          indicator: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: theme.colorScheme.primary,
+                width: 3.0,
+              ),
+            ),
+          ),
+          indicatorSize: TabBarIndicatorSize.tab,
           tabs: const [
             Tab(text: 'Public'),
             Tab(text: 'Private'),

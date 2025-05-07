@@ -169,7 +169,8 @@ class _BotListScreenState extends State<BotListScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bot Management'),
+        title: Text('Bot Management'),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: RotationTransition(

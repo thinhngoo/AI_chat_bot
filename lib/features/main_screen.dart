@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
-import '../core/services/auth/auth_service.dart';
 import 'chat/presentation/chat_screen.dart';
 import 'bot/presentation/bot_list_screen.dart';
 import 'email/presentation/email_screen.dart';
@@ -21,7 +20,6 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  final AuthService _authService = AuthService();
   int _currentIndex = 2;
 
   late final List<Widget> _screens;
