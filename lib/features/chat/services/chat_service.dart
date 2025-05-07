@@ -22,8 +22,30 @@ class ChatService {
 
   final Logger _logger = Logger();
   final AuthService _authService = AuthService();
+  
+  // Cache for conversations to improve loading times
+  List<Map<String, dynamic>>? _cachedConversations;
+  DateTime? _lastCacheTime;
+  final Duration _cacheDuration = const Duration(minutes: 5);
 
   ChatService._internal();
+
+  // Clear the cache when needed (e.g., after creating a new conversation)
+  void clearCache() {
+    _cachedConversations = null;
+    _lastCacheTime = null;
+    _logger.i('Conversation cache cleared');
+  }
+
+  // Check if cache is still valid
+  bool _isCacheValid() {
+    if (_cachedConversations == null || _lastCacheTime == null) {
+      return false;
+    }
+    
+    final now = DateTime.now();
+    return now.difference(_lastCacheTime!) < _cacheDuration;
+  }
 
   /// Fetches the conversation history for a specified conversation.
   ///
@@ -180,6 +202,11 @@ class ChatService {
     String assistantId = 'gpt-4o-mini',
   }) async {
     try {
+      if (_isCacheValid()) {
+        _logger.i('Returning cached conversations');
+        return _cachedConversations!;
+      }
+
       _logger.i('Fetching conversations list');
       
       // Build query parameters according to API documentation
@@ -236,6 +263,10 @@ class ChatService {
         if (items.isEmpty) {
           _logger.i('No conversations found for this user');
         }
+
+        // Cache the conversations
+        _cachedConversations = items;
+        _lastCacheTime = DateTime.now();
         
         return items;
       } else if (response.statusCode == 401) {
@@ -984,8 +1015,15 @@ class ChatService {
     switch (assistantId) {
       case 'gpt-4o':
         return 'GPT-4o';
+      case 'gpt-4.1':
+        return 'GPT-4.1';
+      case 'o4-mini':
       case 'gpt-4o-mini':
-        return 'GPT-4o mini';
+        return 'GPT-4o Mini';
+      case 'grok-3':
+        return 'Grok 3';
+      case 'grok-2':
+        return 'Grok 2';
       case 'gemini-1.5-flash-latest':
         return 'Gemini 1.5 Flash';
       case 'gemini-1.5-pro-latest':

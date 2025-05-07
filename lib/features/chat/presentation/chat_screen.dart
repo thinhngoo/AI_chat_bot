@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../widgets/typing_indicator.dart';
 import '../services/chat_service.dart';
@@ -56,7 +57,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   // Animation controllers
   late AnimationController _sendButtonController;
 
-  String _selectedAssistantId = 'gpt-4o';
+  String _selectedAssistantId = 'gpt-4o'; // Changed from 'gpt-4.1' to 'gpt-4o' which is definitely supported
 
   // Prompt selector state
   bool _showPromptSelector = false;
@@ -65,20 +66,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    // TEMPORARY
-    setState(() {
-      _isLoading = false;
-      _messages = [
-        ConversationMessage(
-          query: 'Hello, how are you?',
-          answer: 'I am fine, thank you!',
-          createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          files: [],
-        ),
-      ];
-    });
-
-    // _fetchConversationHistory();
+    // Remove temporary message and enable conversation history fetching
+    _fetchConversationHistory();
     _checkSubscriptionStatus();
 
     _sendButtonController = AnimationController(
@@ -544,13 +533,45 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     });
   }
   
-  // Helper method to navigate to the subscription screen
-  void _navigateToSubscriptionScreen() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const SubscriptionScreen(),
-      ),
-    );
+  // Helper method to navigate to subscription or pricing
+  void _navigateToSubscriptionScreen() async {
+    // Direct to external pricing URL
+    const String pricingUrl = 'https://dev.jarvis.cx/pricing';
+    
+    try {
+      _logger.i('Opening pricing page: $pricingUrl');
+      
+      // Launch the pricing URL in the browser
+      final Uri url = Uri.parse(pricingUrl);
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw 'Không thể mở trang nâng cấp tài khoản';
+      }
+    } catch (e) {
+      _logger.e('Error opening pricing page: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể mở trang nâng cấp: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  // Helper method to get display name for a model ID
+  String _getModelDisplayName(String modelId) {
+    // Find the model in our assistants list
+    for (var assistant in _AssistantSelectorState().assistants) {
+      if (assistant.id == modelId) {
+        return assistant.name;
+      }
+    }
+    
+    // Fallback if not found - just format the ID nicely
+    return modelId.toUpperCase().replaceAll('-', ' ');
   }
 
   Widget _buildChatHistoryDrawer(ThemeData theme, bool isDarkMode) {
@@ -604,118 +625,18 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             ),
           ),
           Expanded(
-            child: FutureBuilder<List<dynamic>>(
-              future: _chatService.getConversations(
-                assistantId: _selectedAssistantId,
-                limit: 20,
-              ),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            color: Colors.red, size: 48),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error loading chat history: ${snapshot.error}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                final conversations = snapshot.data ?? [];
-
-                if (conversations.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 48,
-                          color: theme.colorScheme.onSurface.withAlpha(102),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Chưa có cuộc trò chuyện nào',
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurface.withAlpha(153),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  itemCount: conversations.length,
-                  itemBuilder: (context, index) {
-                    final conversation = conversations[index];
-                    final conversationId = conversation['id'];
-                    final title = _getConversationTitle(conversation);
-                    final timestamp = _getConversationTimestamp(conversation);
-                    final isActive = conversationId == _currentConversationId;
-
-                    return ListTile(
-                      title: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight:
-                              isActive ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                      subtitle: Text(
-                        timestamp,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: isActive
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.primary.withAlpha(51),
-                        child: Icon(
-                          Icons.chat,
-                          color: isActive
-                              ? theme.colorScheme.onPrimary
-                              : theme.colorScheme.primary,
-                          size: 18,
-                        ),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () {
-                          // Delete conversation
-                          _showDeleteConfirmation(context, conversationId);
-                        },
-                      ),
-                      onTap: () {
-                        // Load the conversation
-                        _loadConversation(conversationId);
-                        Navigator.pop(context); // Close the drawer
-                      },
-                      tileColor: isActive
-                          ? (isDarkMode
-                              ? Colors.teal.shade900.withAlpha(51)
-                              : Colors.teal.shade50)
-                          : null,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(isActive ? 8 : 0),
-                      ),
-                    );
-                  },
-                );
+            // Use ValueListenableBuilder to react to the cache state
+            child: _ChatHistoryList(
+              selectedAssistantId: _selectedAssistantId,
+              currentConversationId: _currentConversationId,
+              onConversationSelected: (conversationId) {
+                _loadConversation(conversationId);
+                Navigator.pop(context); // Close the drawer
               },
+              onDeleteConversation: (conversationId) {
+                _showDeleteConfirmation(context, conversationId);
+              },
+              isDarkMode: isDarkMode,
             ),
           ),
         ],
@@ -865,9 +786,32 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         title: AssistantSelector(
           selectedAssistantId: _selectedAssistantId,
           onSelect: (id) {
-            setState(() {
-              _selectedAssistantId = id;
-            });
+            if (id != _selectedAssistantId) {
+              _logger.i('Switching model from $_selectedAssistantId to $id');
+              setState(() {
+                _selectedAssistantId = id;
+                
+                // Reset conversation ID when changing models to avoid thinking state problems
+                _currentConversationId = null;
+                
+                // Remove any "Thinking..." messages that might be present
+                _messages = _messages.where((message) => 
+                  message.answer != 'Thinking...').toList();
+                
+                // Reset loading states
+                _isSending = false;
+                _isTyping = false;
+                _sendButtonController.reverse();
+              });
+              
+              // Show a small confirmation
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Switched to ${_getModelDisplayName(id)}'),
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+            }
           },
         ),
         centerTitle: true,
@@ -1253,25 +1197,29 @@ class Assistant {
 class _AssistantSelectorState extends State<AssistantSelector> {
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
+  
+  // Fixed the model list to remove duplicates and correct model names
   final assistants = [
     Assistant(
-        id: 'gpt-4.1',
-        name: 'GPT 4o',
-        description: 'Maximum intelligence and context'),
-    Assistant(
         id: 'gpt-4o',
-        name: 'GPT 4o',
-        description: 'Faster, but less than GPT-4.1'),
+        name: 'GPT-4o',
+        description: 'Advanced intelligence and vision capabilities'),
     Assistant(
-        id: 'o4-mini', name: 'GPT 4o mini', description: 'Small and fast'),
+        id: 'gpt-4o-mini',
+        name: 'GPT-4o Mini',
+        description: 'Fast and efficient responses'),
     Assistant(
-        id: 'grok-3',
-        name: 'Grok 3',
-        description: 'Maximum intelligence and context'),
+        id: 'claude-3-haiku-20240307',
+        name: 'Claude 3 Haiku',
+        description: 'Quick responses with Claude AI'),
     Assistant(
-        id: 'grok-2',
-        name: 'Grok 2',
-        description: 'Faster, but less than Grok 3'),
+        id: 'claude-3-sonnet-20240229',
+        name: 'Claude 3 Sonnet', 
+        description: 'More powerful Claude model'),
+    Assistant(
+        id: 'gemini-1.5-pro-latest',
+        name: 'Gemini 1.5 Pro',
+        description: 'Google\'s advanced AI model'),
   ];
 
   void _showMenu() {
@@ -1470,5 +1418,264 @@ class _ShiftedFloatingActionButtonLocation extends FloatingActionButtonLocation 
   Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
     final Offset offset = location.getOffset(scaffoldGeometry);
     return Offset(offset.dx + offsetX, offset.dy);
+  }
+}
+
+/// Optimized widget to display chat history with caching support
+class _ChatHistoryList extends StatefulWidget {
+  final String selectedAssistantId;
+  final String? currentConversationId;
+  final Function(String) onConversationSelected;
+  final Function(String) onDeleteConversation;
+  final bool isDarkMode;
+
+  const _ChatHistoryList({
+    Key? key,
+    required this.selectedAssistantId,
+    required this.currentConversationId,
+    required this.onConversationSelected,
+    required this.onDeleteConversation,
+    required this.isDarkMode,
+  }) : super(key: key);
+
+  @override
+  State<_ChatHistoryList> createState() => _ChatHistoryListState();
+}
+
+class _ChatHistoryListState extends State<_ChatHistoryList> {
+  final Logger _logger = Logger();
+  final ChatService _chatService = ChatService();
+  
+  // Local cache for faster UI rendering
+  List<Map<String, dynamic>>? _conversations;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load conversations immediately when the widget is created
+    _loadConversations();
+  }
+
+  @override
+  void didUpdateWidget(_ChatHistoryList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload if the selected assistant changes
+    if (oldWidget.selectedAssistantId != widget.selectedAssistantId) {
+      _loadConversations();
+    }
+  }
+
+  // Load conversations with optimized approach using cache
+  Future<void> _loadConversations() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+
+    try {
+      // Use the cached data if available
+      final conversations = await _chatService.getConversations(
+        assistantId: widget.selectedAssistantId,
+        limit: 20,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _conversations = conversations;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      _logger.e('Error loading conversations: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  String _getConversationTitle(dynamic conversation) {
+    final title = conversation['title'] as String?;
+    if (title != null && title.isNotEmpty) {
+      return title.length > 30 ? '${title.substring(0, 27)}...' : title;
+    }
+    
+    // Use first_message as fallback if available
+    final firstMessage = conversation['first_message'] as String? ?? '';
+    if (firstMessage.isNotEmpty) {
+      return firstMessage.length > 30
+          ? '${firstMessage.substring(0, 27)}...'
+          : firstMessage;
+    }
+
+    // Use created date as fallback
+    final createdAtStr = conversation['createdAt'] as String?;
+    if (createdAtStr != null) {
+      try {
+        final date = DateTime.parse(createdAtStr);
+        return 'Chat on ${date.day}/${date.month}/${date.year}';
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
+    
+    return 'Untitled Conversation';
+  }
+
+  String _getConversationTimestamp(dynamic conversation) {
+    final createdAtStr = conversation['createdAt'] as String?;
+    if (createdAtStr == null) return '';
+    
+    try {
+      final date = DateTime.parse(createdAtStr);
+      final now = DateTime.now();
+
+      // If today, show time
+      if (date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day) {
+        return '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+      }
+
+      // If this year, show month and day
+      if (date.year == now.year) {
+        return '${date.day}/${date.month}';
+      }
+
+      // Show full date
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    
+    // Show loading spinner while fetching conversations
+    if (_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // Show error message if failed to load
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              'Error loading chat history: $_errorMessage',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadConversations,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show empty state if no conversations
+    if (_conversations == null || _conversations!.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 48,
+              color: theme.colorScheme.onSurface.withAlpha(102),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Chưa có cuộc trò chuyện nào',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withAlpha(153),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show conversations list
+    return RefreshIndicator(
+      onRefresh: () async {
+        // Clear the cache to force a fresh load
+        _chatService.clearCache();
+        await _loadConversations();
+      },
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: _conversations!.length,
+        itemBuilder: (context, index) {
+          final conversation = _conversations![index];
+          final conversationId = conversation['id'] as String;
+          final title = _getConversationTitle(conversation);
+          final timestamp = _getConversationTimestamp(conversation);
+          final isActive = conversationId == widget.currentConversationId;
+
+          return ListTile(
+            title: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            subtitle: Text(
+              timestamp,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            leading: CircleAvatar(
+              backgroundColor: isActive
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.primary.withAlpha(51),
+              child: Icon(
+                Icons.chat,
+                color: isActive
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.primary,
+                size: 18,
+              ),
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () {
+                widget.onDeleteConversation(conversationId);
+              },
+            ),
+            onTap: () => widget.onConversationSelected(conversationId),
+            tileColor: isActive
+                ? (widget.isDarkMode
+                    ? Colors.teal.shade900.withAlpha(51)
+                    : Colors.teal.shade50)
+                : null,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(isActive ? 8 : 0),
+            ),
+          );
+        },
+      ),
+    );
   }
 }
