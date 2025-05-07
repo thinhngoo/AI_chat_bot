@@ -27,12 +27,14 @@ class SubscriptionService {
     try {
       final isLoggedIn = await _authService.isLoggedIn();
       if (!isLoggedIn) {
-        throw 'User not logged in';
+        _logger.w('User not logged in, returning free subscription');
+        return _getDefaultSubscription();
       }
       
       final token = _authService.accessToken;
       if (token == null) {
-        throw 'No access token available';
+        _logger.w('No access token available, returning free subscription');
+        return _getDefaultSubscription();
       }
       
       final url = Uri.parse('${ApiConstants.subscriptionBaseUrl}/current');
@@ -42,7 +44,12 @@ class SubscriptionService {
       
       _logger.i('Getting current subscription from: $url');
       
-      final response = await http.get(url, headers: headers);
+      // Set a shorter timeout to prevent long waits when the API is down
+      final response = await http.get(url, headers: headers)
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        _logger.w('API request timed out');
+        throw 'Connection timed out';
+      });
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -60,11 +67,13 @@ class SubscriptionService {
         // Try to get cached data if available
         final cachedSubscription = await _getCachedSubscription();
         if (cachedSubscription != null) {
+          _logger.i('Using cached subscription data');
           _currentSubscription = cachedSubscription;
           return cachedSubscription;
         }
         
-        throw 'Failed to get subscription';
+        _logger.w('No cached subscription available, returning free subscription');
+        return _getDefaultSubscription();
       }
     } catch (e) {
       _logger.e('Error getting subscription: $e');
@@ -72,12 +81,16 @@ class SubscriptionService {
       // Try to get cached data if available
       final cachedSubscription = await _getCachedSubscription();
       if (cachedSubscription != null) {
+        _logger.i('Using cached subscription data after error');
         _currentSubscription = cachedSubscription;
         return cachedSubscription;
       }
       
       // Return a default free subscription if all else fails
-      return _getDefaultSubscription();
+      _logger.w('Falling back to default free subscription');
+      final defaultSubscription = _getDefaultSubscription();
+      _currentSubscription = defaultSubscription;
+      return defaultSubscription;
     }
   }
 
@@ -89,7 +102,8 @@ class SubscriptionService {
     try {
       final isLoggedIn = await _authService.isLoggedIn();
       if (!isLoggedIn) {
-        throw 'User not logged in';
+        _logger.w('User not logged in, returning default usage stats');
+        return _getDefaultUsageStats();
       }
       
       // Check if the user is a Pro user first
@@ -116,7 +130,8 @@ class SubscriptionService {
       // For free users, get actual usage stats from API
       final token = _authService.accessToken;
       if (token == null) {
-        throw 'No access token available';
+        _logger.w('No access token available, returning default usage stats');
+        return _getDefaultUsageStats();
       }
       
       final url = Uri.parse('${ApiConstants.jarvisApiUrl}/api/v1/usage/stats');
@@ -126,7 +141,12 @@ class SubscriptionService {
       
       _logger.i('Getting usage statistics from: $url');
       
-      final response = await http.get(url, headers: headers);
+      // Set a timeout to prevent long waits when API is down
+      final response = await http.get(url, headers: headers)
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        _logger.w('Usage stats API request timed out');
+        throw 'Connection timed out';
+      });
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -144,11 +164,15 @@ class SubscriptionService {
         // Try to get cached data if available
         final cachedStats = await _getCachedUsageStats();
         if (cachedStats != null) {
+          _logger.i('Using cached usage stats');
           _usageStats = cachedStats;
           return cachedStats;
         }
         
-        throw 'Failed to get usage statistics';
+        _logger.w('No cached usage stats available, returning default stats');
+        final defaultStats = _getDefaultUsageStats();
+        _usageStats = defaultStats;
+        return defaultStats;
       }
     } catch (e) {
       _logger.e('Error getting usage statistics: $e');
@@ -156,12 +180,16 @@ class SubscriptionService {
       // Try to get cached data if available
       final cachedStats = await _getCachedUsageStats();
       if (cachedStats != null) {
+        _logger.i('Using cached usage stats after error');
         _usageStats = cachedStats;
         return cachedStats;
       }
       
       // Return a default UsageStats object if all else fails
-      return _getDefaultUsageStats();
+      _logger.w('Falling back to default usage stats');
+      final defaultStats = _getDefaultUsageStats();
+      _usageStats = defaultStats;
+      return defaultStats;
     }
   }
   

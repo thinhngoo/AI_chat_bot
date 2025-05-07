@@ -1,5 +1,14 @@
 class ApiConstants {
-  static const String jarvisApiUrl = 'https://api.example.com';
+  // Development environment flag - set this to false for production
+  static const bool isDevelopmentEnvironment = true;
+  
+  // API URLs 
+  // Note: These are placeholder URLs that won't actually work in development
+  // For development, the app will use cached values and defaults
+  static const String jarvisApiUrl = isDevelopmentEnvironment 
+      ? 'https://dev-api.your-actual-domain.com' 
+      : 'https://api.your-actual-domain.com';
+      
   static const String subscriptionBaseUrl = '$jarvisApiUrl/subscription';
   static const String usageStatsUrl = '$jarvisApiUrl/usage/stats';
   
