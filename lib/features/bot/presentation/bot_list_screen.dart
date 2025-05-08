@@ -4,6 +4,7 @@ import '../models/ai_bot.dart';
 import '../services/bot_service.dart';
 import 'bot_detail_screen.dart';
 import 'create_bot_screen.dart';
+import 'bot_preview_screen.dart';
 
 class BotListScreen extends StatefulWidget {
   const BotListScreen({super.key});
@@ -438,259 +439,143 @@ class BotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determine model icon and color based on the model name
-    IconData modelIcon = Icons.smart_toy;
-    Color modelColor = theme.colorScheme.primary;
-
-    if (bot.model.contains('gpt')) {
-      modelIcon = Icons.psychology;
-      modelColor = Colors.green;
-    } else if (bot.model.contains('gemini')) {
-      modelIcon = Icons.auto_awesome;
-      modelColor = Colors.blue;
-    } else if (bot.model.contains('claude')) {
-      modelIcon = Icons.lightbulb;
-      modelColor = Colors.orange;
-    }
-
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
-      elevation: 2,
+      elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onEdit,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Bot avatar/icon
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.smart_toy,
-                        size: 32,
-                        color: theme.colorScheme.primary,
-                      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top row with icon and action buttons
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Bot icon
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.smart_toy,
+                      size: 24,
+                      color: theme.colorScheme.primary,
                     ),
                   ),
-                  const SizedBox(width: 16),
-
-                  // Bot info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          bot.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          bot.description.isNotEmpty
-                              ? bot.description
-                              : 'No description',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Model info and status
-                        Row(
-                          children: [
-                            // Model info
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: modelColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    modelIcon,
-                                    size: 14,
-                                    color: modelColor,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    bot.model,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: modelColor,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(width: 8),
-
-                            // Published status
-                            if (bot.isPublished)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.public,
-                                      size: 14,
-                                      color: Colors.green,
-                                    ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'Published',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.green,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                            const Spacer(),
-
-                            // Knowledge base count
-                            if (bot.knowledgeBaseIds.isNotEmpty)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.secondary
-                                      .withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.book,
-                                      size: 14,
-                                      color: theme.colorScheme.secondary,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      bot.knowledgeBaseIds.length.toString(),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: theme.colorScheme.secondary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
+                ),
+                
+                // Spacer to push actions to the right
+                const Spacer(),
+                
+                // Action buttons
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Share button
+                    IconButton(
+                      icon: const Icon(Icons.share_outlined),
+                      onPressed: () {
+                        // Implement share functionality
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Sharing bot...')),
+                        );
+                      },
+                      tooltip: 'Share',
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 20,
                     ),
-                  ),
-                ],
+                    
+                    // Favorite button
+                    IconButton(
+                      icon: const Icon(Icons.star_border_outlined),
+                      onPressed: () {
+                        // Implement favorite functionality
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Added to favorites')),
+                        );
+                      },
+                      tooltip: 'Add to favorites',
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 20,
+                    ),
+                    
+                    // Delete button
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: onDelete,
+                      tooltip: 'Delete',
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 20,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            
+            // Bot name displayed as a separate row for better visibility
+            Padding(
+              padding: const EdgeInsets.only(top: 12.0, bottom: 8.0),
+              child: Text(
+                bot.name,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
-
-              const SizedBox(height: 16),
-
-              // Action buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // Last updated date
-                  Text(
-                    'Updated: ${_formatDate(bot.updatedAt)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
+            
+            // Action buttons row at the bottom
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Edit button
+                OutlinedButton.icon(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Edit'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
                   ),
-
-                  const Spacer(),
-
-                  // Edit button
-                  OutlinedButton.icon(
-                    onPressed: onEdit,
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('Edit'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                ),
+                
+                // Chat Now button (primary action)
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // Navigate to bot preview/chat screen
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => BotPreviewScreen(
+                          botId: bot.id,
+                          botName: bot.name,
+                        ),
                       ),
+                    );
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                  label: const Text('Chat Now'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
                   ),
-
-                  const SizedBox(width: 8),
-
-                  // Delete button
-                  OutlinedButton.icon(
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete, size: 16),
-                    label: const Text('Delete'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
-  }
-
-  // Helper method to format dates
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Today';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
-    } else if (difference.inDays < 30) {
-      return '${(difference.inDays / 7).floor()} weeks ago';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
-    }
   }
 }

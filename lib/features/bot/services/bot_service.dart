@@ -696,9 +696,10 @@ class BotService {
         'query': message,
       };
       
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.botAsk.replaceAll('{botId}', botId);
+      // Build URL - using kbCoreApiUrl instead of jarvisApiUrl
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      // Replace assistantId in the URL path
+      final endpoint = ApiConstants.assistantAsk.replaceAll('{assistantId}', botId);
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
