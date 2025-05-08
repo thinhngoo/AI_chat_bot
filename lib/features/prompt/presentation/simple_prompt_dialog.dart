@@ -40,24 +40,6 @@ class SimplePromptDialog extends StatefulWidget {
     );
   }
 
-  static Future<void> showWithContent({
-    required BuildContext context,
-    String initialTitle = '',
-    String initialContent = '',
-    String initialDescription = '',
-    Function(Prompt)? callback,
-  }) {
-    return showDialog(
-      context: context,
-      builder: (context) => _SimplePromptDialogWithContent(
-        initialTitle: initialTitle,
-        initialContent: initialContent,
-        initialDescription: initialDescription,
-        callback: callback,
-      ),
-    );
-  }
-
   @override
   State<SimplePromptDialog> createState() => _SimplePromptDialogState();
 }
@@ -109,6 +91,11 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
       final content = _promptController.text.trim();
 
       if (_isEditMode) {
+        // Add validation to check for empty prompt ID
+        if (widget.prompt == null || widget.prompt!.id.isEmpty) {
+          throw 'Cannot update prompt: ID is empty';
+        }
+
         await _promptService.updatePrompt(
           promptId: widget.prompt!.id,
           title: name,
@@ -169,7 +156,25 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
   }
 
   Future<void> _toggleFavorite() async {
-    if (!_isEditMode) return;
+    if (!_isEditMode || widget.prompt == null) return;
+    
+    // Validate that the ID is not empty
+    if (widget.prompt!.id.isEmpty) {
+      _logger.e('Cannot toggle favorite: prompt ID is empty');
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot toggle favorite: prompt ID is empty'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    // Log the ID to help debug
+    _logger.i('Toggling favorite for prompt with ID: ${widget.prompt!.id}');
 
     try {
       setState(() {
@@ -217,7 +222,10 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
   }
 
   Future<void> _deletePrompt() async {
-    if (!_isEditMode) return;
+    if (!_isEditMode || widget.prompt == null) return;
+
+    // Log the ID to help debug
+    _logger.i('Attempting to delete prompt with ID: ${widget.prompt!.id}');
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -244,6 +252,10 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
       setState(() {
         _isSaving = true;
       });
+
+      if (widget.prompt!.id.isEmpty) {
+        throw 'Cannot delete prompt: ID is empty';
+      }
 
       final success = await _promptService.deletePrompt(widget.prompt!.id);
 
@@ -405,231 +417,6 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
                             : Text(_isEditMode ? 'Update' : 'Create'),
                       ),
                     ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Custom dialog for pre-filling content
-class _SimplePromptDialogWithContent extends StatefulWidget {
-  final String initialTitle;
-  final String initialContent;
-  final String initialDescription;
-  final Function(Prompt)? callback;
-
-  const _SimplePromptDialogWithContent({
-    required this.initialTitle,
-    required this.initialContent,
-    required this.initialDescription,
-    this.callback,
-  });
-
-  @override
-  State<_SimplePromptDialogWithContent> createState() => _SimplePromptDialogWithContentState();
-}
-
-class _SimplePromptDialogWithContentState extends State<_SimplePromptDialogWithContent> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _promptController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _logger = Logger();
-  final _promptService = PromptService();
-
-  bool _useSquareBrackets = true;
-  bool _isSaving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController.text = widget.initialTitle;
-    _promptController.text = widget.initialContent;
-    _descriptionController.text = widget.initialDescription;
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _promptController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _savePrompt() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    try {
-      setState(() {
-        _isSaving = true;
-      });
-
-      final title = _nameController.text.trim();
-      final content = _promptController.text.trim();
-      final description = _descriptionController.text.isEmpty 
-          ? "Created from existing prompt" 
-          : _descriptionController.text.trim();
-
-      // Always create a new prompt (since the original had an empty ID)
-      final prompt = await _promptService.createPrompt(
-        title: title,
-        content: content,
-        description: description,
-        category: "other",
-        isPublic: false,
-      );
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Prompt created successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      Navigator.of(context).pop();
-      
-      // Call the callback with the created prompt
-      if (widget.callback != null) {
-        widget.callback!(prompt);
-      }
-    } catch (e) {
-      _logger.e('Error creating prompt: $e');
-
-      if (!mounted) return;
-
-      setState(() {
-        _isSaving = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Container(
-        width: double.infinity,
-        constraints: const BoxConstraints(
-          maxWidth: 500,
-          maxHeight: 500,
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Create New Prompt',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  hintText: 'Enter a title for your prompt',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => InputValidator.validateRequired(value, 'title'),
-                enabled: !_isSaving,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Checkbox(
-                    value: _useSquareBrackets,
-                    onChanged: (value) {
-                      setState(() {
-                        _useSquareBrackets = value ?? true;
-                      });
-                    },
-                  ),
-                  const Text('Use square brackets [ ] to specify user input.'),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: TextFormField(
-                  controller: _promptController,
-                  decoration: const InputDecoration(
-                    labelText: 'Prompt Content',
-                    hintText: 'e.g: Write an article about [TOPIC], make sure to include these keywords: [KEYWORDS]',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                  expands: true,
-                  maxLines: null,
-                  minLines: null,
-                  textAlignVertical: TextAlignVertical.top,
-                  validator: (value) => InputValidator.validateRequired(value, 'prompt content'),
-                  enabled: !_isSaving,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'This prompt will be saved as a new prompt in your private collection.',
-                style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _isSaving ? null : _savePrompt,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('Create New'),
                   ),
                 ],
               ),

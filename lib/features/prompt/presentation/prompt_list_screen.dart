@@ -282,15 +282,34 @@ class _PromptListScreenState extends State<PromptListScreen> {
             if (prompt.category.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4.0, bottom: 6.0),
-                child: Chip(
-                  label: Text(
-                    prompt.category,
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  padding: EdgeInsets.zero,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                  side: BorderSide(color: colors.border),
+                child: Row(
+                  children: [
+                    Chip(
+                      label: Text(
+                        prompt.category,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      padding: EdgeInsets.zero,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                      side: BorderSide(color: colors.border),
+                    ),
+                    const Spacer(),
+                    // Thêm nút star để thêm/xóa prompt khỏi danh sách yêu thích
+                    if (widget.onPromptToggleFavorite != null)
+                      InkWell(
+                        onTap: () => widget.onPromptToggleFavorite!(prompt),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: Icon(
+                            prompt.isFavorite ? Icons.star : Icons.star_border,
+                            color: prompt.isFavorite ? Colors.amber : theme.colorScheme.primary,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             if (prompt.description.isNotEmpty) ...[
@@ -337,12 +356,14 @@ class _PromptListScreenState extends State<PromptListScreen> {
                     IconButton(
                       icon: const Icon(Icons.edit),
                       onPressed: () => widget.onEdit!(prompt),
+                      tooltip: 'Edit prompt',
                     ),
                   if (widget.onDelete != null)
                     IconButton(
                       icon: const Icon(Icons.delete),
                       onPressed: () => widget.onDelete!(prompt),
                       color: Colors.red,
+                      tooltip: 'Delete prompt',
                     ),
                 ],
               )
