@@ -9,23 +9,26 @@ import '../models/knowledge_base_model.dart';
 import '../../../core/constants/app_config.dart';
 
 class KnowledgeBaseService {
-  final String baseUrl = AppConfig.apiUrl;
+  // Using just the base domain without the path
+  final String baseUrl = "https://knowledge-api.dev.jarvis.cx";
+  final String apiPath = "/kb-core/v1/knowledge";
   final Dio _dio = Dio();
   final AuthService _authService = AuthService();
 
   // Get authentication token from auth service
   Future<String> _getToken() async {
     try {
+      // Make sure auth service is initialized
+      await _authService.initializeService();
+      
       final token = await _authService.getToken();
       if (token == null) {
-        throw Exception('Authentication token not available');
+        throw Exception('Authentication token not available. Please log in again.');
       }
       return token;
     } catch (e) {
-      // For debugging purposes, return a dummy token if the actual token can't be retrieved
-      // This should be removed in production
-      print('Warning: Using dummy token for development: $e');
-      return 'dummy_token_for_development';
+      print('Error getting authentication token: $e');
+      throw Exception('Authentication failed: $e');
     }
   }
 
@@ -37,10 +40,10 @@ class KnowledgeBaseService {
     final token = await _getToken();
     
     // Print debugging info
-    print('Creating knowledge base with URL: $baseUrl/knowledges');
+    print('Creating knowledge base with URL: $baseUrl$apiPath');
     
     final response = await http.post(
-      Uri.parse('$baseUrl/knowledges'),
+      Uri.parse('$baseUrl$apiPath'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -77,7 +80,7 @@ class KnowledgeBaseService {
       };
 
       // Debug output
-      final requestUrl = Uri.parse('$baseUrl/knowledges').replace(queryParameters: queryParams);
+      final requestUrl = Uri.parse('$baseUrl$apiPath').replace(queryParameters: queryParams);
       print('Fetching knowledge bases from: $requestUrl');
       
       final response = await http.get(
@@ -113,7 +116,7 @@ class KnowledgeBaseService {
   Future<KnowledgeBase> getKnowledgeBase(String id) async {
     final token = await _getToken();
     final response = await http.get(
-      Uri.parse('$baseUrl/knowledges/$id'),
+      Uri.parse('$baseUrl$apiPath/$id'),
       headers: {
         'Authorization': 'Bearer $token',
       },
@@ -124,7 +127,7 @@ class KnowledgeBaseService {
       
       // Get sources (datasources) for this knowledge base
       final sourcesResponse = await http.get(
-        Uri.parse('$baseUrl/knowledges/$id/datasources'),
+        Uri.parse('$baseUrl$apiPath/$id/datasources'),
         headers: {
           'Authorization': 'Bearer $token',
         },
@@ -157,7 +160,7 @@ class KnowledgeBaseService {
   Future<void> deleteKnowledgeBase(String id) async {
     final token = await _getToken();
     final response = await http.delete(
-      Uri.parse('$baseUrl/knowledges/$id'),
+      Uri.parse('$baseUrl$apiPath/$id'),
       headers: {
         'Authorization': 'Bearer $token',
       },
@@ -186,7 +189,7 @@ class KnowledgeBaseService {
     });
 
     final response = await _dio.post(
-      '$baseUrl/knowledges/$knowledgeBaseId/datasources/file',
+      '$baseUrl$apiPath/$knowledgeBaseId/datasources/file',
       data: formData,
       options: Options(
         headers: {
@@ -209,7 +212,7 @@ class KnowledgeBaseService {
   ) async {
     final token = await _getToken();
     final response = await http.post(
-      Uri.parse('$baseUrl/knowledges/$knowledgeBaseId/datasources/website'),
+      Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/datasources/website'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -233,7 +236,7 @@ class KnowledgeBaseService {
   ) async {
     final token = await _getToken();
     final response = await http.post(
-      Uri.parse('$baseUrl/knowledges/$knowledgeBaseId/datasources/google-drive'),
+      Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/datasources/google-drive'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -257,7 +260,7 @@ class KnowledgeBaseService {
   ) async {
     final token = await _getToken();
     final response = await http.post(
-      Uri.parse('$baseUrl/knowledges/$knowledgeBaseId/datasources/slack'),
+      Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/datasources/slack'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -281,7 +284,7 @@ class KnowledgeBaseService {
   ) async {
     final token = await _getToken();
     final response = await http.post(
-      Uri.parse('$baseUrl/knowledges/$knowledgeBaseId/datasources/confluence'),
+      Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/datasources/confluence'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -305,7 +308,7 @@ class KnowledgeBaseService {
   ) async {
     final token = await _getToken();
     final response = await http.delete(
-      Uri.parse('$baseUrl/knowledges/$knowledgeBaseId/datasources/$sourceId'),
+      Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/datasources/$sourceId'),
       headers: {
         'Authorization': 'Bearer $token',
       },

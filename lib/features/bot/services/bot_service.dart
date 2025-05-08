@@ -127,7 +127,12 @@ class BotService {
       const baseUrl = ApiConstants.jarvisApiUrl;
       const endpoint = ApiConstants.botsEndpoint;
       
-      var queryParams = <String, String>{};
+      // Adding pagination parameters which are required by the API
+      var queryParams = <String, String>{
+        'page': '1',
+        'per_page': '100'
+      };
+      
       if (query != null && query.isNotEmpty) {
         queryParams['query'] = query;
       }
@@ -143,9 +148,21 @@ class BotService {
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final assistants = data['assistants'] as List<dynamic>;
         
-        return assistants.map((item) => AIBot.fromJson(item)).toList();
+        // Check if response format is different than expected
+        if (data['assistants'] != null) {
+          // Original format with 'assistants' array
+          final assistants = data['assistants'] as List<dynamic>;
+          return assistants.map((item) => AIBot.fromJson(item)).toList();
+        } else if (data['items'] != null) {
+          // Alternative format with 'items' array
+          final items = data['items'] as List<dynamic>;
+          return items.map((item) => AIBot.fromJson(item)).toList();
+        } else {
+          // Empty list if no recognized format
+          _logger.w('Unknown response format: $data');
+          return [];
+        }
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');

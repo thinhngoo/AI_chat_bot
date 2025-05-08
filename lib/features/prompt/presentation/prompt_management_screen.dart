@@ -100,10 +100,9 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
 
   Future<void> _fetchPublicPrompts() async {
     try {
-      if (_publicPrompts.isNotEmpty) return; // Skip if already loaded
-
       setState(() {
         _isLoading = true;
+        _errorMessage = ''; // Clear previous error messages
       });
 
       final prompts = await _promptService.getPrompts(isPublic: true);

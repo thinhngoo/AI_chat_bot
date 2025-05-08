@@ -55,8 +55,13 @@ class PromptService {
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final items = data['items'] as List<dynamic>;
-        return items.map((item) => Prompt.fromJson(item)).toList();
+        if (data['items'] == null) {
+          _logger.w('API returned null items: $data');
+          return []; // Return empty list instead of throwing error
+        }
+        return (data['items'] as List)
+            .map((item) => Prompt.fromJson(item))
+            .toList();
       } else {
         _logger.e('Failed to fetch prompts: ${response.body}');
         throw 'Failed to fetch prompts: ${response.statusCode}';
