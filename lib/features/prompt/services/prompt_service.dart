@@ -28,10 +28,10 @@ class PromptService {
         throw 'Not authenticated';
       }
       
-      // Build query parameters
+      // Build query parameters - updated to use camelCase to match API expectations
       final queryParams = <String, String>{};
-      if (isPublic != null) queryParams['is_public'] = isPublic.toString();
-      if (isFavorite != null) queryParams['is_favorite'] = isFavorite.toString();
+      if (isPublic != null) queryParams['isPublic'] = isPublic.toString();
+      if (isFavorite != null) queryParams['isFavorite'] = isFavorite.toString();
       if (category != null && category.isNotEmpty) queryParams['category'] = category;
       if (searchQuery != null && searchQuery.isNotEmpty) queryParams['search'] = searchQuery;
       queryParams['limit'] = limit.toString();

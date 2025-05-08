@@ -90,9 +90,10 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
         _errorMessage = '';
       });
 
-      // Fetch a mixture of user's favorite and frequently used prompts
-      final favorites =
-          await _promptService.getPrompts(isFavorite: true, limit: 5);
+      // Fetch user's favorite prompts first with the correct parameter
+      final favorites = await _promptService.getPrompts(isFavorite: true, limit: 5);
+      
+      // Then fetch some general prompts - explicitly NOT filtering for favorites
       final allPrompts = await _promptService.getPrompts(limit: 10);
 
       // Filter out prompts with empty IDs
@@ -106,9 +107,10 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
         _logger.w('Found $emptyIdCount prompts with empty IDs that were filtered out from prompt selector');
       }
 
-      // Combine and remove duplicates
+      // Combine and remove duplicates - put favorites first
       final combinedPrompts = [...validFavorites];
       for (final prompt in validAllPrompts) {
+        // Only add non-favorite prompts that aren't already in the list
         if (!combinedPrompts.any((p) => p.id == prompt.id)) {
           combinedPrompts.add(prompt);
         }
