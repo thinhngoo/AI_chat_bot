@@ -14,16 +14,29 @@ class AuthService {
   String? _accessToken;
   String? _refreshToken;
   String? _userId;
+  
+  // Thêm biến lưu cache SharedPreferences để giảm thời gian truy cập
+  static SharedPreferences? _prefs;
+
+  // Thêm Future để đảm bảo việc khởi tạo chỉ được thực hiện một lần
+  static Future<void>? _initFuture;
 
   AuthService._internal();
 
   Future<void> initializeService() async {
     if (_isInitialized) return;
 
+    // Khởi tạo một lần và lưu kết quả
+    _initFuture ??= _initialize();
+    await _initFuture;
+    _isInitialized = true;
+  }
+  
+  // Tách logic khởi tạo để dễ quản lý
+  Future<void> _initialize() async {
     _logger.i('Initializing Auth Service');
     await _loadAuthToken();
     await _apiService.initialize(this);
-    _isInitialized = true;
   }
 
   Future<bool> signUpWithEmailAndPassword(
@@ -85,20 +98,22 @@ class AuthService {
     }
   }
 
+  // Tối ưu kiểm tra trạng thái đăng nhập
   Future<bool> isLoggedIn() async {
-    try {
-      await _loadAuthToken();
-      return _accessToken != null && _accessToken!.isNotEmpty;
-    } catch (e) {
-      _logger.e('Error checking login status: $e');
-      return false;
+    if (!_isInitialized) {
+      await initializeService();
     }
+    return _accessToken != null && _accessToken!.isNotEmpty;
   }
 
   Future<bool> forceAuthStateUpdate() async {
     try {
-      // Simply check login status again to force update
-      return await isLoggedIn();
+      _logger.i('Force updating auth state');
+      // Xóa cache token và reload
+      _accessToken = null;
+      _refreshToken = null;
+      await _loadAuthToken();
+      return _accessToken != null && _accessToken!.isNotEmpty;
     } catch (e) {
       _logger.e('Error forcing auth state update: $e');
       return false;
@@ -127,16 +142,17 @@ class AuthService {
     }
   }
 
-  // Token management methods moved from JarvisApiService
+  // Tối ưu hóa việc đọc token từ SharedPreferences
   Future<void> _loadAuthToken() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      _accessToken = prefs.getString(ApiConstants.accessTokenKey);
-      _refreshToken = prefs.getString(ApiConstants.refreshTokenKey);
-      _userId = prefs.getString(ApiConstants.userIdKey);
+      // Sử dụng instance cache nếu có
+      _prefs ??= await SharedPreferences.getInstance();
+      
+      _accessToken = _prefs!.getString(ApiConstants.accessTokenKey);
+      _refreshToken = _prefs!.getString(ApiConstants.refreshTokenKey);
+      _userId = _prefs!.getString(ApiConstants.userIdKey);
 
-      _logger.i(
-          'Loaded tokens from storage: accessToken=${_accessToken != null}, userId=$_userId');
+      _logger.i('Loaded tokens from storage: accessToken=${_accessToken != null}, userId=$_userId');
     } catch (e) {
       _logger.e('Error loading auth token: $e');
     }
@@ -144,12 +160,14 @@ class AuthService {
 
   Future<void> _saveAuthToken(String accessToken, String? refreshToken) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(ApiConstants.accessTokenKey, accessToken);
+      // Sử dụng instance cache nếu có
+      _prefs ??= await SharedPreferences.getInstance();
+      
+      await _prefs!.setString(ApiConstants.accessTokenKey, accessToken);
       _accessToken = accessToken;
 
       if (refreshToken != null) {
-        await prefs.setString(ApiConstants.refreshTokenKey, refreshToken);
+        await _prefs!.setString(ApiConstants.refreshTokenKey, refreshToken);
         _refreshToken = refreshToken;
       }
 
@@ -161,10 +179,12 @@ class AuthService {
 
   Future<void> _clearAuthToken() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(ApiConstants.accessTokenKey);
-      await prefs.remove(ApiConstants.refreshTokenKey);
-      await prefs.remove(ApiConstants.userIdKey);
+      // Sử dụng instance cache nếu có
+      _prefs ??= await SharedPreferences.getInstance();
+      
+      await _prefs!.remove(ApiConstants.accessTokenKey);
+      await _prefs!.remove(ApiConstants.refreshTokenKey);
+      await _prefs!.remove(ApiConstants.userIdKey);
       _accessToken = null;
       _refreshToken = null;
       _userId = null;
@@ -177,14 +197,14 @@ class AuthService {
   // Getter for access token - for JarvisApiService to use
   String? get accessToken => _accessToken;
 
-  // Added method for knowledge base service to get the token
+  // Phương thức tối ưu không cần gọi _loadAuthToken() lại nếu đã khởi tạo
   Future<String?> getToken() async {
-    if (_accessToken == null) {
-      await _loadAuthToken();
+    if (!_isInitialized) {
+      await initializeService();
     }
     
-    // If token is still null after loading, or appears expired, try refreshing
-    if (_accessToken == null || _isTokenExpired(_accessToken!)) {
+    // If token appears expired, try refreshing
+    if (_accessToken != null && _isTokenExpired(_accessToken!)) {
       await refreshToken();
     }
     

@@ -138,7 +138,7 @@ class JarvisApiService {
       }
     } catch (e) {
       _logger.e('Sign-in error: $e');
-      rethrow; // Fixed: changed from throw e
+      rethrow;
     }
   }
 
