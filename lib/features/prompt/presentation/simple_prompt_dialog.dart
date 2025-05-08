@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../services/prompt_service.dart';
 import '../../../core/utils/validators/input_validator.dart';
+import '../models/prompt.dart';
 
 class SimplePromptDialog extends StatefulWidget {
   final Function(String content)? onPromptCreated;
+  final Prompt? prompt;
 
   const SimplePromptDialog({
     Key? key,
     this.onPromptCreated,
+    this.prompt,
   }) : super(key: key);
 
   static Future<void> show(
@@ -23,6 +26,20 @@ class SimplePromptDialog extends StatefulWidget {
     );
   }
 
+  static Future<void> showEdit(
+    BuildContext context,
+    Prompt prompt,
+    Function(String content)? onPromptUpdated,
+  ) {
+    return showDialog(
+      context: context,
+      builder: (context) => SimplePromptDialog(
+        prompt: prompt,
+        onPromptCreated: onPromptUpdated,
+      ),
+    );
+  }
+
   @override
   State<SimplePromptDialog> createState() => _SimplePromptDialogState();
 }
@@ -33,9 +50,25 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
   final _promptController = TextEditingController();
   final _logger = Logger();
   final _promptService = PromptService();
-  
+
   bool _useSquareBrackets = true;
   bool _isSaving = false;
+  bool _isFavorite = false;
+  bool get _isEditMode => widget.prompt != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeFormData();
+  }
+
+  void _initializeFormData() {
+    if (_isEditMode) {
+      _nameController.text = widget.prompt!.title;
+      _promptController.text = widget.prompt!.content;
+      _isFavorite = widget.prompt!.isFavorite;
+    }
+  }
 
   @override
   void dispose() {
@@ -44,7 +77,7 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
     super.dispose();
   }
 
-  Future<void> _createPrompt() async {
+  Future<void> _savePrompt() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -57,25 +90,50 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
       final name = _nameController.text.trim();
       final content = _promptController.text.trim();
 
-      // Create prompt with minimal required fields
-      await _promptService.createPrompt(
-        title: name,
-        content: content,
-        // Set standard values for other required fields
-        description: "Created from quick prompt dialog",
-        category: "other", // Using the known working value
-        isPublic: false,
-      );
+      if (_isEditMode) {
+        await _promptService.updatePrompt(
+          promptId: widget.prompt!.id,
+          title: name,
+          content: content,
+          description: widget.prompt!.description,
+          category: widget.prompt!.category,
+          isPublic: widget.prompt!.isPublic,
+        );
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Prompt updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        await _promptService.createPrompt(
+          title: name,
+          content: content,
+          description: "Created from quick prompt dialog",
+          category: "other",
+          isPublic: false,
+        );
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Prompt created successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
 
       if (!mounted) return;
-
-      // Close dialog and execute callback if provided
       Navigator.of(context).pop();
       if (widget.onPromptCreated != null) {
         widget.onPromptCreated!(content);
       }
     } catch (e) {
-      _logger.e('Error creating prompt: $e');
+      _logger.e('Error saving prompt: $e');
 
       if (!mounted) return;
 
@@ -83,7 +141,115 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
         _isSaving = false;
       });
 
-      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (!_isEditMode) return;
+
+    try {
+      setState(() {
+        _isSaving = true;
+      });
+
+      bool success;
+      if (_isFavorite) {
+        success = await _promptService.removePromptFromFavorites(widget.prompt!.id);
+      } else {
+        success = await _promptService.addPromptToFavorites(widget.prompt!.id);
+      }
+
+      if (!mounted) return;
+
+      if (success) {
+        setState(() {
+          _isFavorite = !_isFavorite;
+          _isSaving = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_isFavorite ? 'Added to favorites' : 'Removed from favorites'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      _logger.e('Error toggling favorite: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _isSaving = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deletePrompt() async {
+    if (!_isEditMode) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Prompt'),
+        content: Text('Are you sure you want to delete "${widget.prompt!.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('DELETE'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      setState(() {
+        _isSaving = true;
+      });
+
+      final success = await _promptService.deletePrompt(widget.prompt!.id);
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Prompt deleted'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      _logger.e('Error deleting prompt: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _isSaving = false;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -112,12 +278,11 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'New Prompt',
+                    _isEditMode ? 'Edit Prompt' : 'New Prompt',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   IconButton(
@@ -129,8 +294,6 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
                 ],
               ),
               const SizedBox(height: 16),
-
-              // Name field
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -142,8 +305,6 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
                 enabled: !_isSaving,
               ),
               const SizedBox(height: 16),
-
-              // Square brackets checkbox
               Row(
                 children: [
                   Checkbox(
@@ -158,8 +319,6 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
                 ],
               ),
               const SizedBox(height: 16),
-
-              // Prompt content field
               Expanded(
                 child: TextFormField(
                   controller: _promptController,
@@ -177,36 +336,57 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Buttons
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  TextButton(
-                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    child: const Text('Cancel'),
+                  Row(
+                    children: [
+                      if (_isEditMode) ...[
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: _isSaving ? null : _deletePrompt,
+                          tooltip: 'Delete prompt',
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            _isFavorite ? Icons.star : Icons.star_border,
+                            color: _isFavorite ? Colors.amber : null,
+                          ),
+                          onPressed: _isSaving ? null : _toggleFavorite,
+                          tooltip: _isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _isSaving ? null : _createPrompt,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('Create'),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _isSaving ? null : _savePrompt,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(_isEditMode ? 'Update' : 'Create'),
+                      ),
+                    ],
                   ),
                 ],
               ),
