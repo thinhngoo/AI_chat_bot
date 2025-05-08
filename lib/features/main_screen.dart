@@ -121,17 +121,20 @@ class _MainScreenState extends State<MainScreen> {
               Icon(
                 icon,
                 color: iconColor,
-                size: 22,
+                size: 24, // Tăng kích thước icon lên một chút khi không có nhãn
               ),
-              const SizedBox(height: 2),
-              Text(
-                shortLabel, // Hiển thị nhãn ngắn để vừa không gian
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: iconColor,
+              // Chỉ hiển thị nhãn khi được chọn
+              if (isSelected)
+                const SizedBox(height: 2),
+              if (isSelected)
+                Text(
+                  shortLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: iconColor,
+                  ),
                 ),
-              ),
             ],
           ),
         ),
