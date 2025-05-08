@@ -25,14 +25,14 @@ class ApiConstants {
   static const String emailComposeResponse = '/api/v1/email/compose-response';
   
   // Bot Management endpoints
-  static const String botsEndpoint = '/api/v1/assistants';
-  static const String botById = '/api/v1/assistants/{botId}';
-  static const String botKnowledge = '/api/v1/assistants/{botId}/knowledge';
-  static const String botKnowledgeById = '/api/v1/assistants/{botId}/knowledge/{knowledgeBaseId}';
-  static const String botAsk = '/api/v1/assistants/{botId}/ask';
-  static const String botPublish = '/api/v1/assistants/{botId}/publish';
-  static const String botPublishPlatform = '/api/v1/assistants/{botId}/publish/{platform}';
-  static const String botConfigurations = '/api/v1/assistants/{botId}/configurations';
+  static const String botsEndpoint = '/kb-core/v1/ai-assistant';
+  static const String botById = '/kb-core/v1/ai-assistant/{botId}';
+  static const String botKnowledge = '/kb-core/v1/ai-assistant/{botId}/knowledge';
+  static const String botKnowledgeById = '/kb-core/v1/ai-assistant/{botId}/knowledge/{knowledgeBaseId}';
+  static const String botAsk = '/kb-core/v1/ai-assistant/{botId}/ask';
+  static const String botPublish = '/kb-core/v1/ai-assistant/{botId}/publish';
+  static const String botPublishPlatform = '/kb-core/v1/ai-assistant/{botId}/publish/{platform}';
+  static const String botConfigurations = '/kb-core/v1/ai-assistant/{botId}/configurations';
   
   // Knowledge Base endpoints
   static const String knowledgeBase = '/api/v1/knowledge';

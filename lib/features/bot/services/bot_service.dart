@@ -127,14 +127,16 @@ class BotService {
       const baseUrl = ApiConstants.jarvisApiUrl;
       const endpoint = ApiConstants.botsEndpoint;
       
-      // Adding pagination parameters which are required by the API
+      // Adding pagination parameters using the correct format for this API
       var queryParams = <String, String>{
-        'page': '1',
-        'per_page': '100'
+        'offset': '0',
+        'limit': '50',  // Maximum allowed by API
+        'order': 'DESC',
+        'order_field': 'createdAt'
       };
       
       if (query != null && query.isNotEmpty) {
-        queryParams['query'] = query;
+        queryParams['q'] = query;
       }
       
       final uri = Uri.parse(baseUrl + endpoint).replace(queryParameters: queryParams);
@@ -149,17 +151,13 @@ class BotService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // Check if response format is different than expected
-        if (data['assistants'] != null) {
-          // Original format with 'assistants' array
-          final assistants = data['assistants'] as List<dynamic>;
+        // Check if response format matches the API documentation
+        // The response should have a "data" field containing an array of assistants
+        if (data['data'] != null) {
+          final assistants = data['data'] as List<dynamic>;
           return assistants.map((item) => AIBot.fromJson(item)).toList();
-        } else if (data['items'] != null) {
-          // Alternative format with 'items' array
-          final items = data['items'] as List<dynamic>;
-          return items.map((item) => AIBot.fromJson(item)).toList();
         } else {
-          // Empty list if no recognized format
+          // Log unexpected format
           _logger.w('Unknown response format: $data');
           return [];
         }

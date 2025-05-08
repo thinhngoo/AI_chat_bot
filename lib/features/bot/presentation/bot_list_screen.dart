@@ -30,14 +30,14 @@ class _BotListScreenState extends State<BotListScreen>
   @override
   void initState() {
     super.initState();
-    _fetchBots();
-
+    
+    // Initialize the animation controller properly
     _refreshIconController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
-
-      // _fetchBots();
     );
+    
+    _fetchBots();
   }
 
   @override
