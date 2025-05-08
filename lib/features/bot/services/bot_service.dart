@@ -54,15 +54,14 @@ class BotService {
       
       // Build request body based on API documentation
       final Map<String, dynamic> body = {
-        'name': name,
+        'assistantName': name, // Changed from 'name' to 'assistantName' per API spec
         'description': description,
-        'model': model,
-        'instructions': prompt,
+        'instructions': prompt, // Changed from 'prompt' to 'instructions' per API spec
       };
       
       // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      const endpoint = ApiConstants.botsEndpoint;
+      const baseUrl = ApiConstants.kbCoreApiUrl; // Using kbCoreApiUrl instead of jarvisApiUrl
+      const endpoint = ApiConstants.assistantsEndpoint;
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
