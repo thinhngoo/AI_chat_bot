@@ -439,7 +439,14 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.botName),
+            Text(
+              widget.botName,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
             const Text(
               'Bot Preview Mode',
               style: TextStyle(
