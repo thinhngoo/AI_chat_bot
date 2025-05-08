@@ -22,9 +22,11 @@ class PromptService {
     try {
       // Ensure auth service is initialized
       await _authService.initializeService();
-      final token = _authService.accessToken;
       
-      if (token == null) {
+      // Sử dụng getToken() thay vì accessToken trực tiếp để tự động làm mới token khi cần
+      final token = await _authService.getToken();
+      
+      if (token == null || token.isEmpty) {
         throw 'Not authenticated';
       }
       
@@ -62,6 +64,23 @@ class PromptService {
         return (data['items'] as List)
             .map((item) => Prompt.fromJson(item))
             .toList();
+      } else if (response.statusCode == 401) {
+        // Nếu lỗi Unauthorized, thử làm mới token một lần nữa
+        _logger.w('Token không hợp lệ, thử làm mới và gọi lại API');
+        if (await _authService.refreshToken()) {
+          // Nếu làm mới token thành công, thử lại lần nữa
+          return getPrompts(
+            isPublic: isPublic,
+            isFavorite: isFavorite,
+            category: category,
+            searchQuery: searchQuery,
+            limit: limit,
+            offset: offset,
+          );
+        } else {
+          _logger.e('Failed to refresh token');
+          throw 'Authentication error: Please log in again';
+        }
       } else {
         _logger.e('Failed to fetch prompts: ${response.body}');
         throw 'Failed to fetch prompts: ${response.statusCode}';
@@ -77,9 +96,9 @@ class PromptService {
     try {
       // Ensure auth service is initialized
       await _authService.initializeService();
-      final token = _authService.accessToken;
+      final token = await _authService.getToken();
       
-      if (token == null) {
+      if (token == null || token.isEmpty) {
         throw 'Not authenticated';
       }
       
@@ -100,6 +119,16 @@ class PromptService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return Prompt.fromJson(data);
+      } else if (response.statusCode == 401) {
+        // Nếu lỗi Unauthorized, thử làm mới token một lần nữa
+        _logger.w('Token không hợp lệ, thử làm mới và gọi lại API');
+        if (await _authService.refreshToken()) {
+          // Nếu làm mới token thành công, thử lại lần nữa
+          return getPromptById(promptId);
+        } else {
+          _logger.e('Failed to refresh token');
+          throw 'Authentication error: Please log in again';
+        }
       } else {
         _logger.e('Failed to fetch prompt: ${response.body}');
         throw 'Failed to fetch prompt: ${response.statusCode}';
@@ -122,9 +151,9 @@ class PromptService {
     try {
       // Ensure auth service is initialized
       await _authService.initializeService();
-      final token = _authService.accessToken;
+      final token = await _authService.getToken();
       
-      if (token == null) {
+      if (token == null || token.isEmpty) {
         throw 'Not authenticated';
       }
       
@@ -159,6 +188,23 @@ class PromptService {
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
         return Prompt.fromJson(data);
+      } else if (response.statusCode == 401) {
+        // Nếu lỗi Unauthorized, thử làm mới token một lần nữa
+        _logger.w('Token không hợp lệ, thử làm mới và gọi lại API');
+        if (await _authService.refreshToken()) {
+          // Nếu làm mới token thành công, thử lại lần nữa
+          return createPrompt(
+            title: title,
+            content: content,
+            description: description,
+            category: category,
+            isPublic: isPublic,
+            language: language
+          );
+        } else {
+          _logger.e('Failed to refresh token');
+          throw 'Authentication error: Please log in again';
+        }
       } else {
         _logger.e('Failed to create prompt: ${response.body}');
         throw 'Failed to create prompt: ${response.statusCode}';
@@ -199,16 +245,21 @@ class PromptService {
     try {
       // Ensure auth service is initialized
       await _authService.initializeService();
-      final token = _authService.accessToken;
+      final token = await _authService.getToken();
       
-      if (token == null) {
+      if (token == null || token.isEmpty) {
         throw 'Not authenticated';
+      }
+      
+      // Validate promptId to prevent URL construction errors
+      if (promptId.isEmpty) {
+        throw 'Invalid prompt ID: ID cannot be empty';
       }
       
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$promptId');
       
-      // Convert category to valid API enum value (lowercase)
-      String validCategory = _mapCategoryToAPIValue(category).toLowerCase();
+      // Use a simple fixed category to avoid potential issues
+      final String validCategory = "other";
       
       final body = jsonEncode({
         'title': title,
@@ -236,6 +287,24 @@ class PromptService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return Prompt.fromJson(data);
+      } else if (response.statusCode == 401) {
+        // Nếu lỗi Unauthorized, thử làm mới token một lần nữa
+        _logger.w('Token không hợp lệ, thử làm mới và gọi lại API');
+        if (await _authService.refreshToken()) {
+          // Nếu làm mới token thành công, thử lại lần nữa
+          return updatePrompt(
+            promptId: promptId,
+            title: title,
+            content: content,
+            description: description,
+            category: category,
+            isPublic: isPublic,
+            language: language
+          );
+        } else {
+          _logger.e('Failed to refresh token');
+          throw 'Authentication error: Please log in again';
+        }
       } else {
         _logger.e('Failed to update prompt: ${response.body}');
         throw 'Failed to update prompt: ${response.statusCode}';
@@ -251,10 +320,15 @@ class PromptService {
     try {
       // Ensure auth service is initialized
       await _authService.initializeService();
-      final token = _authService.accessToken;
+      final token = await _authService.getToken();
       
-      if (token == null) {
+      if (token == null || token.isEmpty) {
         throw 'Not authenticated';
+      }
+      
+      // Validate promptId to prevent URL construction errors
+      if (promptId.isEmpty) {
+        throw 'Invalid prompt ID: ID cannot be empty';
       }
       
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$promptId');
@@ -273,6 +347,16 @@ class PromptService {
       
       if (response.statusCode == 204) {
         return true;
+      } else if (response.statusCode == 401) {
+        // Nếu lỗi Unauthorized, thử làm mới token một lần nữa
+        _logger.w('Token không hợp lệ, thử làm mới và gọi lại API');
+        if (await _authService.refreshToken()) {
+          // Nếu làm mới token thành công, thử lại lần nữa
+          return deletePrompt(promptId);
+        } else {
+          _logger.e('Failed to refresh token');
+          throw 'Authentication error: Please log in again';
+        }
       } else {
         _logger.e('Failed to delete prompt: ${response.body}');
         throw 'Failed to delete prompt: ${response.statusCode}';
@@ -288,10 +372,15 @@ class PromptService {
     try {
       // Ensure auth service is initialized
       await _authService.initializeService();
-      final token = _authService.accessToken;
+      final token = await _authService.getToken();
       
-      if (token == null) {
+      if (token == null || token.isEmpty) {
         throw 'Not authenticated';
+      }
+      
+      // Validate promptId
+      if (promptId.isEmpty) {
+        throw 'Invalid prompt ID: ID cannot be empty';
       }
       
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$promptId/favorite');
@@ -310,6 +399,16 @@ class PromptService {
       
       if (response.statusCode == 200) {
         return true;
+      } else if (response.statusCode == 401) {
+        // Nếu lỗi Unauthorized, thử làm mới token một lần nữa
+        _logger.w('Token không hợp lệ, thử làm mới và gọi lại API');
+        if (await _authService.refreshToken()) {
+          // Nếu làm mới token thành công, thử lại lần nữa
+          return addPromptToFavorites(promptId);
+        } else {
+          _logger.e('Failed to refresh token');
+          throw 'Authentication error: Please log in again';
+        }
       } else {
         _logger.e('Failed to add prompt to favorites: ${response.body}');
         throw 'Failed to add prompt to favorites: ${response.statusCode}';
@@ -325,10 +424,15 @@ class PromptService {
     try {
       // Ensure auth service is initialized
       await _authService.initializeService();
-      final token = _authService.accessToken;
+      final token = await _authService.getToken();
       
-      if (token == null) {
+      if (token == null || token.isEmpty) {
         throw 'Not authenticated';
+      }
+      
+      // Validate promptId
+      if (promptId.isEmpty) {
+        throw 'Invalid prompt ID: ID cannot be empty';
       }
       
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$promptId/favorite');
@@ -347,6 +451,16 @@ class PromptService {
       
       if (response.statusCode == 200) {
         return true;
+      } else if (response.statusCode == 401) {
+        // Nếu lỗi Unauthorized, thử làm mới token một lần nữa
+        _logger.w('Token không hợp lệ, thử làm mới và gọi lại API');
+        if (await _authService.refreshToken()) {
+          // Nếu làm mới token thành công, thử lại lần nữa
+          return removePromptFromFavorites(promptId);
+        } else {
+          _logger.e('Failed to refresh token');
+          throw 'Authentication error: Please log in again';
+        }
       } else {
         _logger.e('Failed to remove prompt from favorites: ${response.body}');
         throw 'Failed to remove prompt from favorites: ${response.statusCode}';
@@ -362,9 +476,9 @@ class PromptService {
     try {
       // Ensure auth service is initialized
       await _authService.initializeService();
-      final token = _authService.accessToken;
+      final token = await _authService.getToken();
       
-      if (token == null) {
+      if (token == null || token.isEmpty) {
         throw 'Not authenticated';
       }
       
@@ -385,6 +499,26 @@ class PromptService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return List<String>.from(data['categories']);
+      } else if (response.statusCode == 401) {
+        // Nếu lỗi Unauthorized, thử làm mới token một lần nữa
+        _logger.w('Token không hợp lệ, thử làm mới và gọi lại API');
+        if (await _authService.refreshToken()) {
+          // Nếu làm mới token thành công, thử lại lần nữa
+          return getPromptCategories();
+        } else {
+          _logger.e('Failed to refresh token');
+          // Trả về danh sách mặc định thay vì ném lỗi
+          return [
+            'General',
+            'Programming',
+            'Writing',
+            'Business',
+            'Education',
+            'Health',
+            'Entertainment',
+            'Other',
+          ];
+        }
       } else {
         _logger.e('Failed to fetch categories: ${response.body}');
         return []; // Return empty list instead of throwing

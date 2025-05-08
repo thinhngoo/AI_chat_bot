@@ -421,6 +421,31 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
   }
 
   void _handleEditPrompt(Prompt prompt) {
+    // Check if the prompt has a valid ID 
+    if (prompt.id.isEmpty) {
+      // If ID is empty, use SimplePromptDialog to create a new prompt pre-filled with existing content
+      _logger.i('Prompt has empty ID, creating new prompt with existing content instead');
+      
+      SimplePromptDialog.showWithContent(
+        context: context,
+        initialTitle: prompt.title,
+        initialContent: prompt.content,
+        initialDescription: prompt.description,
+        callback: (newPrompt) {
+          // Refresh the private prompts list after creating a new prompt
+          _fetchPrivatePrompts();
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Created new prompt from existing content'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
+      );
+      return;
+    }
+    
     Navigator.push(
       context,
       MaterialPageRoute(
