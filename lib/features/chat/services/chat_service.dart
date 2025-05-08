@@ -1051,6 +1051,8 @@ class ChatService {
 
 class PromptService {
   final String _baseUrl = ApiConstants.jarvisApiUrl;
+  final Logger _logger = Logger();
+  final AuthService _authService = AuthService();
 
   Future<List<Map<String, dynamic>>> getPrompts({
     String? query,
@@ -1059,90 +1061,168 @@ class PromptService {
     bool isFavorite = false,
     bool isPublic = false,
   }) async {
-    final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}')
-        .replace(queryParameters: {
-      if (query != null) 'query': query,
-      'offset': offset.toString(),
-      'limit': limit.toString(),
-      'isFavorite': isFavorite.toString(),
-      'isPublic': isPublic.toString(),
-    });
+    try {
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
 
-    final response = await http.get(uri, headers: {
-      'Authorization': 'Bearer YOUR_TOKEN',
-    });
+      final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}')
+          .replace(queryParameters: {
+        if (query != null) 'query': query,
+        'offset': offset.toString(),
+        'limit': limit.toString(),
+        'isFavorite': isFavorite.toString(),
+        'isPublic': isPublic.toString(),
+      });
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return List<Map<String, dynamic>>.from(data['items']);
-    } else {
-      throw Exception('Failed to fetch prompts: ${response.body}');
+      final response = await http.get(uri, headers: {
+        'Authorization': 'Bearer $accessToken',
+      });
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data['items']);
+      } else {
+        _logger.e('Failed to fetch prompts: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        throw 'Failed to fetch prompts: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error fetching prompts: $e');
+      rethrow;
     }
   }
 
   Future<void> createPrompt(Map<String, dynamic> promptData) async {
-    final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}');
+    try {
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
 
-    final response = await http.post(uri,
-        headers: {
-          'Authorization': 'Bearer YOUR_TOKEN',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(promptData));
+      final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}');
 
-    if (response.statusCode != 201) {
-      throw Exception('Failed to create prompt: ${response.body}');
+      final response = await http.post(uri,
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(promptData));
+
+      if (response.statusCode != 201) {
+        _logger.e('Failed to create prompt: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        throw 'Failed to create prompt: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error creating prompt: $e');
+      rethrow;
     }
   }
 
   Future<void> updatePrompt(String id, Map<String, dynamic> promptData) async {
-    final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$id');
+    try {
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
 
-    final response = await http.patch(uri,
-        headers: {
-          'Authorization': 'Bearer YOUR_TOKEN',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(promptData));
+      final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$id');
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to update prompt: ${response.body}');
+      final response = await http.patch(uri,
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(promptData));
+
+      if (response.statusCode != 200) {
+        _logger.e('Failed to update prompt: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        throw 'Failed to update prompt: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error updating prompt: $e');
+      rethrow;
     }
   }
 
   Future<void> deletePrompt(String id) async {
-    final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$id');
+    try {
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
 
-    final response = await http.delete(uri, headers: {
-      'Authorization': 'Bearer YOUR_TOKEN',
-    });
+      final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$id');
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to delete prompt: ${response.body}');
+      final response = await http.delete(uri, headers: {
+        'Authorization': 'Bearer $accessToken',
+      });
+
+      if (response.statusCode != 200) {
+        _logger.e('Failed to delete prompt: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        throw 'Failed to delete prompt: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error deleting prompt: $e');
+      rethrow;
     }
   }
 
   Future<void> addPromptToFavorite(String id) async {
-    final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$id/favorite');
+    try {
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
 
-    final response = await http.post(uri, headers: {
-      'Authorization': 'Bearer YOUR_TOKEN',
-    });
+      final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$id/favorite');
 
-    if (response.statusCode != 201) {
-      throw Exception('Failed to add prompt to favorite: ${response.body}');
+      final response = await http.post(uri, headers: {
+        'Authorization': 'Bearer $accessToken',
+      });
+
+      if (response.statusCode != 201) {
+        _logger.e('Failed to add prompt to favorite: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        throw 'Failed to add prompt to favorite: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error adding prompt to favorite: $e');
+      rethrow;
     }
   }
 
   Future<void> removePromptFromFavorite(String id) async {
-    final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$id/favorite');
+    try {
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
 
-    final response = await http.delete(uri, headers: {
-      'Authorization': 'Bearer YOUR_TOKEN',
-    });
+      final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$id/favorite');
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to remove prompt from favorite: ${response.body}');
+      final response = await http.delete(uri, headers: {
+        'Authorization': 'Bearer $accessToken',
+      });
+
+      if (response.statusCode != 200) {
+        _logger.e('Failed to remove prompt from favorite: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        throw 'Failed to remove prompt from favorite: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error removing prompt from favorite: $e');
+      rethrow;
     }
   }
 }

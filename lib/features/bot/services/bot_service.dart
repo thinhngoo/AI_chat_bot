@@ -2,6 +2,7 @@
 // http_parser: ^4.0.0
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async'; // Added import for TimeoutException
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:logger/logger.dart';
@@ -17,6 +18,16 @@ class BotService {
   final Logger _logger = Logger();
   final AuthService _authService = AuthService();
   
+  // Cache danh sách bot để tránh gọi API liên tục
+  List<AIBot>? _cachedBots;
+  DateTime? _lastFetchTime;
+  
+  // Timeout cho các API call để tránh treo vô thời hạn
+  static const Duration _timeoutDuration = Duration(seconds: 15);
+  
+  // Thời gian cache hợp lệ (5 phút)
+  static const Duration _cacheValidDuration = Duration(minutes: 5);
+  
   BotService._internal();
 
   // Create a new AI Bot
@@ -30,7 +41,7 @@ class BotService {
       _logger.i('Creating AI Bot: $name');
       
       // Get access token
-      final accessToken = _authService.accessToken;
+      final accessToken = await _authService.getToken();
       if (accessToken == null) {
         throw 'No access token available. Please log in again.';
       }
@@ -56,18 +67,22 @@ class BotService {
       
       _logger.i('Sending request to: $uri');
       
-      // Send request
+      // Send request with timeout
       final response = await http.post(
         uri,
         headers: headers,
         body: jsonEncode(body),
-      );
+      ).timeout(_timeoutDuration);
       
       _logger.i('Create bot response status: ${response.statusCode}');
       
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = jsonDecode(response.body);
         _logger.i('Bot created successfully, ID: ${data['id']}');
+        
+        // Invalidate cache
+        _cachedBots = null;
+        
         return AIBot.fromJson(data);
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
@@ -108,26 +123,36 @@ class BotService {
   }
   
   // Get all AI Bots
-  Future<List<AIBot>> getBots({String? query}) async {
+  Future<List<AIBot>> getBots({String? query, bool forceRefresh = false}) async {
     try {
+      // Kiểm tra xem có thể dùng cache hay không
+      if (!forceRefresh && _cachedBots != null && _lastFetchTime != null) {
+        final currentTime = DateTime.now();
+        final difference = currentTime.difference(_lastFetchTime!);
+        
+        if (difference < _cacheValidDuration) {
+          _logger.i('Using cached bots list (${_cachedBots!.length} items)');
+          return _cachedBots!;
+        }
+      }
+      
       _logger.i('Fetching AI Bots');
       
       // Get access token
-      final accessToken = _authService.accessToken;
+      final accessToken = await _authService.getToken();
       if (accessToken == null) {
         throw 'No access token available. Please log in again.';
       }
       
-      // Prepare headers with required x-jarvis-guid header
+      // Prepare headers with required header
       final headers = {
         'Authorization': 'Bearer $accessToken',
         'Content-Type': 'application/json',
-        'x-jarvis-guid': '', // Required header according to API documentation
       };
       
       // Build URL with query parameters
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      const endpoint = ApiConstants.botsEndpoint;
+      const endpoint = ApiConstants.assistantsEndpoint;
       
       // Adding pagination parameters using the correct format for this API
       var queryParams = <String, String>{
@@ -145,14 +170,13 @@ class BotService {
       
       _logger.i('Request URI: $uri');
       
-      // Send request
+      // Send request with timeout
       final response = await http.get(
         uri, 
         headers: headers
-      );
+      ).timeout(_timeoutDuration);
       
       _logger.i('Get bots response status: ${response.statusCode}');
-      _logger.i('Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -160,7 +184,9 @@ class BotService {
         // Check if response format matches the API documentation
         if (data['data'] != null) {
           final assistants = data['data'] as List<dynamic>;
-          return assistants.map((item) => AIBot.fromJson(item)).toList();
+          _cachedBots = assistants.map((item) => AIBot.fromJson(item)).toList();
+          _lastFetchTime = DateTime.now();
+          return _cachedBots!;
         } else {
           // Log unexpected format
           _logger.w('Unknown response format: $data');
@@ -185,6 +211,15 @@ class BotService {
       }
     } catch (e) {
       _logger.e('Error fetching bots: $e');
+      
+      // Nếu có cache và đây là lỗi network, trả về cache để app không bị trắng
+      if (e is SocketException || e is TimeoutException) {
+        _logger.w('Network error, using cached data if available');
+        if (_cachedBots != null) {
+          return _cachedBots!;
+        }
+      }
+      
       rethrow;
     }
   }
@@ -192,10 +227,31 @@ class BotService {
   // Get a specific AI Bot by ID
   Future<AIBot> getBotById(String botId) async {
     try {
+      // Thử tìm bot trong cache trước
+      if (_cachedBots != null) {
+        final cachedBot = _cachedBots!.firstWhere(
+          (bot) => bot.id == botId,
+          orElse: () => AIBot(
+            id: '', 
+            name: '', 
+            description: '', 
+            model: '', 
+            prompt: '',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now()
+          ),
+        );
+        
+        if (cachedBot.id.isNotEmpty) {
+          _logger.i('Found bot in cache: ${cachedBot.name}');
+          return cachedBot;
+        }
+      }
+    
       _logger.i('Fetching AI Bot with ID: $botId');
       
       // Get access token
-      final accessToken = _authService.accessToken;
+      final accessToken = await _authService.getToken();
       if (accessToken == null) {
         throw 'No access token available. Please log in again.';
       }
@@ -212,14 +268,29 @@ class BotService {
       
       _logger.i('Request URI: $uri');
       
-      // Send request
-      final response = await http.get(uri, headers: headers);
+      // Send request with timeout
+      final response = await http.get(
+        uri, 
+        headers: headers
+      ).timeout(_timeoutDuration);
       
       _logger.i('Get bot response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return AIBot.fromJson(data);
+        final bot = AIBot.fromJson(data);
+        
+        // Update cache if it exists
+        if (_cachedBots != null) {
+          final index = _cachedBots!.indexWhere((b) => b.id == botId);
+          if (index >= 0) {
+            _cachedBots![index] = bot;
+          } else {
+            _cachedBots!.add(bot);
+          }
+        }
+        
+        return bot;
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');
@@ -1468,6 +1539,473 @@ class BotService {
       }
     } catch (e) {
       _logger.e('Error uploading from Confluence: $e');
+      rethrow;
+    }
+  }
+
+  // Favorite an assistant
+  Future<bool> favoriteAssistant(String assistantId) async {
+    try {
+      _logger.i('Setting assistant $assistantId as favorite');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = ApiConstants.favoriteAssistant.replaceAll('{assistantId}', assistantId);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request - POST request to toggle favorite status
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode({}),
+      );
+      
+      _logger.i('Favorite assistant response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        _logger.i('Assistant marked as favorite successfully');
+        return true;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return favoriteAssistant(assistantId);
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to mark assistant as favorite: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to mark assistant as favorite: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error marking assistant as favorite: $e');
+      rethrow;
+    }
+  }
+
+  // Create a thread for an assistant
+  Future<Map<String, dynamic>> createThreadForAssistant(String assistantId) async {
+    try {
+      _logger.i('Creating thread for assistant $assistantId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = ApiConstants.createThreadForAssistant.replaceAll('{assistantId}', assistantId);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode({}),  // Empty body as per API specification
+      );
+      
+      _logger.i('Create thread response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        _logger.i('Thread created successfully, ID: ${data['id']}');
+        return data;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return createThreadForAssistant(assistantId);
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to create thread: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to create thread: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error creating thread: $e');
+      rethrow;
+    }
+  }
+  
+  // Update assistant with a thread playground
+  Future<AIBot> updateAssistantWithThreadPlayground({
+    required String assistantId,
+    required String threadId,
+  }) async {
+    try {
+      _logger.i('Updating assistant $assistantId with thread $threadId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = ApiConstants.updateAssistantWithThread
+          .replaceAll('{assistantId}', assistantId)
+          .replaceAll('{threadId}', threadId);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request - typically a PUT request for updates
+      final response = await http.put(
+        uri,
+        headers: headers,
+        body: jsonEncode({}),  // Empty body as per API specification
+      );
+      
+      _logger.i('Update assistant with thread response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _logger.i('Assistant updated successfully with thread');
+        return AIBot.fromJson(data);
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return updateAssistantWithThreadPlayground(
+            assistantId: assistantId,
+            threadId: threadId,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to update assistant with thread: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to update assistant with thread: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error updating assistant with thread: $e');
+      rethrow;
+    }
+  }
+  
+  // Retrieve messages of a thread
+  Future<List<Map<String, dynamic>>> retrieveThreadMessages(String threadId) async {
+    try {
+      _logger.i('Retrieving messages for thread $threadId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = ApiConstants.threadMessages.replaceAll('{threadId}', threadId);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final response = await http.get(uri, headers: headers);
+      
+      _logger.i('Retrieve thread messages response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        if (data is List) {
+          _logger.i('Retrieved ${data.length} messages from thread');
+          return data.cast<Map<String, dynamic>>();
+        } else if (data is Map && data.containsKey('messages') && data['messages'] is List) {
+          final messages = data['messages'] as List;
+          _logger.i('Retrieved ${messages.length} messages from thread');
+          return messages.cast<Map<String, dynamic>>();
+        } else {
+          _logger.w('Unknown response format for thread messages');
+          return [];
+        }
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return retrieveThreadMessages(threadId);
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to retrieve thread messages: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to retrieve thread messages: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error retrieving thread messages: $e');
+      rethrow;
+    }
+  }
+  
+  // Get all threads with pagination
+  Future<List<Map<String, dynamic>>> getThreads({
+    int offset = 0,
+    int limit = 20,
+  }) async {
+    try {
+      _logger.i('Fetching threads, offset: $offset, limit: $limit');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build URL with query parameters
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      const endpoint = ApiConstants.threadsEndpoint;
+      
+      final queryParams = <String, String>{
+        'offset': offset.toString(),
+        'limit': limit.toString(),
+        'order': 'DESC',
+        'order_field': 'createdAt'
+      };
+      
+      final uri = Uri.parse(baseUrl + endpoint).replace(queryParameters: queryParams);
+      
+      _logger.i('Request URI: $uri');
+      
+      // Send request
+      final response = await http.get(uri, headers: headers);
+      
+      _logger.i('Get threads response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        if (data is List) {
+          _logger.i('Retrieved ${data.length} threads');
+          return data.cast<Map<String, dynamic>>();
+        } else if (data is Map && data.containsKey('data') && data['data'] is List) {
+          final threads = data['data'] as List;
+          _logger.i('Retrieved ${threads.length} threads');
+          return threads.cast<Map<String, dynamic>>();
+        } else {
+          _logger.w('Unknown response format for threads');
+          return [];
+        }
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return getThreads(offset: offset, limit: limit);
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to fetch threads: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to fetch threads: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error fetching threads: $e');
+      rethrow;
+    }
+  }
+  
+  // Send a message to a thread
+  Future<Map<String, dynamic>> sendMessageToThread({
+    required String threadId,
+    required String message,
+  }) async {
+    try {
+      _logger.i('Sending message to thread $threadId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build request body
+      final Map<String, dynamic> body = {
+        'content': message,
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = ApiConstants.threadMessages.replaceAll('{threadId}', threadId);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      
+      _logger.i('Send message to thread response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        _logger.i('Message sent successfully to thread');
+        return data;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return sendMessageToThread(
+            threadId: threadId,
+            message: message,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to send message to thread: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to send message to thread: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error sending message to thread: $e');
+      rethrow;
+    }
+  }
+  
+  // Get imported knowledge in an assistant
+  Future<List<Map<String, dynamic>>> getImportedKnowledgeInAssistant(String assistantId) async {
+    try {
+      _logger.i('Getting imported knowledge for assistant $assistantId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = ApiConstants.assistantKnowledge.replaceAll('{assistantId}', assistantId);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final response = await http.get(uri, headers: headers);
+      
+      _logger.i('Get imported knowledge response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        if (data is List) {
+          _logger.i('Retrieved ${data.length} knowledge items');
+          return data.cast<Map<String, dynamic>>();
+        } else if (data is Map && data.containsKey('knowledgeBases') && data['knowledgeBases'] is List) {
+          final knowledgeBases = data['knowledgeBases'] as List;
+          _logger.i('Retrieved ${knowledgeBases.length} knowledge bases');
+          return knowledgeBases.cast<Map<String, dynamic>>();
+        } else {
+          _logger.w('Unknown response format for imported knowledge');
+          return [];
+        }
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return getImportedKnowledgeInAssistant(assistantId);
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to get imported knowledge: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to get imported knowledge: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error getting imported knowledge: $e');
       rethrow;
     }
   }

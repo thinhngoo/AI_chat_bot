@@ -25,15 +25,33 @@ class ApiConstants {
   static const String emailSuggestReply = '/api/v1/email/suggest-reply';
   static const String emailComposeResponse = '/api/v1/email/compose-response';
   
-  // Bot Management endpoints - using the KB Core API endpoints
-  static const String botsEndpoint = '/kb-core/v1/ai-assistant';
-  static const String botById = '/kb-core/v1/ai-assistant/{botId}';
-  static const String botKnowledge = '/kb-core/v1/ai-assistant/{botId}/knowledge';
-  static const String botKnowledgeById = '/kb-core/v1/ai-assistant/{botId}/knowledge/{knowledgeBaseId}';
-  static const String botAsk = '/kb-core/v1/ai-assistant/{botId}/ask';
-  static const String botPublish = '/kb-core/v1/ai-assistant/{botId}/publish';
-  static const String botPublishPlatform = '/kb-core/v1/ai-assistant/{botId}/publish/{platform}';
-  static const String botConfigurations = '/kb-core/v1/ai-assistant/{botId}/configurations';
+  // Assistant Management endpoints (renamed from Bot to Assistant for consistency with API)
+  static const String assistantsEndpoint = '/kb-core/v1/ai-assistant';
+  static const String assistantById = '/kb-core/v1/ai-assistant/{assistantId}';
+  static const String assistantKnowledge = '/kb-core/v1/ai-assistant/{assistantId}/knowledge';
+  static const String assistantKnowledgeById = '/kb-core/v1/ai-assistant/{assistantId}/knowledge/{knowledgeBaseId}';
+  static const String assistantAsk = '/kb-core/v1/ai-assistant/{assistantId}/ask';
+  static const String assistantPublish = '/kb-core/v1/ai-assistant/{assistantId}/publish';
+  static const String assistantPublishPlatform = '/kb-core/v1/ai-assistant/{assistantId}/publish/{platform}';
+  static const String assistantConfigurations = '/kb-core/v1/ai-assistant/{assistantId}/configurations';
+  static const String favoriteAssistant = '/kb-core/v1/ai-assistant/{assistantId}/favorite';
+  
+  // Thread Management endpoints
+  static const String threadsEndpoint = '/kb-core/v1/threads';
+  static const String createThreadForAssistant = '/kb-core/v1/ai-assistant/{assistantId}/thread';
+  static const String threadById = '/kb-core/v1/threads/{threadId}';
+  static const String threadMessages = '/kb-core/v1/threads/{threadId}/messages';
+  static const String updateAssistantWithThread = '/kb-core/v1/ai-assistant/{assistantId}/thread/{threadId}';
+  
+  // Legacy Bot Management endpoints (keeping for backward compatibility)
+  static const String botsEndpoint = assistantsEndpoint;
+  static const String botById = assistantById;
+  static const String botKnowledge = assistantKnowledge;
+  static const String botKnowledgeById = assistantKnowledgeById;
+  static const String botAsk = assistantAsk;
+  static const String botPublish = assistantPublish;
+  static const String botPublishPlatform = assistantPublishPlatform;
+  static const String botConfigurations = assistantConfigurations;
   
   // Knowledge Base endpoints
   static const String knowledgeBase = '/api/v1/knowledge';

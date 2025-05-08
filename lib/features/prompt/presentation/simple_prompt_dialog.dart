@@ -289,6 +289,64 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
     }
   }
 
+  Widget _buildPromptSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Enter your prompt',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _promptController,
+          maxLines: null,
+          minLines: 3,
+          decoration: InputDecoration(
+            hintText: 'What would you like to ask?',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () => _promptController.clear(),
+            ),
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Please enter a prompt';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Icon(
+              Icons.lightbulb_outline,
+              color: Theme.of(context).colorScheme.primary,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            const Text('Try to be specific in your prompt'),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Icon(
+              Icons.sentiment_satisfied_alt,
+              color: Theme.of(context).colorScheme.primary,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            const Text('Start with "Write", "Create", or "Explain"'),
+          ],
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -350,20 +408,7 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: TextFormField(
-                  controller: _promptController,
-                  decoration: const InputDecoration(
-                    hintText: 'e.g: Write an article about [TOPIC], make sure to include these keywords: [KEYWORDS]',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                  expands: true,
-                  maxLines: null,
-                  minLines: null,
-                  textAlignVertical: TextAlignVertical.top,
-                  validator: (value) => InputValidator.validateRequired(value, 'prompt'),
-                  enabled: !_isSaving,
-                ),
+                child: _buildPromptSection(context),
               ),
               const SizedBox(height: 24),
               Row(
