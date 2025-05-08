@@ -5,6 +5,7 @@ import '../services/prompt_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/text_field.dart';
 import '../../../widgets/information.dart';
+import 'simple_prompt_dialog.dart';
 
 class PromptSelector extends StatelessWidget {
   final Function(String content) onPromptSelected;
@@ -156,6 +157,120 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
     }
   }
 
+  Future<void> _toggleFavorite(Prompt prompt) async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      bool success;
+      if (prompt.isFavorite) {
+        success = await _promptService.removePromptFromFavorites(prompt.id);
+      } else {
+        success = await _promptService.addPromptToFavorites(prompt.id);
+      }
+
+      if (!mounted) return;
+
+      if (success) {
+        _fetchPrompts();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(prompt.isFavorite
+                ? 'Removed from favorites'
+                : 'Added to favorites'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      _logger.e('Error toggling favorite status: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _editPrompt(Prompt prompt) {
+    SimplePromptDialog.showEdit(
+      context,
+      prompt,
+      (content) {
+        _fetchPrompts();
+      },
+    );
+  }
+
+  Future<void> _deletePrompt(Prompt prompt) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Prompt'),
+        content: Text('Are you sure you want to delete "${prompt.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('DELETE'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final success = await _promptService.deletePrompt(prompt.id);
+
+      if (!mounted) return;
+
+      if (success) {
+        _fetchPrompts();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Prompt deleted'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      _logger.e('Error deleting prompt: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -169,7 +284,6 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle bar indicator
           Padding(
             padding: const EdgeInsets.only(top: 8.0),
             child: Container(
@@ -181,14 +295,12 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
               ),
             ),
           ),
-
-          // Header
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SizedBox(width: 40), // Balance the layout
+                const SizedBox(width: 40),
                 Text(
                   'Select a prompt',
                   style: theme.textTheme.headlineMedium,
@@ -208,8 +320,6 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
               ],
             ),
           ),
-
-          // Search field
           Padding(
             padding:
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -230,9 +340,7 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
               },
             ),
           ),
-
           const SizedBox(height: 6),
-          // Content
           Flexible(
             child: _isLoading
                 ? InformationIndicator(
@@ -253,8 +361,9 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                             shrinkWrap: true,
                             padding: const EdgeInsets.symmetric(vertical: 12.0),
                             itemCount: _prompts.length,
-                            separatorBuilder: (context, index) => const SizedBox(
+                            separatorBuilder: (context, index) => const Divider(
                               height: 1,
+                              indent: 70,
                             ),
                             itemBuilder: (context, index) {
                               final prompt = _prompts[index];
@@ -264,9 +373,9 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                    fontWeight: FontWeight.bold,
                                   ),
+                                ),
                                 subtitle: Text(
                                   prompt.description,
                                   maxLines: 1,
@@ -282,16 +391,74 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                                     color: colors.cardForeground,
                                   ),
                                 ),
-                                trailing: prompt.isFavorite
-                                    ? const Icon(Icons.star,
-                                        color: Colors.amber, size: 18)
-                                    : null,
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        prompt.isFavorite
+                                            ? Icons.star
+                                            : Icons.star_border,
+                                        color: prompt.isFavorite
+                                            ? Colors.amber
+                                            : colors.muted,
+                                        size: 22,
+                                      ),
+                                      onPressed: () => _toggleFavorite(prompt),
+                                      tooltip: prompt.isFavorite
+                                          ? 'Remove from favorites'
+                                          : 'Add to favorites',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.edit_outlined,
+                                        color: colors.muted,
+                                        size: 20,
+                                      ),
+                                      onPressed: () => _editPrompt(prompt),
+                                      tooltip: 'Edit prompt',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.delete_outline,
+                                        color: colors.muted,
+                                        size: 20,
+                                      ),
+                                      onPressed: () => _deletePrompt(prompt),
+                                      tooltip: 'Delete prompt',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
+                                ),
                                 onTap: () {
                                   widget.onPromptSelected(prompt.content);
                                 },
                               );
                             },
                           ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                SimplePromptDialog.show(context, null);
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Create New Prompt'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+              ),
+            ),
           ),
         ],
       ),
