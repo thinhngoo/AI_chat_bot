@@ -110,8 +110,16 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
 
       if (!mounted) return;
 
+      // Filter out prompts with empty IDs and log them
+      final validPrompts = prompts.where((p) => p.id.isNotEmpty).toList();
+      final emptyIdPrompts = prompts.where((p) => p.id.isEmpty).toList();
+      
+      if (emptyIdPrompts.isNotEmpty) {
+        _logger.w('Found ${emptyIdPrompts.length} public prompts with empty IDs that were filtered out');
+      }
+
       setState(() {
-        _publicPrompts = prompts;
+        _publicPrompts = validPrompts;
         _isLoading = false;
       });
     } catch (e) {
@@ -136,8 +144,16 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
 
       if (!mounted) return;
 
+      // Filter out prompts with empty IDs and log them
+      final validPrompts = prompts.where((p) => p.id.isNotEmpty).toList();
+      final emptyIdPrompts = prompts.where((p) => p.id.isEmpty).toList();
+      
+      if (emptyIdPrompts.isNotEmpty) {
+        _logger.w('Found ${emptyIdPrompts.length} private prompts with empty IDs that were filtered out');
+      }
+
       setState(() {
-        _privatePrompts = prompts;
+        _privatePrompts = validPrompts;
         _isLoading = false;
       });
     } catch (e) {
@@ -162,8 +178,16 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
 
       if (!mounted) return;
 
+      // Filter out prompts with empty IDs and log them
+      final validPrompts = prompts.where((p) => p.id.isNotEmpty).toList();
+      final emptyIdPrompts = prompts.where((p) => p.id.isEmpty).toList();
+      
+      if (emptyIdPrompts.isNotEmpty) {
+        _logger.w('Found ${emptyIdPrompts.length} favorite prompts with empty IDs that were filtered out');
+      }
+
       setState(() {
-        _favoritePrompts = prompts;
+        _favoritePrompts = validPrompts;
         _isLoading = false;
       });
     } catch (e) {
@@ -271,61 +295,171 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
 
   Future<void> _handleToggleFavorite(Prompt prompt) async {
     try {
+      // Verify that the ID is not empty
+      if (prompt.id.isEmpty) {
+        _logger.e('Cannot toggle favorite: prompt ID is empty');
+        
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error: Cannot update favorites for prompt with empty ID'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Log the ID to help debug
+      _logger.i('Toggling favorite for prompt with ID: ${prompt.id}, current state: ${prompt.isFavorite}');
+      
+      // Store the previous state for proper error handling
+      final previousState = prompt.isFavorite;
+      
+      // Create a copy with toggled favorite state
+      final updatedPrompt = prompt.copyWith(isFavorite: !prompt.isFavorite);
+      
+      // Update UI immediately for better user experience
+      setState(() {
+        if (_tabController.index == 0) {
+          final index = _publicPrompts.indexWhere((p) => p.id == prompt.id);
+          if (index != -1) {
+            _publicPrompts[index] = updatedPrompt;
+          }
+        } else if (_tabController.index == 1) {
+          final index = _privatePrompts.indexWhere((p) => p.id == prompt.id);
+          if (index != -1) {
+            _privatePrompts[index] = updatedPrompt;
+          }
+        } else if (_tabController.index == 2) {
+          final index = _favoritePrompts.indexWhere((p) => p.id == prompt.id);
+          if (index != -1) {
+            _favoritePrompts[index] = updatedPrompt;
+            // In favorites tab, we may need to hide the item if it's being removed from favorites
+            if (previousState) {
+              _favoritePrompts.removeAt(index);
+            }
+          }
+        }
+      });
+      
+      // Show loading indicator
+      final snackBar = ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 20, 
+                height: 20, 
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Text(previousState 
+                  ? 'Removing from favorites...' 
+                  : 'Adding to favorites...'),
+            ],
+          ),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+      
+      // Call the appropriate API
       bool success;
-      if (prompt.isFavorite) {
+      if (previousState) {
         success = await _promptService.removePromptFromFavorites(prompt.id);
       } else {
         success = await _promptService.addPromptToFavorites(prompt.id);
       }
+      
+      // Close the loading snackbar
+      snackBar.close();
 
       if (success) {
+        if (!mounted) return;
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(prompt.isFavorite
+            content: Text(previousState
                 ? 'Removed from favorites'
                 : 'Added to favorites'),
             duration: const Duration(seconds: 2),
           ),
         );
 
-        // Refresh lists as needed
+        // Refresh favorites tab if that's where we are
         if (_tabController.index == 2) {
-          // In favorites tab
           _fetchFavoritePrompts();
-        } else if (prompt.isFavorite) {
-          _fetchFavoritePrompts(); // Update favorites in background
         }
-
-        // Update the current tab's list in-place
+      } else {
+        if (!mounted) return;
+        
+        // Restore original state on failure
         setState(() {
           if (_tabController.index == 0) {
             final index = _publicPrompts.indexWhere((p) => p.id == prompt.id);
             if (index != -1) {
-              _publicPrompts[index] =
-                  prompt.copyWith(isFavorite: !prompt.isFavorite);
+              _publicPrompts[index] = prompt; 
             }
           } else if (_tabController.index == 1) {
             final index = _privatePrompts.indexWhere((p) => p.id == prompt.id);
             if (index != -1) {
-              _privatePrompts[index] =
-                  prompt.copyWith(isFavorite: !prompt.isFavorite);
+              _privatePrompts[index] = prompt; 
             }
+          } else if (_tabController.index == 2) {
+            _fetchFavoritePrompts(); 
           }
         });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update favorite status'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       _logger.e('Error toggling favorite: $e');
+      
+      if (!mounted) return;
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
+      
+      // Refresh all data to ensure UI is consistent with server state
+      if (_tabController.index == 0) {
+        _fetchPublicPrompts();
+      } else if (_tabController.index == 1) {
+        _fetchPrivatePrompts();
+      } else {
+        _fetchFavoritePrompts();
+      }
     }
   }
 
   Future<void> _handleDeletePrompt(Prompt prompt) async {
     try {
+      // First verify that the ID is not empty
+      if (prompt.id.isEmpty) {
+        _logger.e('Cannot delete prompt: ID is empty');
+        
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error: Cannot delete prompt with empty ID'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Log the ID to help debug
+      _logger.i('Attempting to delete prompt with ID: ${prompt.id}');
+
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -352,7 +486,12 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
       if (!mounted) return;
 
       if (success) {
-        _fetchPrivatePrompts();
+        // Update the UI by removing the deleted prompt
+        setState(() {
+          _privatePrompts.removeWhere((p) => p.id == prompt.id);
+        });
+        
+        // Also remove from favorites list if present
         if (prompt.isFavorite) {
           _fetchFavoritePrompts();
         }
@@ -421,27 +560,15 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
   }
 
   void _handleEditPrompt(Prompt prompt) {
-    // Check if the prompt has a valid ID 
+    // Validate that the ID is not empty
     if (prompt.id.isEmpty) {
-      // If ID is empty, use SimplePromptDialog to create a new prompt pre-filled with existing content
-      _logger.i('Prompt has empty ID, creating new prompt with existing content instead');
+      _logger.e('Cannot edit prompt: ID is empty');
       
-      SimplePromptDialog.showWithContent(
-        context: context,
-        initialTitle: prompt.title,
-        initialContent: prompt.content,
-        initialDescription: prompt.description,
-        callback: (newPrompt) {
-          // Refresh the private prompts list after creating a new prompt
-          _fetchPrivatePrompts();
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Created new prompt from existing content'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        },
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot edit prompt: ID is empty'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }

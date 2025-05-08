@@ -99,13 +99,10 @@ class _CreateEditPromptScreenState extends State<CreateEditPromptScreen> {
         
         Navigator.pop(context);
       } else {
-        // Verify the prompt ID is not empty before updating
+        // Add validation to check for empty prompt ID
         if (widget.prompt!.id.isEmpty) {
-          throw 'Cannot update prompt: missing prompt ID';
+          throw 'Cannot update prompt: ID is empty';
         }
-        
-        // Debug log to verify the prompt ID
-        _logger.i('Updating prompt with ID: ${widget.prompt!.id}');
         
         // Update existing prompt
         await _promptService.updatePrompt(

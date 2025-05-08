@@ -95,9 +95,20 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
           await _promptService.getPrompts(isFavorite: true, limit: 5);
       final allPrompts = await _promptService.getPrompts(limit: 10);
 
+      // Filter out prompts with empty IDs
+      final validFavorites = favorites.where((p) => p.id.isNotEmpty).toList();
+      final validAllPrompts = allPrompts.where((p) => p.id.isNotEmpty).toList();
+      
+      final emptyIdCount = favorites.length - validFavorites.length + 
+                          allPrompts.length - validAllPrompts.length;
+      
+      if (emptyIdCount > 0) {
+        _logger.w('Found $emptyIdCount prompts with empty IDs that were filtered out from prompt selector');
+      }
+
       // Combine and remove duplicates
-      final combinedPrompts = [...favorites];
-      for (final prompt in allPrompts) {
+      final combinedPrompts = [...validFavorites];
+      for (final prompt in validAllPrompts) {
         if (!combinedPrompts.any((p) => p.id == prompt.id)) {
           combinedPrompts.add(prompt);
         }
@@ -159,6 +170,24 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
 
   Future<void> _toggleFavorite(Prompt prompt) async {
     try {
+      // Verify that the ID is not empty
+      if (prompt.id.isEmpty) {
+        _logger.e('Cannot toggle favorite: prompt ID is empty');
+        
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error: Cannot update favorites for prompt with empty ID'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Log the ID to help debug
+      _logger.i('Toggling favorite for prompt with ID: ${prompt.id}, current state: ${prompt.isFavorite}');
+
       setState(() {
         _isLoading = true;
       });
@@ -171,6 +200,10 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
       }
 
       if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
 
       if (success) {
         _fetchPrompts();
@@ -203,6 +236,21 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
   }
 
   void _editPrompt(Prompt prompt) {
+    // Validate that the ID is not empty
+    if (prompt.id.isEmpty) {
+      _logger.e('Cannot edit prompt: prompt ID is empty');
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot edit prompt: ID is empty'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
     SimplePromptDialog.showEdit(
       context,
       prompt,
@@ -213,6 +261,21 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
   }
 
   Future<void> _deletePrompt(Prompt prompt) async {
+    // Validate that the ID is not empty
+    if (prompt.id.isEmpty) {
+      _logger.e('Cannot delete prompt: prompt ID is empty');
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot delete prompt: ID is empty'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
