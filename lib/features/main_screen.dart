@@ -5,6 +5,7 @@ import 'bot/presentation/bot_list_screen.dart';
 import 'email/presentation/email_screen.dart';
 import 'prompt/presentation/prompt_management_screen.dart';
 import 'subscription/presentation/subscription_info_screen.dart';
+import 'knowledge/presentation/knowledge_base_screen.dart';
 // import 'auth/presentation/login_page.dart';
 
 class MainScreen extends StatefulWidget {
@@ -34,6 +35,7 @@ class _MainScreenState extends State<MainScreen> {
       const PromptManagementScreen(),
       ChatScreen(toggleTheme: widget.toggleTheme),
       const BotListScreen(),
+      KnowledgeBaseScreen(toggleTheme: widget.toggleTheme),
       const SubscriptionInfoScreen(),
     ];
   }
@@ -65,7 +67,8 @@ class _MainScreenState extends State<MainScreen> {
             _buildNavItem(Icons.format_quote, 'Prompt', 1), 
             _buildNavItem(Icons.chat_bubble, 'Chat', 2),
             _buildNavItem(Icons.android, 'Bot', 3),
-            _buildNavItem(Icons.person, 'User', 4),
+            _buildNavItem(Icons.book, 'Knowledge', 4),
+            _buildNavItem(Icons.person, 'User', 5),
           ],
         ),
       ),
@@ -122,5 +125,4 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
-
 }

@@ -654,9 +654,9 @@ class BotService {
   }
   
   // Get all available knowledge bases
-  Future<List<KnowledgeData>> getKnowledgeBases() async {
+  Future<List<KnowledgeData>> getKnowledgeBases({String? query}) async {
     try {
-      _logger.i('Fetching knowledge bases');
+      _logger.i('Fetching knowledge bases${query != null ? ' with query: $query' : ''}');
       
       // Get access token
       final accessToken = _authService.accessToken;
@@ -669,10 +669,16 @@ class BotService {
         'Authorization': 'Bearer $accessToken',
       };
       
-      // Build URL
+      // Build URL with query parameters
       const baseUrl = ApiConstants.jarvisApiUrl;
       const endpoint = ApiConstants.knowledgeBase;
-      final uri = Uri.parse(baseUrl + endpoint);
+      
+      var queryParams = <String, String>{};
+      if (query != null && query.isNotEmpty) {
+        queryParams['query'] = query;
+      }
+      
+      final uri = Uri.parse(baseUrl + endpoint).replace(queryParameters: queryParams);
       
       _logger.i('Request URI: $uri');
       
@@ -693,7 +699,7 @@ class BotService {
         
         if (refreshSuccess) {
           // Retry with new token
-          return getKnowledgeBases();
+          return getKnowledgeBases(query: query);
         } else {
           throw 'Authentication expired. Please log in again.';
         }
@@ -920,6 +926,528 @@ class BotService {
       };
     } catch (e) {
       _logger.e('Error testing bot connection: $e');
+      rethrow;
+    }
+  }
+
+  // Create a new knowledge base
+  Future<KnowledgeData> createKnowledgeBase({
+    required String name,
+    required String description,
+  }) async {
+    try {
+      _logger.i('Creating knowledge base: $name');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build request body
+      final Map<String, dynamic> body = {
+        'name': name,
+        'description': description,
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.jarvisApiUrl;
+      const endpoint = ApiConstants.knowledgeBase;
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      
+      _logger.i('Create knowledge base response status: ${response.statusCode}');
+      
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _logger.i('Knowledge base created successfully');
+        return KnowledgeData.fromJson(data);
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return createKnowledgeBase(
+            name: name,
+            description: description,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to create knowledge base: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to create knowledge base: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error creating knowledge base: $e');
+      rethrow;
+    }
+  }
+  
+  // Delete a knowledge base
+  Future<bool> deleteKnowledgeBase(String knowledgeBaseId) async {
+    try {
+      _logger.i('Deleting knowledge base with ID: $knowledgeBaseId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.jarvisApiUrl;
+      final endpoint = ApiConstants.knowledgeById.replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final response = await http.delete(uri, headers: headers);
+      
+      _logger.i('Delete knowledge base response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _logger.i('Knowledge base deleted successfully');
+        return true;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return deleteKnowledgeBase(knowledgeBaseId);
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to delete knowledge base: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to delete knowledge base: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error deleting knowledge base: $e');
+      rethrow;
+    }
+  }
+
+  // Upload a file to a knowledge base
+  Future<bool> uploadFileToKnowledge({
+    required String knowledgeBaseId,
+    required File file,
+  }) async {
+    try {
+      _logger.i('Uploading file to knowledge base $knowledgeBaseId: ${file.path}');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Determine file type
+      final String fileName = file.path.split('/').last;
+      final String fileExtension = fileName.split('.').last.toLowerCase();
+      String contentType;
+      
+      switch (fileExtension) {
+        case 'pdf':
+          contentType = 'application/pdf';
+          break;
+        case 'doc':
+        case 'docx':
+          contentType = 'application/msword';
+          break;
+        case 'txt':
+          contentType = 'text/plain';
+          break;
+        case 'csv':
+          contentType = 'text/csv';
+          break;
+        case 'json':
+          contentType = 'application/json';
+          break;
+        case 'xlsx':
+        case 'xls':
+          contentType = 'application/vnd.ms-excel';
+          break;
+        case 'pptx':
+        case 'ppt':
+          contentType = 'application/vnd.ms-powerpoint';
+          break;
+        default:
+          contentType = 'application/octet-stream';
+      }
+      
+      // Prepare request
+      const baseUrl = ApiConstants.jarvisApiUrl;
+      final endpoint = ApiConstants.knowledgeUploadFile.replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      // Create multipart request
+      final request = http.MultipartRequest('POST', uri)
+        ..headers.addAll({
+          'Authorization': 'Bearer $accessToken',
+        })
+        ..files.add(
+          await http.MultipartFile.fromPath(
+            'file',
+            file.path,
+            contentType: MediaType.parse(contentType),
+            filename: fileName,
+          ),
+        );
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      _logger.i('Upload file response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _logger.i('File uploaded successfully to knowledge base $knowledgeBaseId');
+        return true;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return uploadFileToKnowledge(
+            knowledgeBaseId: knowledgeBaseId,
+            file: file,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to upload file: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to upload file: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error uploading file: $e');
+      rethrow;
+    }
+  }
+
+  // Upload website to knowledge base
+  Future<bool> uploadWebsiteToKnowledge({
+    required String knowledgeBaseId,
+    required String url,
+    bool recursive = true,
+    int maxPages = 100,
+  }) async {
+    try {
+      _logger.i('Uploading website to knowledge base $knowledgeBaseId: $url');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build request body
+      final Map<String, dynamic> body = {
+        'url': url,
+        'recursive': recursive,
+        'maxPages': maxPages,
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.jarvisApiUrl;
+      final endpoint = ApiConstants.knowledgeUploadWebsite.replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      
+      _logger.i('Upload website response status: ${response.statusCode}');
+      
+      if (response.statusCode == 202 || response.statusCode == 200) {
+        _logger.i('Website upload initiated for knowledge base $knowledgeBaseId');
+        return true;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return uploadWebsiteToKnowledge(
+            knowledgeBaseId: knowledgeBaseId,
+            url: url,
+            recursive: recursive,
+            maxPages: maxPages,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to upload website: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to upload website: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error uploading website: $e');
+      rethrow;
+    }
+  }
+
+  // Upload from Google Drive
+  Future<bool> uploadGoogleDriveToKnowledge({
+    required String knowledgeBaseId,
+    required String folderId,
+  }) async {
+    try {
+      _logger.i('Uploading from Google Drive to knowledge base $knowledgeBaseId: $folderId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build request body
+      final Map<String, dynamic> body = {
+        'folderId': folderId,
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.jarvisApiUrl;
+      final endpoint = ApiConstants.knowledgeUploadGoogleDrive.replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      
+      _logger.i('Google Drive upload response status: ${response.statusCode}');
+      
+      if (response.statusCode == 202 || response.statusCode == 200) {
+        _logger.i('Google Drive upload initiated for knowledge base $knowledgeBaseId');
+        return true;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return uploadGoogleDriveToKnowledge(
+            knowledgeBaseId: knowledgeBaseId,
+            folderId: folderId,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to upload from Google Drive: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to upload from Google Drive: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error uploading from Google Drive: $e');
+      rethrow;
+    }
+  }
+
+  // Upload from Slack
+  Future<bool> uploadSlackToKnowledge({
+    required String knowledgeBaseId,
+    required String slackToken,
+  }) async {
+    try {
+      _logger.i('Uploading from Slack to knowledge base $knowledgeBaseId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build request body
+      final Map<String, dynamic> body = {
+        'slackToken': slackToken,
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.jarvisApiUrl;
+      final endpoint = ApiConstants.knowledgeUploadSlack.replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      
+      _logger.i('Slack upload response status: ${response.statusCode}');
+      
+      if (response.statusCode == 202 || response.statusCode == 200) {
+        _logger.i('Slack upload initiated for knowledge base $knowledgeBaseId');
+        return true;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return uploadSlackToKnowledge(
+            knowledgeBaseId: knowledgeBaseId,
+            slackToken: slackToken,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to upload from Slack: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to upload from Slack: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error uploading from Slack: $e');
+      rethrow;
+    }
+  }
+
+  // Upload from Confluence
+  Future<bool> uploadConfluenceToKnowledge({
+    required String knowledgeBaseId,
+    required String confluenceUrl,
+    required String username,
+    required String apiToken,
+  }) async {
+    try {
+      _logger.i('Uploading from Confluence to knowledge base $knowledgeBaseId: $confluenceUrl');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build request body
+      final Map<String, dynamic> body = {
+        'confluenceUrl': confluenceUrl,
+        'username': username,
+        'apiToken': apiToken,
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.jarvisApiUrl;
+      final endpoint = ApiConstants.knowledgeUploadConfluence.replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      
+      _logger.i('Confluence upload response status: ${response.statusCode}');
+      
+      if (response.statusCode == 202 || response.statusCode == 200) {
+        _logger.i('Confluence upload initiated for knowledge base $knowledgeBaseId');
+        return true;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return uploadConfluenceToKnowledge(
+            knowledgeBaseId: knowledgeBaseId,
+            confluenceUrl: confluenceUrl,
+            username: username,
+            apiToken: apiToken,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to upload from Confluence: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to upload from Confluence: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error uploading from Confluence: $e');
       rethrow;
     }
   }

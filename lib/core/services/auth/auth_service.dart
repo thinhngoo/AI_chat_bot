@@ -177,6 +177,31 @@ class AuthService {
   // Getter for access token - for JarvisApiService to use
   String? get accessToken => _accessToken;
 
+  // Added method for knowledge base service to get the token
+  Future<String?> getToken() async {
+    if (_accessToken == null) {
+      await _loadAuthToken();
+    }
+    
+    // If token is still null after loading, or appears expired, try refreshing
+    if (_accessToken == null || _isTokenExpired(_accessToken!)) {
+      await refreshToken();
+    }
+    
+    return _accessToken;
+  }
+  
+  // Helper method to check if token might be expired
+  bool _isTokenExpired(String token) {
+    try {
+      // Basic check - in real app, decode JWT and check expiry
+      return false;
+    } catch (e) {
+      _logger.e('Error checking token expiry: $e');
+      return true;
+    }
+  }
+
   // Added method to fix JarvisApiService initialization error
   String? getUserId() {
     return _userId;
