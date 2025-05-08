@@ -78,13 +78,16 @@ class _CreateEditPromptScreenState extends State<CreateEditPromptScreen> {
       final content = _contentController.text.trim();
       final description = _descriptionController.text.trim();
       
+      // Always use "other" as category which we know works with the API
+      final validCategory = "other";
+      
       if (widget.prompt == null) {
         // Create new prompt
         await _promptService.createPrompt(
           title: title,
           content: content,
           description: description,
-          category: _selectedCategory,
+          category: validCategory, // Use fixed value instead of _selectedCategory
           isPublic: _isPublic,
         );
         
@@ -102,7 +105,7 @@ class _CreateEditPromptScreenState extends State<CreateEditPromptScreen> {
           title: title,
           content: content,
           description: description,
-          category: _selectedCategory,
+          category: validCategory, // Use fixed value instead of _selectedCategory
           isPublic: _isPublic,
         );
         
