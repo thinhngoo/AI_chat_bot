@@ -117,6 +117,7 @@ class PromptService {
     required String description,
     required String category,
     required bool isPublic,
+    String language = "English", // Add default language parameter
   }) async {
     try {
       // Ensure auth service is initialized
@@ -129,15 +130,20 @@ class PromptService {
       
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}');
       
+      // Instead of trying to map category, just use "other" which we know works from the API doc
+      String validCategory = "other";
+      
       final body = jsonEncode({
         'title': title,
         'content': content,
         'description': description,
-        'category': category,
+        'category': validCategory,
         'is_public': isPublic,
+        'language': language, // Include language field
       });
       
       _logger.i('Creating prompt: $uri');
+      _logger.i('Request body: $body');
       
       final response = await http.post(
         uri,
@@ -163,6 +169,23 @@ class PromptService {
     }
   }
   
+  // Helper method to map UI categories to valid API enum values
+  String _mapCategoryToAPIValue(String category) {
+    // Based on API documentation, expected values might be like:
+    // GENERAL, PROGRAMMING, WRITING, etc. (all uppercase with no spaces)
+    switch(category.toLowerCase()) {
+      case 'general': return 'GENERAL';
+      case 'programming': return 'PROGRAMMING';
+      case 'writing': return 'WRITING';
+      case 'business': return 'BUSINESS';
+      case 'education': return 'EDUCATION';
+      case 'health': return 'HEALTH';
+      case 'entertainment': return 'ENTERTAINMENT';
+      case 'other': return 'OTHER';
+      default: return 'OTHER'; // Default fallback
+    }
+  }
+  
   // Update an existing prompt
   Future<Prompt> updatePrompt({
     required String promptId,
@@ -171,6 +194,7 @@ class PromptService {
     required String description,
     required String category,
     required bool isPublic,
+    String language = "English", // Add default language parameter
   }) async {
     try {
       // Ensure auth service is initialized
@@ -183,15 +207,20 @@ class PromptService {
       
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$promptId');
       
+      // Convert category to valid API enum value (lowercase)
+      String validCategory = _mapCategoryToAPIValue(category).toLowerCase();
+      
       final body = jsonEncode({
         'title': title,
         'content': content,
         'description': description,
-        'category': category,
+        'category': validCategory,
         'is_public': isPublic,
+        'language': language, // Include language field
       });
       
       _logger.i('Updating prompt: $uri');
+      _logger.i('Request body: $body');
       
       final response = await http.put(
         uri,
