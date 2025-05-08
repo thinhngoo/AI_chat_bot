@@ -19,7 +19,7 @@ class TermsAndPrivacyLinks extends StatelessWidget {
         Text(
           introText,
           style: TextStyle(
-            color: colors.muted.withAlpha(204),
+            color: colors.muted.withValues(alpha: 204), // Fixed: replaced withAlpha with withValues
             fontSize: 14,
           ),
         ),

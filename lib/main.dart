@@ -1,20 +1,11 @@
 import 'package:flutter/material.dart';
-// Commented out to fix build issues
-// import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'core/services/auth/auth_service.dart';
 import 'core/constants/app_colors.dart';
-import 'features/auth/presentation/auth_check_screen.dart';
+import 'features/splash/splash_screen.dart';
 import 'features/subscription/services/ad_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize the auth service
-  await AuthService().initializeService();
-
-  // Initialize MobileAds - Commented out to fix build issues
-  // await MobileAds.instance.initialize();
 
   // Initialize AdManager
   await AdManager().initialize();
@@ -89,10 +80,7 @@ class _MyAppState extends State<MyApp> {
       title: 'AI Chat Bot',
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(isDark: _isDarkMode),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => AuthCheckScreen(toggleTheme: toggleTheme),
-      },
+      home: SplashScreen(toggleTheme: toggleTheme),
     );
   }
 
