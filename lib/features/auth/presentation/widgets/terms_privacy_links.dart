@@ -12,15 +12,15 @@ class TermsAndPrivacyLinks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final AppColors colors = AppColors.dark;
 
     return Column(
       children: [
         Text(
           introText,
-          style: TextStyle(
-            color: colors.muted.withAlpha(204),
-            fontSize: 14,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: colors.muted.withAlpha(160),
           ),
         ),
         Row(
@@ -36,18 +36,16 @@ class TermsAndPrivacyLinks extends StatelessWidget {
               ),
               child: Text(
                 'Terms',
-                style: TextStyle(
-                  color: colors.muted,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colors.muted.withAlpha(204),
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
             Text(
               'and',
-              style: TextStyle(
-                color: colors.muted,
-                fontSize: 14,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colors.muted.withAlpha(160),
               ),
             ),
             TextButton(
@@ -59,10 +57,9 @@ class TermsAndPrivacyLinks extends StatelessWidget {
               ),
               child: Text(
                 'Privacy Policy',
-                style: TextStyle(
-                  color: colors.muted,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colors.muted.withAlpha(204),
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),

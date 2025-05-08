@@ -16,6 +16,7 @@ class AuthLinkWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final AppColors colors = AppColors.dark;
 
     return Row(
@@ -23,7 +24,7 @@ class AuthLinkWidget extends StatelessWidget {
       children: [
         Text(
           questionText,
-          style: TextStyle(
+          style: theme.textTheme.bodyMedium?.copyWith(
             color: colors.muted,
           ),
         ),
@@ -36,7 +37,7 @@ class AuthLinkWidget extends StatelessWidget {
           onPressed: onPressed,
           child: Text(
             linkText,
-            style: TextStyle(
+            style: theme.textTheme.bodyMedium?.copyWith(
               color: colors.foreground,
               fontWeight: FontWeight.bold,
             ),
