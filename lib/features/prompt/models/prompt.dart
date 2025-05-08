@@ -26,8 +26,11 @@ class Prompt {
   });
 
   factory Prompt.fromJson(Map<String, dynamic> json) {
+    // Generate a placeholder ID if ID is missing or empty
+    final id = json['id'] ?? '';
+    
     return Prompt(
-      id: json['id'] ?? '',
+      id: id,
       title: json['title'] ?? '',
       content: json['content'] ?? '',
       description: json['description'] ?? '',
