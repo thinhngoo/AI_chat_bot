@@ -6,7 +6,6 @@ import '../../../core/utils/validators/input_validator.dart';
 import 'widgets/auth_widgets.dart';
 import 'login_page.dart';
 import '../../../widgets/text_field.dart';
-import './widgets/custom_password_field.dart';
 import 'dart:async';
 
 class SignupPage extends StatefulWidget {
@@ -27,8 +26,6 @@ class _SignupPageState extends State<SignupPage> {
 
   bool _isLoading = false;
   bool _isSuccess = false;
-  bool _showCursor = true;
-  late Timer _cursorTimer;
 
   // Add separate error messages for each field
   String? _nameErrorMessage;
@@ -39,11 +36,6 @@ class _SignupPageState extends State<SignupPage> {
   @override
   void initState() {
     super.initState();
-    _cursorTimer = Timer.periodic(const Duration(milliseconds: 600), (timer) {
-      setState(() {
-        _showCursor = !_showCursor;
-      });
-    });
   }
 
   Future<void> _signup() async {
@@ -192,47 +184,13 @@ class _SignupPageState extends State<SignupPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // App title
-                    Text(
-                      'AI Chat Bot',
-                      style: TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        color: colors.foreground,
-                      ),
+                    AppTitleWithDescription(
+                      title: 'AI Chat Bot',
+                      description: 'Start your journey',
                     ),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Start your journey',
-                          style: TextStyle(
-                            fontSize: 24,
-                            color: colors.muted,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                        SizedBox(
-                          width: 15,
-                          child: Text(
-                            _showCursor ? '_' : ' ',
-                            style: TextStyle(
-                              fontSize: 24,
-                              color: colors.muted,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
                     const SizedBox(height: 40),
-
                     _buildSignupForm(),
-
                     const SizedBox(height: 20),
-
                     AuthLinkWidget(
                       questionText: 'Already have an account?',
                       linkText: 'Login now',
@@ -257,79 +215,83 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildSignupForm() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        CustomTextField(
-          controller: _nameController,
-          label: 'Full Name',
-          hintText: 'Enter your full name',
-          errorText: _nameErrorMessage,
-          prefixIcon: Icons.person_outline,
-          onChanged: (_) => setState(() => _nameErrorMessage = null),
-          darkMode: true,
-        ),
-        const SizedBox(height: 16),
-        CustomTextField(
-          controller: _emailController,
-          label: 'Email',
-          hintText: 'Enter your email',
-          errorText: _emailErrorMessage,
-          prefixIcon: Icons.email_outlined,
-          keyboardType: TextInputType.emailAddress,
-          onChanged: (_) => setState(() => _emailErrorMessage = null),
-          darkMode: true,
-        ),
-        const SizedBox(height: 16),
-        CustomPasswordField(
-          controller: _passwordController,
-          label: 'Password',
-          hintText: 'Enter your password',
-          errorText: _passwordErrorMessage,
-          onChanged: (value) {
-            setState(() {
-              _passwordErrorMessage = null;
-            });
-          },
-          darkMode: true,
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: _PasswordStrengthBar(
-            password: _passwordController.text,
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 400),
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          CustomTextField(
+            controller: _nameController,
+            label: 'Full Name',
+            hintText: 'Enter your full name',
+            errorText: _nameErrorMessage,
+            prefixIcon: Icons.person_outline,
+            onChanged: (_) => setState(() => _nameErrorMessage = null),
             darkMode: true,
           ),
-        ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: _PasswordRequirementWidget(
-            password: _passwordController.text,
-            showTitle: true,
+          const SizedBox(height: 16),
+          CustomTextField(
+            controller: _emailController,
+            label: 'Email',
+            hintText: 'Enter your email',
+            errorText: _emailErrorMessage,
+            prefixIcon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            onChanged: (_) => setState(() => _emailErrorMessage = null),
             darkMode: true,
           ),
-        ),
-        const SizedBox(height: 16),
-        CustomPasswordField(
-          controller: _confirmPasswordController,
-          label: 'Confirm Password',
-          hintText: 'Re-enter your password',
-          errorText: _confirmPasswordErrorMessage,
-          onChanged: (_) => setState(() => _confirmPasswordErrorMessage = null),
-          onSubmitted: (_) => _signup(),
-          darkMode: true,
-        ),
-        const SizedBox(height: 24),
-        SubmitButton(
-          label: 'Sign Up',
-          onPressed: _signup,
-          isLoading: _isLoading,
-        ),
-      ],
+          const SizedBox(height: 16),
+          CustomPasswordField(
+            controller: _passwordController,
+            label: 'Password',
+            hintText: 'Enter your password',
+            errorText: _passwordErrorMessage,
+            onChanged: (value) {
+              setState(() {
+                _passwordErrorMessage = null;
+              });
+            },
+            darkMode: true,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: _PasswordStrengthBar(
+              password: _passwordController.text,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: _PasswordRequirementWidget(
+              password: _passwordController.text,
+              showTitle: true,
+            ),
+          ),
+          const SizedBox(height: 16),
+          CustomPasswordField(
+            controller: _confirmPasswordController,
+            label: 'Confirm Password',
+            hintText: 'Re-enter your password',
+            errorText: _confirmPasswordErrorMessage,
+            onChanged: (_) =>
+                setState(() => _confirmPasswordErrorMessage = null),
+            onSubmitted: (_) => _signup(),
+            darkMode: true,
+          ),
+          const SizedBox(height: 24),
+          SubmitButton(
+            label: 'Sign Up',
+            onPressed: _signup,
+            isLoading: _isLoading,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildSuccessCard() {
+    final theme = Theme.of(context);
     final AppColors colors = AppColors.dark;
 
     return Container(
@@ -337,26 +299,24 @@ class _SignupPageState extends State<SignupPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.check_circle_outline,
             size: 80,
-            color: Colors.green,
+            color: colors.success,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Text(
-            'Registration Successful!',
-            style: TextStyle(
-              fontSize: 24,
+            'Welcome!',
+            style: theme.textTheme.displayMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: colors.foreground,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Text(
-            'Account ${_emailController.text} has been created successfully.',
-            style: TextStyle(
-              fontSize: 16,
+            'Account ${_emailController.text.isEmpty ? '@thinhNgo deptrai' : _emailController.text} has been created successfully.',
+            style: theme.textTheme.bodyMedium?.copyWith(
               color: colors.muted,
             ),
             textAlign: TextAlign.center,
@@ -384,7 +344,6 @@ class _SignupPageState extends State<SignupPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _cursorTimer.cancel();
     super.dispose();
   }
 }
@@ -392,11 +351,9 @@ class _SignupPageState extends State<SignupPage> {
 /// Password strength indicator bar
 class _PasswordStrengthBar extends StatelessWidget {
   final String password;
-  final bool darkMode;
 
   const _PasswordStrengthBar({
     required this.password,
-    this.darkMode = false,
   });
 
   @override
@@ -405,7 +362,9 @@ class _PasswordStrengthBar extends StatelessWidget {
     final int strengthScore = _calculateStrengthScore(password);
     final String strengthText = _getStrengthText(strengthScore);
     final Color strengthColor = _getStrengthColor(strengthScore);
-    final AppColors colors = darkMode ? AppColors.dark : AppColors.light;
+
+    final theme = Theme.of(context);
+    final AppColors colors = AppColors.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,7 +375,7 @@ class _PasswordStrengthBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: strengthScore / 100,
-              backgroundColor: darkMode ? colors.border : Colors.grey[300],
+              backgroundColor: colors.border,
               valueColor: AlwaysStoppedAnimation<Color>(strengthColor),
               minHeight: 4,
             ),
@@ -428,16 +387,14 @@ class _PasswordStrengthBar extends StatelessWidget {
             children: [
               Text(
                 'Strength: ',
-                style: TextStyle(
-                  color: darkMode ? colors.muted : Colors.grey[700],
-                  fontSize: 12,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colors.muted,
                 ),
               ),
               Text(
                 strengthText,
-                style: TextStyle(
+                style: theme.textTheme.bodySmall?.copyWith(
                   color: strengthColor,
-                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -480,7 +437,7 @@ class _PasswordStrengthBar extends StatelessWidget {
   }
 
   String _getStrengthText(int score) {
-    if (score == 0) return 'Not entered';
+    if (score == 0) return 'Empty';
     if (score < 30) return 'Very weak';
     if (score < 50) return 'Weak';
     if (score < 70) return 'Medium';
@@ -489,13 +446,13 @@ class _PasswordStrengthBar extends StatelessWidget {
   }
 
   Color _getStrengthColor(int score) {
-    final AppColors colors = darkMode ? AppColors.dark : AppColors.light;
-    if (score == 0) return darkMode ? colors.muted : Colors.grey;
-    if (score < 30) return Colors.red;
-    if (score < 50) return Colors.orange;
-    if (score < 70) return Colors.yellow;
-    if (score < 90) return Colors.lightGreen;
-    return Colors.green;
+    final AppColors colors = AppColors.dark;
+    if (score == 0) return colors.muted;
+    if (score < 30) return Colors.redAccent;
+    if (score < 50) return Colors.orangeAccent;
+    if (score < 70) return Colors.yellowAccent;
+    if (score < 90) return Colors.lightGreenAccent;
+    return Colors.greenAccent;
   }
 }
 
@@ -503,17 +460,16 @@ class _PasswordStrengthBar extends StatelessWidget {
 class _PasswordRequirementWidget extends StatelessWidget {
   final String password;
   final bool showTitle;
-  final bool darkMode;
 
   const _PasswordRequirementWidget({
     required this.password,
     this.showTitle = false,
-    this.darkMode = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final AppColors colors = darkMode ? AppColors.dark : AppColors.light;
+    final theme = Theme.of(context);
+    final AppColors colors = AppColors.dark;
 
     final requirements = [
       {
@@ -548,10 +504,9 @@ class _PasswordRequirementWidget extends StatelessWidget {
         if (showTitle) ...[
           Text(
             'Password Requirements:',
-            style: TextStyle(
+            style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: darkMode ? colors.muted : Colors.grey[800],
+              color: colors.muted,
             ),
           ),
           const SizedBox(height: 8),
@@ -567,6 +522,7 @@ class _PasswordRequirementWidget extends StatelessWidget {
                           req['text'] as String,
                           req['isMet'] as bool,
                           colors,
+                          theme,
                         ))
                     .toList(),
               ),
@@ -579,6 +535,7 @@ class _PasswordRequirementWidget extends StatelessWidget {
                           req['text'] as String,
                           req['isMet'] as bool,
                           colors,
+                          theme,
                         ))
                     .toList(),
               ),
@@ -589,31 +546,23 @@ class _PasswordRequirementWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildRequirement(String text, bool isMet, AppColors colors) {
+  Widget _buildRequirement(
+      String text, bool isMet, AppColors colors, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Row(
         children: [
           Icon(
             isMet ? Icons.check_circle : Icons.circle_outlined,
-            color: isMet
-                ? Colors.green
-                : darkMode
-                    ? colors.muted
-                    : Colors.grey,
+            color: isMet ? colors.success : colors.muted,
             size: 16,
           ),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
               text,
-              style: TextStyle(
-                color: isMet
-                    ? Colors.green
-                    : darkMode
-                        ? colors.muted
-                        : Colors.grey[700],
-                fontSize: 12,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: isMet ? colors.success : colors.muted,
               ),
             ),
           ),

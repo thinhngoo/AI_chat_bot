@@ -7,7 +7,6 @@ import 'widgets/auth_widgets.dart';
 import 'signup_page.dart';
 import 'dart:async';
 import '../../../widgets/text_field.dart';
-import './widgets/custom_password_field.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -16,28 +15,19 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
-    with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
   final Logger _logger = Logger();
 
   bool _isLoading = false;
-  bool _showCursor = true;
   String? _emailErrorMessage;
   String? _passwordErrorMessage;
-  late Timer _cursorTimer;
 
   @override
   void initState() {
     super.initState();
-    // Start blinking cursor timer
-    _cursorTimer = Timer.periodic(const Duration(milliseconds: 600), (timer) {
-      setState(() {
-        _showCursor = !_showCursor;
-      });
-    });
   }
 
   Future<void> _login() async {
@@ -172,70 +162,23 @@ class _LoginPageState extends State<LoginPage>
 
   @override
   Widget build(BuildContext context) {
-    final AppColors colors = AppColors.dark;
-
     return AuthBackground(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24.0, 120.0, 24.0, 24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // App title
-            Text(
-              'AI Chat Bot',
-              style: TextStyle(
-                fontSize: 60,
-                fontWeight: FontWeight.bold,
-                color: colors.foreground,
-              ),
+            AppTitleWithDescription(
+              title: 'AI Chat Bot',
+              description: 'Understand the universe',
             ),
-
-            // Description
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Understand the universe',
-                  style: TextStyle(
-                    fontSize: 24,
-                    color: colors.muted,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                SizedBox(
-                  width: 15,
-                  child: Text(
-                    _showCursor ? '_' : ' ',
-                    style: TextStyle(
-                      fontSize: 24,
-                      color: colors.muted,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
+            
             const SizedBox(height: 60),
-
-            // Login Form
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  _buildEmailField(),
-                  const SizedBox(height: 16),
-                  _buildPasswordField(),
-                  const SizedBox(height: 24),
-                  _buildLoginButton(),
-                ],
-              ),
-            ),
-
+            
+            _buildLoginForm(),
+            
             const SizedBox(height: 20),
-
+            
             AuthLinkWidget(
               questionText: 'Don\'t have an account?',
               linkText: 'Sign up now',
@@ -248,9 +191,9 @@ class _LoginPageState extends State<LoginPage>
                 );
               },
             ),
-
+            
             const SizedBox(height: 30),
-
+            
             TermsAndPrivacyLinks(
               introText: 'By logging in, you agree to our',
             ),
@@ -260,36 +203,45 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildEmailField() {
-    return CustomTextField(
-      controller: _emailController,
-      label: 'Email',
-      hintText: 'Enter your email',
-      errorText: _emailErrorMessage,
-      prefixIcon: Icons.email_outlined,
-      keyboardType: TextInputType.emailAddress,
-      onChanged: (_) => setState(() => _emailErrorMessage = null),
-      darkMode: true,
-    );
-  }
+  Widget _buildLoginForm() {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 400),
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          CustomTextField(
+            controller: _emailController,
+            label: 'Email',
+            hintText: 'Enter your email',
+            errorText: _emailErrorMessage,
+            prefixIcon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            onChanged: (_) => setState(() => _emailErrorMessage = null),
+            darkMode: true,
+          ),
 
-  Widget _buildPasswordField() {
-    return CustomPasswordField(
-      controller: _passwordController,
-      label: 'Password',
-      hintText: 'Enter your password',
-      errorText: _passwordErrorMessage,
-      onChanged: (_) => setState(() => _passwordErrorMessage = null),
-      onSubmitted: (_) => _login(),
-      darkMode: true,
-    );
-  }
-
-  Widget _buildLoginButton() {
-    return SubmitButton(
-      label: 'Login',
-      onPressed: _login,
-      isLoading: _isLoading,
+          const SizedBox(height: 16),
+          
+          CustomPasswordField(
+            controller: _passwordController,
+            label: 'Password',
+            hintText: 'Enter your password',
+            errorText: _passwordErrorMessage,
+            onChanged: (_) => setState(() => _passwordErrorMessage = null),
+            onSubmitted: (_) => _login(),
+            darkMode: true,
+          ),
+          
+          const SizedBox(height: 24),
+          
+          SubmitButton(
+            label: 'Login',
+            onPressed: _login,
+            isLoading: _isLoading,
+          ),
+        ],
+      ),
     );
   }
 
@@ -297,7 +249,6 @@ class _LoginPageState extends State<LoginPage>
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _cursorTimer.cancel();
     super.dispose();
   }
 }

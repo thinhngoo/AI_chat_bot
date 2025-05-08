@@ -228,51 +228,61 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
 
+      fontFamily: 'Inter',
+
       textTheme: TextTheme(
         displayLarge: TextStyle(
-          fontSize: 32,
+          fontSize: 40,
           fontWeight: FontWeight.bold,
           color: colors.foreground,
         ),
         displayMedium: TextStyle(
-          fontSize: 28,
+          fontSize: 32,
           fontWeight: FontWeight.bold,
           color: colors.foreground,
+          fontFamily: 'Geist',
         ),
         displaySmall: TextStyle(
-          fontSize: 24,
+          fontSize: 26,
           fontWeight: FontWeight.bold,
           color: colors.foreground,
+          fontFamily: 'Geist',
         ),
         headlineLarge: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w600,
           color: colors.foreground,
+          fontFamily: 'Geist',
         ),
         headlineMedium: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
           color: colors.foreground,
+          fontFamily: 'Geist',
         ),
         headlineSmall: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: colors.foreground,
+          fontFamily: 'Geist',
         ),
         titleLarge: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
           color: colors.foreground,
+          fontFamily: 'Geist',
         ),
         titleMedium: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
           color: colors.foreground,
+          fontFamily: 'Geist',
         ),
         titleSmall: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
           color: colors.foreground,
+          fontFamily: 'Geist',
         ),
         bodyLarge: TextStyle(
           fontSize: 16,
@@ -287,7 +297,7 @@ class _MyAppState extends State<MyApp> {
           color: colors.foreground,
         ),
       ),
-      
+
       dividerColor: colors.border,
       colorScheme: isDark
           ? ColorScheme.dark(
