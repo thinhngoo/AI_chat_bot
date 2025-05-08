@@ -37,31 +37,41 @@ class KnowledgeBaseService {
     required String name,
     required String description,
   }) async {
-    final token = await _getToken();
-    
-    // Print debugging info
-    print('Creating knowledge base with URL: $baseUrl$apiPath');
-    
-    final response = await http.post(
-      Uri.parse('$baseUrl$apiPath'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'name': name,
-        'description': description,
-      }),
-    );
+    try {
+      final token = await _getToken();
+      
+      // Print debugging info
+      print('Creating knowledge base with URL: $baseUrl$apiPath');
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl$apiPath'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'knowledgeName': name,
+          'knowledgeDescription': description,
+        }),
+      );
 
-    // Print response status for debugging
-    print('Create knowledge base response status: ${response.statusCode}');
-    
-    if (response.statusCode == 201) {
-      return KnowledgeBase.fromJson(jsonDecode(response.body));
-    } else {
-      print('Error response body: ${response.body}');
-      throw Exception('Failed to create knowledge base: ${response.body}');
+      // Print response status for debugging
+      print('Create knowledge base response status: ${response.statusCode}');
+      
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        print('Response data: $responseData');
+        
+        // Create a knowledge base object with the response data
+        // The model's fromJson method now handles different response formats
+        return KnowledgeBase.fromJson(responseData);
+      } else {
+        print('Error response body: ${response.body}');
+        throw Exception('Failed to create knowledge base: ${response.body}');
+      }
+    } catch (e) {
+      print('Error creating knowledge base: $e');
+      throw Exception('Error creating knowledge base: $e');
     }
   }
 

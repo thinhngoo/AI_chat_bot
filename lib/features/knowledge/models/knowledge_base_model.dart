@@ -1,32 +1,48 @@
 class KnowledgeBase {
   final String id;
-  final String name;
+  final String knowledgeName;
   final String description;
   final String status;
+  final String? userId;
+  final String? createdBy;
+  final String? updatedBy;
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<KnowledgeSource> sources;
 
   KnowledgeBase({
     required this.id,
-    required this.name,
+    required this.knowledgeName,
     required this.description,
-    required this.status,
+    this.status = 'pending',
+    this.userId,
+    this.createdBy,
+    this.updatedBy,
     required this.createdAt,
     required this.updatedAt,
     this.sources = const [],
   });
 
   factory KnowledgeBase.fromJson(Map<String, dynamic> json) {
+    // The API may return data in a nested 'data' field or directly
+    final data = json['data'] ?? json;
+    
     return KnowledgeBase(
-      id: json['id'],
-      name: json['name'],
-      description: json['description'] ?? '',
-      status: json['status'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-      sources: json['sources'] != null
-          ? (json['sources'] as List)
+      id: data['id'] ?? '',
+      knowledgeName: data['knowledgeName'] ?? '',
+      description: data['description'] ?? '',
+      status: data['status'] ?? 'pending',
+      userId: data['userId'],
+      createdBy: data['createdBy'],
+      updatedBy: data['updatedBy'],
+      createdAt: data['createdAt'] != null 
+          ? DateTime.parse(data['createdAt']) 
+          : DateTime.now(),
+      updatedAt: data['updatedAt'] != null 
+          ? DateTime.parse(data['updatedAt']) 
+          : DateTime.now(),
+      sources: data['sources'] != null
+          ? (data['sources'] as List)
               .map((source) => KnowledgeSource.fromJson(source))
               .toList()
           : [],
@@ -36,14 +52,20 @@ class KnowledgeBase {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'name': name,
+      'knowledgeName': knowledgeName,
       'description': description,
       'status': status,
+      'userId': userId,
+      'createdBy': createdBy,
+      'updatedBy': updatedBy,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'sources': sources.map((source) => source.toJson()).toList(),
     };
   }
+
+  // Add getter for name for backward compatibility
+  String get name => knowledgeName;
 }
 
 class KnowledgeSource {
