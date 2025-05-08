@@ -689,6 +689,12 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
         return Icons.description;
       case KnowledgeType.website:
         return Icons.language;
+      case KnowledgeType.googleDrive:
+        return Icons.drive_folder_upload;
+      case KnowledgeType.slack:
+        return Icons.chat;
+      case KnowledgeType.confluence:
+        return Icons.article;
       case KnowledgeType.database:
         return Icons.storage;
       case KnowledgeType.api:

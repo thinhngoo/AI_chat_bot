@@ -36,7 +36,13 @@ class ApiConstants {
   
   // Knowledge Base endpoints
   static const String knowledgeBase = '/api/v1/knowledge';
+  static const String knowledgeById = '/api/v1/knowledge/{knowledgeBaseId}';
   static const String knowledgeUpload = '/api/v1/knowledge/upload';
+  static const String knowledgeUploadFile = '/api/v1/knowledge/{knowledgeBaseId}/upload/file';
+  static const String knowledgeUploadWebsite = '/api/v1/knowledge/{knowledgeBaseId}/upload/website';
+  static const String knowledgeUploadGoogleDrive = '/api/v1/knowledge/{knowledgeBaseId}/upload/google-drive';
+  static const String knowledgeUploadSlack = '/api/v1/knowledge/{knowledgeBaseId}/upload/slack';
+  static const String knowledgeUploadConfluence = '/api/v1/knowledge/{knowledgeBaseId}/upload/confluence';
   
   // Prompt Management endpoints
   static const String promptsEndpoint = '/api/v1/prompts';

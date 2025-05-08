@@ -19,6 +19,8 @@ class KnowledgeData {
     required this.updatedAt,
   });
 
+  String get typeDisplayName => type.displayName;
+
   factory KnowledgeData.fromJson(Map<String, dynamic> json) {
     return KnowledgeData(
       id: json['id'] ?? '',
@@ -52,6 +54,12 @@ class KnowledgeData {
     switch (type.toLowerCase()) {
       case 'website':
         return KnowledgeType.website;
+      case 'googledrive':
+        return KnowledgeType.googleDrive;
+      case 'slack':
+        return KnowledgeType.slack;
+      case 'confluence':
+        return KnowledgeType.confluence;
       case 'database':
         return KnowledgeType.database;
       case 'api':
@@ -65,6 +73,30 @@ class KnowledgeData {
 enum KnowledgeType {
   document,
   website,
+  googleDrive,
+  slack,
+  confluence,
   database,
   api
+}
+
+extension KnowledgeTypeExtension on KnowledgeType {
+  String get displayName {
+    switch (this) {
+      case KnowledgeType.document:
+        return 'Document';
+      case KnowledgeType.website:
+        return 'Website';
+      case KnowledgeType.googleDrive:
+        return 'Google Drive';
+      case KnowledgeType.slack:
+        return 'Slack';
+      case KnowledgeType.confluence:
+        return 'Confluence';
+      case KnowledgeType.database:
+        return 'Database';
+      case KnowledgeType.api:
+        return 'API';
+    }
+  }
 }
