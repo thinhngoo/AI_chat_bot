@@ -7,6 +7,7 @@ import 'package:mime/mime.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../models/knowledge_base_model.dart';
 import '../../../core/constants/app_config.dart';
+import 'package:path/path.dart' as path;
 
 class KnowledgeBaseService {
   // Using just the base domain without the path
@@ -51,7 +52,7 @@ class KnowledgeBaseService {
         },
         body: jsonEncode({
           'knowledgeName': name,
-          'knowledgeDescription': description,
+          'description': description,
         }),
       );
 
@@ -62,8 +63,6 @@ class KnowledgeBaseService {
         final responseData = jsonDecode(response.body);
         print('Response data: $responseData');
         
-        // Create a knowledge base object with the response data
-        // The model's fromJson method now handles different response formats
         return KnowledgeBase.fromJson(responseData);
       } else {
         print('Error response body: ${response.body}');
@@ -75,7 +74,7 @@ class KnowledgeBaseService {
     }
   }
 
-  // Get all knowledge bases
+  // Get all knowledge bases with pagination support
   Future<List<KnowledgeBase>> getKnowledgeBases({
     String? search,
     int page = 1,
@@ -105,11 +104,11 @@ class KnowledgeBaseService {
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['items'] == null) {
-          print('API returned null items: $data');
+        if (data['data'] == null) {
+          print('API returned null data: $data');
           return [];
         }
-        return (data['items'] as List)
+        return (data['data'] as List)
             .map((item) => KnowledgeBase.fromJson(item))
             .toList();
       } else {
@@ -124,36 +123,59 @@ class KnowledgeBaseService {
 
   // Get a single knowledge base by ID
   Future<KnowledgeBase> getKnowledgeBase(String id) async {
-    final token = await _getToken();
-    final response = await http.get(
-      Uri.parse('$baseUrl$apiPath/$id'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
-    );
+    try {
+      final token = await _getToken();
+      final response = await http.get(
+        Uri.parse('$baseUrl$apiPath/$id'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final kb = KnowledgeBase.fromJson(jsonDecode(response.body));
+      print('Get knowledge base response status: ${response.statusCode}');
       
-      // Get sources (datasources) for this knowledge base
+      if (response.statusCode == 200) {
+        final kb = KnowledgeBase.fromJson(jsonDecode(response.body));
+        
+        // Get data sources for this knowledge base
+        return await _getKnowledgeBaseWithSources(kb);
+      } else {
+        print('Error response body: ${response.body}');
+        throw Exception('Failed to get knowledge base: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching knowledge base: $e');
+      rethrow;
+    }
+  }
+
+  // Helper method to get sources for a knowledge base
+  Future<KnowledgeBase> _getKnowledgeBaseWithSources(KnowledgeBase kb) async {
+    try {
+      final token = await _getToken();
       final sourcesResponse = await http.get(
-        Uri.parse('$baseUrl$apiPath/$id/datasources'),
+        Uri.parse('$baseUrl$apiPath/${kb.id}/units'),
         headers: {
           'Authorization': 'Bearer $token',
         },
       );
       
+      print('Get knowledge sources response status: ${sourcesResponse.statusCode}');
+      
       if (sourcesResponse.statusCode == 200) {
         final sourcesData = jsonDecode(sourcesResponse.body);
-        final sources = (sourcesData['items'] as List?)
+        final sources = (sourcesData['data'] as List?)
             ?.map((source) => KnowledgeSource.fromJson(source))
             .toList() ?? [];
             
         return KnowledgeBase(
           id: kb.id,
-          name: kb.name,
+          knowledgeName: kb.knowledgeName,
           description: kb.description,
           status: kb.status,
+          userId: kb.userId,
+          createdBy: kb.createdBy,
+          updatedBy: kb.updatedBy,
           createdAt: kb.createdAt,
           updatedAt: kb.updatedAt,
           sources: sources,
@@ -161,23 +183,105 @@ class KnowledgeBaseService {
       }
       
       return kb;
-    } else {
-      throw Exception('Failed to get knowledge base: ${response.body}');
+    } catch (e) {
+      print('Error fetching knowledge sources: $e');
+      return kb;  // Return original knowledge base without sources
+    }
+  }
+
+  // Update a knowledge base
+  Future<KnowledgeBase> updateKnowledgeBase({
+    required String id,
+    String? name,
+    String? description,
+  }) async {
+    try {
+      final token = await _getToken();
+      
+      final Map<String, dynamic> body = {};
+      if (name != null) body['knowledgeName'] = name;
+      if (description != null) body['description'] = description;
+      
+      print('Updating knowledge base: $baseUrl$apiPath/$id');
+      
+      final response = await http.patch(
+        Uri.parse('$baseUrl$apiPath/$id'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+      
+      print('Update knowledge base response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return KnowledgeBase.fromJson(responseData);
+      } else {
+        print('Error response body: ${response.body}');
+        throw Exception('Failed to update knowledge base: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('Error updating knowledge base: $e');
+      rethrow;
     }
   }
 
   // Delete a knowledge base
-  Future<void> deleteKnowledgeBase(String id) async {
-    final token = await _getToken();
-    final response = await http.delete(
-      Uri.parse('$baseUrl$apiPath/$id'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
-    );
+  Future<bool> deleteKnowledgeBase(String id) async {
+    try {
+      final token = await _getToken();
+      final response = await http.delete(
+        Uri.parse('$baseUrl$apiPath/$id'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to delete knowledge base: ${response.body}');
+      print('Delete knowledge base response status: ${response.statusCode}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      } else {
+        print('Error response body: ${response.body}');
+        throw Exception('Failed to delete knowledge base: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('Error deleting knowledge base: $e');
+      rethrow;
+    }
+  }
+
+  // Get units (sources) of a knowledge base
+  Future<List<KnowledgeSource>> getKnowledgeUnits(String knowledgeId) async {
+    try {
+      final token = await _getToken();
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl$apiPath/$knowledgeId/units'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+      
+      print('Get knowledge units response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['data'] == null) {
+          return [];
+        }
+        return (data['data'] as List)
+            .map((item) => KnowledgeSource.fromJson(item))
+            .toList();
+      } else {
+        print('Error response body: ${response.body}');
+        throw Exception('Failed to get knowledge units: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching knowledge units: $e');
+      rethrow;
     }
   }
 
@@ -186,32 +290,42 @@ class KnowledgeBaseService {
     String knowledgeBaseId,
     File file,
   ) async {
-    final token = await _getToken();
-    final fileName = file.path.split('/').last;
-    final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
-    
-    final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(
-        file.path,
-        filename: fileName,
-        contentType: MediaType.parse(mimeType),
-      ),
-    });
+    try {
+      final token = await _getToken();
+      final fileName = path.basename(file.path);
+      final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+      
+      print('Uploading file to knowledge base: $baseUrl$apiPath/$knowledgeBaseId/upload');
+      
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          file.path,
+          filename: fileName,
+          contentType: MediaType.parse(mimeType),
+        ),
+      });
 
-    final response = await _dio.post(
-      '$baseUrl$apiPath/$knowledgeBaseId/datasources/file',
-      data: formData,
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      ),
-    );
+      final response = await _dio.post(
+        '$baseUrl$apiPath/$knowledgeBaseId/upload',
+        data: formData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+        ),
+      );
 
-    if (response.statusCode == 201) {
-      return KnowledgeSource.fromJson(response.data);
-    } else {
-      throw Exception('Failed to upload file: ${response.data}');
+      print('Upload file response status: ${response.statusCode}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return KnowledgeSource.fromJson(response.data);
+      } else {
+        print('Error response: ${response.data}');
+        throw Exception('Failed to upload file: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error uploading file: $e');
+      rethrow;
     }
   }
 
@@ -219,23 +333,33 @@ class KnowledgeBaseService {
   Future<KnowledgeSource> uploadWebsite(
     String knowledgeBaseId,
     String url,
+    {bool recursive = true}
   ) async {
-    final token = await _getToken();
-    final response = await http.post(
-      Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/datasources/website'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'url': url,
-      }),
-    );
+    try {
+      final token = await _getToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/upload/website'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'url': url,
+          'recursive': recursive,
+        }),
+      );
 
-    if (response.statusCode == 201) {
-      return KnowledgeSource.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to upload website: ${response.body}');
+      print('Upload website response status: ${response.statusCode}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return KnowledgeSource.fromJson(jsonDecode(response.body));
+      } else {
+        print('Error response body: ${response.body}');
+        throw Exception('Failed to upload website: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('Error uploading website: $e');
+      rethrow;
     }
   }
 
@@ -244,22 +368,30 @@ class KnowledgeBaseService {
     String knowledgeBaseId,
     String googleDriveFileId,
   ) async {
-    final token = await _getToken();
-    final response = await http.post(
-      Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/datasources/google-drive'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'fileId': googleDriveFileId,
-      }),
-    );
+    try {
+      final token = await _getToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/upload/google-drive'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'fileId': googleDriveFileId,
+        }),
+      );
 
-    if (response.statusCode == 201) {
-      return KnowledgeSource.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to connect Google Drive: ${response.body}');
+      print('Connect Google Drive response status: ${response.statusCode}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return KnowledgeSource.fromJson(jsonDecode(response.body));
+      } else {
+        print('Error response body: ${response.body}');
+        throw Exception('Failed to connect Google Drive: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('Error connecting Google Drive: $e');
+      rethrow;
     }
   }
 
@@ -268,22 +400,30 @@ class KnowledgeBaseService {
     String knowledgeBaseId,
     String channelId,
   ) async {
-    final token = await _getToken();
-    final response = await http.post(
-      Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/datasources/slack'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'channelId': channelId,
-      }),
-    );
+    try {
+      final token = await _getToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/upload/slack'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'channelId': channelId,
+        }),
+      );
 
-    if (response.statusCode == 201) {
-      return KnowledgeSource.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to connect Slack: ${response.body}');
+      print('Connect Slack response status: ${response.statusCode}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return KnowledgeSource.fromJson(jsonDecode(response.body));
+      } else {
+        print('Error response body: ${response.body}');
+        throw Exception('Failed to connect Slack: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('Error connecting Slack: $e');
+      rethrow;
     }
   }
 
@@ -292,40 +432,58 @@ class KnowledgeBaseService {
     String knowledgeBaseId,
     String spaceKey,
   ) async {
-    final token = await _getToken();
-    final response = await http.post(
-      Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/datasources/confluence'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'spaceKey': spaceKey,
-      }),
-    );
+    try {
+      final token = await _getToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/upload/confluence'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'spaceKey': spaceKey,
+        }),
+      );
 
-    if (response.statusCode == 201) {
-      return KnowledgeSource.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to connect Confluence: ${response.body}');
+      print('Connect Confluence response status: ${response.statusCode}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return KnowledgeSource.fromJson(jsonDecode(response.body));
+      } else {
+        print('Error response body: ${response.body}');
+        throw Exception('Failed to connect Confluence: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('Error connecting Confluence: $e');
+      rethrow;
     }
   }
 
   // Delete a source from a knowledge base
-  Future<void> deleteSource(
+  Future<bool> deleteSource(
     String knowledgeBaseId,
     String sourceId,
   ) async {
-    final token = await _getToken();
-    final response = await http.delete(
-      Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/datasources/$sourceId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
-    );
+    try {
+      final token = await _getToken();
+      final response = await http.delete(
+        Uri.parse('$baseUrl$apiPath/$knowledgeBaseId/units/$sourceId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to delete source: ${response.body}');
+      print('Delete knowledge source response status: ${response.statusCode}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      } else {
+        print('Error response body: ${response.body}');
+        throw Exception('Failed to delete source: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('Error deleting source: $e');
+      rethrow;
     }
   }
 }
