@@ -8,7 +8,8 @@ class ApiConstants {
   
   // API URLs
   static const String authApiUrl = 'https://auth-api.dev.jarvis.cx';
-  static const String jarvisApiUrl = 'https://api.dev.jarvis.cx'; // Add Jarvis API URL
+  static const String jarvisApiUrl = 'https://api.dev.jarvis.cx'; // Base API URL
+  static const String kbCoreApiUrl = 'https://api.dev.jarvis.cx'; // KB Core API URL (could be different in some environments)
   
   // API endpoints
   static const String authPasswordSignUp = '/api/v1/auth/password/sign-up';
@@ -24,7 +25,7 @@ class ApiConstants {
   static const String emailSuggestReply = '/api/v1/email/suggest-reply';
   static const String emailComposeResponse = '/api/v1/email/compose-response';
   
-  // Bot Management endpoints
+  // Bot Management endpoints - using the KB Core API endpoints
   static const String botsEndpoint = '/kb-core/v1/ai-assistant';
   static const String botById = '/kb-core/v1/ai-assistant/{botId}';
   static const String botKnowledge = '/kb-core/v1/ai-assistant/{botId}/knowledge';

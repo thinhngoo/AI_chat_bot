@@ -118,19 +118,21 @@ class BotService {
         throw 'No access token available. Please log in again.';
       }
       
-      // Prepare headers - changed from const to final
+      // Prepare headers with required x-jarvis-guid header
       final headers = {
         'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+        'x-jarvis-guid': '', // Required header according to API documentation
       };
       
       // Build URL with query parameters
-      const baseUrl = ApiConstants.jarvisApiUrl;
+      const baseUrl = ApiConstants.kbCoreApiUrl;
       const endpoint = ApiConstants.botsEndpoint;
       
       // Adding pagination parameters using the correct format for this API
       var queryParams = <String, String>{
         'offset': '0',
-        'limit': '50',  // Maximum allowed by API
+        'limit': '20',
         'order': 'DESC',
         'order_field': 'createdAt'
       };
@@ -144,15 +146,18 @@ class BotService {
       _logger.i('Request URI: $uri');
       
       // Send request
-      final response = await http.get(uri, headers: headers);
+      final response = await http.get(
+        uri, 
+        headers: headers
+      );
       
       _logger.i('Get bots response status: ${response.statusCode}');
+      _logger.i('Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
         // Check if response format matches the API documentation
-        // The response should have a "data" field containing an array of assistants
         if (data['data'] != null) {
           final assistants = data['data'] as List<dynamic>;
           return assistants.map((item) => AIBot.fromJson(item)).toList();
