@@ -4,6 +4,7 @@ import '../models/prompt.dart';
 import '../services/prompt_service.dart';
 import 'prompt_list_screen.dart';
 import 'create_edit_prompt_screen.dart';
+import 'simple_prompt_dialog.dart';
 
 class PromptManagementScreen extends StatefulWidget {
   const PromptManagementScreen({Key? key}) : super(key: key);
@@ -178,14 +179,14 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
   }
 
   void _createPrompt() {
-    Navigator.push(
+    // Show the simplified prompt dialog instead of navigating to the full screen
+    SimplePromptDialog.show(
       context,
-      MaterialPageRoute(
-        builder: (context) => CreateEditPromptScreen(
-          availableCategories: _availableCategories,
-        ),
-      ),
-    ).then((_) => _fetchPrivatePrompts());
+      (content) {
+        // Refresh the private prompts list after creating a new prompt
+        _fetchPrivatePrompts();
+      },
+    );
   }
 
   @override

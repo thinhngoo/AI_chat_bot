@@ -8,6 +8,7 @@ import '../services/chat_service.dart';
 import '../models/conversation_message.dart';
 import '../../../features/prompt/presentation/prompt_selector.dart';
 import '../../../features/prompt/presentation/prompt_management_screen.dart';
+import '../../../features/prompt/presentation/simple_prompt_dialog.dart';
 import '../../../features/prompt/services/prompt_service.dart'
     as prompt_service;
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
@@ -119,6 +120,24 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     // Focus on the text field
     _messageFocusNode.requestFocus();
+  }
+
+  // Open the simplified prompt creation dialog
+  void _createNewPrompt() {
+    SimplePromptDialog.show(
+      context,
+      (content) {
+        // When prompt is created, automatically insert it into the message box
+        setState(() {
+          _messageController.text = content;
+          _messageController.selection = TextSelection.fromPosition(
+            TextPosition(offset: content.length),
+          );
+        });
+        // Focus on the text field
+        _messageFocusNode.requestFocus();
+      },
+    );
   }
 
   Future<void> _fetchConversationHistory() async {
@@ -1074,6 +1093,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                 PromptSelector.show(
                                     context, '', _handlePromptSelected);
                               },
+                            ),
+
+                            // Create new prompt button
+                            IconButton(
+                              icon: Icon(
+                                Icons.add_box_outlined,
+                                color: colors.muted,
+                              ),
+                              onPressed: _createNewPrompt,
                             ),
                           ],
                         ),
