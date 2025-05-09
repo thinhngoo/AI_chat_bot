@@ -483,56 +483,82 @@ class BotService {
         throw 'No access token available. Please log in again.';
       }
       
-      // Prepare headers
-      final headers = {
-        'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json'
-      };
+      // Process each knowledge base ID individually as per API spec
+      bool allSuccess = true;
+      List<String> failedIds = [];
       
-      // Build request body
-      final Map<String, dynamic> body = {
-        'knowledgeBaseIds': knowledgeBaseIds,
-      };
-      
-      // Build URL - using kbCoreApiUrl instead of jarvisApiUrl
-      const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = ApiConstants.assistantKnowledge.replaceAll('{assistantId}', botId);
-      final uri = Uri.parse(baseUrl + endpoint);
-      
-      _logger.i('Sending request to: $uri');
-      
-      // Send request
-      final response = await http.post(
-        uri,
-        headers: headers,
-        body: jsonEncode(body),
-      );
-      
-      _logger.i('Import knowledge response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        _logger.i('Knowledge imported successfully');
-        return true;
-      } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
-        _logger.w('Token expired, attempting to refresh...');
-        final refreshSuccess = await _authService.refreshToken();
-        
-        if (refreshSuccess) {
-          // Retry with new token
-          return importKnowledge(
-            botId: botId,
-            knowledgeBaseIds: knowledgeBaseIds,
+      for (final knowledgeId in knowledgeBaseIds) {
+        try {
+          _logger.i('Importing knowledge ID $knowledgeId to bot $botId');
+          
+          // Prepare headers
+          final headers = {
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json'
+          };
+          
+          // No request body needed according to the OpenAPI spec
+          // The endpoint URL includes both the assistant ID and knowledge ID
+          
+          // Build URL with the correct path format: /kb-core/v1/ai-assistant/{assistantId}/knowledges/{knowledgeId}
+          const baseUrl = ApiConstants.kbCoreApiUrl;
+          final endpoint = '/kb-core/v1/ai-assistant/$botId/knowledges/$knowledgeId';
+          final uri = Uri.parse(baseUrl + endpoint);
+          
+          _logger.i('Sending request to: $uri');
+          
+          // Send request - using POST method as specified in the API
+          final response = await http.post(
+            uri,
+            headers: headers,
           );
-        } else {
-          throw 'Authentication expired. Please log in again.';
+          
+          _logger.i('Import knowledge response status: ${response.statusCode}');
+          
+          // Accept 200, 201, and 204 as successful status codes
+          // 204 means "No Content" - request succeeded but no content is returned
+          if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 204) {
+            _logger.i('Knowledge $knowledgeId imported successfully');
+          } else if (response.statusCode == 401) {
+            // Token expired, try to refresh
+            _logger.w('Token expired, attempting to refresh...');
+            final refreshSuccess = await _authService.refreshToken();
+            
+            if (refreshSuccess) {
+              // Recursive call to retry with new token for this knowledge ID
+              return importKnowledge(
+                botId: botId,
+                knowledgeBaseIds: [knowledgeId],
+              );
+            } else {
+              throw 'Authentication expired. Please log in again.';
+            }
+          } else {
+            _logger.e('Failed to import knowledge $knowledgeId: ${response.statusCode}');
+            _logger.e('Response body: ${response.body}');
+            
+            allSuccess = false;
+            failedIds.add(knowledgeId);
+          }
+        } catch (e) {
+          _logger.e('Error importing knowledge $knowledgeId: $e');
+          allSuccess = false;
+          failedIds.add(knowledgeId);
         }
-      } else {
-        _logger.e('Failed to import knowledge: ${response.statusCode}');
-        _logger.e('Response body: ${response.body}');
-        
-        throw 'Failed to import knowledge: ${response.statusCode}';
       }
+      
+      if (!allSuccess) {
+        if (failedIds.length == knowledgeBaseIds.length) {
+          // All imports failed
+          throw 'Failed to import all knowledge bases: ${failedIds.join(", ")}';
+        } else {
+          // Some imports failed, but not all
+          _logger.w('Some knowledge bases failed to import: ${failedIds.join(", ")}');
+          return true; // Return true since some succeeded
+        }
+      }
+      
+      return true;
     } catch (e) {
       _logger.e('Error importing knowledge: $e');
       rethrow;
@@ -954,6 +980,98 @@ class BotService {
       }
     } catch (e) {
       _logger.e('Error fetching knowledge bases: $e');
+      rethrow;
+    }
+  }
+
+  // Get all knowledge bases imported to an AI Bot
+  Future<List<KnowledgeData>> getImportedKnowledge({
+    required String botId,
+    String? query,
+    int offset = 0,
+    int limit = 20,
+    String orderField = 'createdAt',
+    String order = 'DESC',
+  }) async {
+    try {
+      _logger.i('Fetching imported knowledge for bot $botId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+      };
+      
+      // Build URL with query parameters
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = '/kb-core/v1/ai-assistant/$botId/knowledges';
+      
+      var queryParams = <String, String>{
+        'offset': offset.toString(),
+        'limit': limit.toString(),
+        'order': order,
+        'order_field': orderField
+      };
+      
+      if (query != null && query.isNotEmpty) {
+        queryParams['q'] = query;
+      }
+      
+      final uri = Uri.parse(baseUrl + endpoint).replace(queryParameters: queryParams);
+      
+      _logger.i('Request URI: $uri');
+      
+      // Send request with timeout
+      final response = await http.get(
+        uri, 
+        headers: headers
+      ).timeout(const Duration(seconds: 15));
+      
+      _logger.i('Get imported knowledge response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        // Check if response format matches the API documentation
+        if (data['data'] != null) {
+          final knowledges = data['data'] as List<dynamic>;
+          return knowledges.map((item) => KnowledgeData.fromJson(item)).toList();
+        } else {
+          // Log unexpected format
+          _logger.w('Unknown response format: $data');
+          return [];
+        }
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return getImportedKnowledge(
+            botId: botId,
+            query: query,
+            offset: offset,
+            limit: limit,
+            orderField: orderField,
+            order: order,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to fetch imported knowledge: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to fetch imported knowledge: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error fetching imported knowledge: $e');
       rethrow;
     }
   }
