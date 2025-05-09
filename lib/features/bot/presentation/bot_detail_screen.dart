@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../models/ai_bot.dart';
+import '../models/knowledge_data.dart';
 import '../services/bot_service.dart';
 import 'bot_knowledge_screen.dart';
 import 'bot_preview_screen.dart';
@@ -8,7 +9,7 @@ import 'bot_publish_screen.dart';
 
 class BotDetailScreen extends StatefulWidget {
   final String botId;
-  
+
   const BotDetailScreen({
     super.key,
     required this.botId,
@@ -21,18 +22,20 @@ class BotDetailScreen extends StatefulWidget {
 class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProviderStateMixin {
   final Logger _logger = Logger();
   final BotService _botService = BotService();
-  
+
   late TabController _tabController;
   bool _isLoading = true;
   String _errorMessage = '';
   AIBot? _bot;
-  
+  List<KnowledgeData> _knowledgeBases = [];
+  bool _isLoadingKnowledge = false;
+
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _promptController = TextEditingController();
   String _selectedModel = 'gpt-4o-mini';
   bool _isSaving = false;
-  
+
   final List<Map<String, String>> _availableModels = [
     {'id': 'gpt-4o-mini', 'name': 'GPT-4o mini'},
     {'id': 'gpt-4o', 'name': 'GPT-4o'},
@@ -41,14 +44,14 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
     {'id': 'claude-3-haiku-20240307', 'name': 'Claude 3 Haiku'},
     {'id': 'claude-3-sonnet-20240229', 'name': 'Claude 3 Sonnet'},
   ];
-  
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _fetchBotDetails();
   }
-  
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -57,34 +60,34 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
     _promptController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _fetchBotDetails() async {
     try {
       setState(() {
         _isLoading = true;
         _errorMessage = '';
       });
-      
+
       final bot = await _botService.getBotById(widget.botId);
-      
+
       if (mounted) {
         setState(() {
           _bot = bot;
           _isLoading = false;
-          
+
           // Set up form controllers
           _nameController.text = bot.name;
           _descriptionController.text = bot.description;
           _promptController.text = bot.prompt;
           _selectedModel = bot.model;
         });
-        
+
         // Fetch knowledge bases
         _fetchKnowledgeBases();
       }
     } catch (e) {
       _logger.e('Error fetching bot details: $e');
-      
+
       if (mounted) {
         setState(() {
           _errorMessage = e.toString();
@@ -93,22 +96,136 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
       }
     }
   }
-  
+
   Future<void> _fetchKnowledgeBases() async {
     try {
-      await _botService.getKnowledgeBases();
+      setState(() {
+        _isLoadingKnowledge = true;
+      });
+
+      _logger.i('Fetching knowledge bases for bot ${widget.botId}');
+
+      // Get imported knowledge bases for this specific bot
+      final importedKnowledgeBases = await _botService.getImportedKnowledge(
+        botId: widget.botId,
+        limit: 50 // Get a reasonable limit of imported knowledge bases
+      );
+
+      // Extract IDs of imported knowledge bases
+      final importedIds = importedKnowledgeBases.map((kb) => kb.id).toList();
+
+      if (mounted && _bot != null) {
+        setState(() {
+          // Update the bot's knowledge base IDs
+          _bot = AIBot(
+            id: _bot!.id,
+            name: _bot!.name,
+            description: _bot!.description,
+            model: _bot!.model,
+            prompt: _bot!.prompt,
+            createdAt: _bot!.createdAt,
+            updatedAt: _bot!.updatedAt,
+            isPublished: _bot!.isPublished,
+            connectedPlatforms: _bot!.connectedPlatforms,
+            knowledgeBaseIds: importedIds, // Update with the actual imported knowledge base IDs
+          );
+
+          // Store the knowledge bases for display
+          _knowledgeBases = importedKnowledgeBases;
+          _isLoadingKnowledge = false;
+        });
+
+        _logger.i('Bot now has ${importedIds.length} knowledge bases');
+      }
     } catch (e) {
       _logger.e('Error fetching knowledge bases: $e');
-      // Don't set error state since this is secondary data
+      if (mounted) {
+        setState(() {
+          _isLoadingKnowledge = false;
+        });
+      }
     }
   }
-  
+
+  Future<void> _removeKnowledgeBase(KnowledgeData knowledge) async {
+    try {
+      setState(() {
+        _isLoadingKnowledge = true;
+      });
+
+      await _botService.removeKnowledge(
+        botId: widget.botId,
+        knowledgeBaseId: knowledge.id,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Removed "${knowledge.name}" from bot'),
+          backgroundColor: Colors.orange,
+          action: SnackBarAction(
+            label: 'UNDO',
+            textColor: Colors.white,
+            onPressed: () {
+              _addKnowledgeBack(knowledge);
+            },
+          ),
+        ),
+      );
+
+      // Refresh knowledge bases
+      _fetchKnowledgeBases();
+    } catch (e) {
+      _logger.e('Error removing knowledge base: $e');
+
+      if (mounted) {
+        setState(() {
+          _isLoadingKnowledge = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _addKnowledgeBack(KnowledgeData knowledge) async {
+    try {
+      await _botService.importKnowledge(
+        botId: widget.botId,
+        knowledgeBaseIds: [knowledge.id],
+      );
+
+      // Refresh knowledge bases
+      _fetchKnowledgeBases();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added "${knowledge.name}" back to bot'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      _logger.e('Error adding knowledge base back: $e');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _saveChanges() async {
     try {
       setState(() {
         _isSaving = true;
       });
-      
+
       await _botService.updateBot(
         botId: widget.botId,
         name: _nameController.text,
@@ -116,23 +233,23 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
         model: _selectedModel,
         prompt: _promptController.text,
       );
-      
+
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Bot updated successfully'),
           backgroundColor: Colors.green,
         ),
       );
-      
+
       // Refresh bot details
       _fetchBotDetails();
     } catch (e) {
       _logger.e('Error saving bot changes: $e');
-      
+
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to update bot: ${e.toString()}'),
@@ -147,7 +264,7 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
       }
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -201,7 +318,7 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
                             enabled: !_isSaving,
                           ),
                           const SizedBox(height: 16),
-                          
+
                           DropdownButtonFormField<String>(
                             value: _selectedModel,
                             decoration: const InputDecoration(
@@ -225,7 +342,7 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
                                   },
                           ),
                           const SizedBox(height: 16),
-                          
+
                           TextFormField(
                             controller: _descriptionController,
                             decoration: const InputDecoration(
@@ -236,7 +353,7 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
                             enabled: !_isSaving,
                           ),
                           const SizedBox(height: 16),
-                          
+
                           TextFormField(
                             controller: _promptController,
                             decoration: const InputDecoration(
@@ -248,7 +365,7 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
                             enabled: !_isSaving,
                           ),
                           const SizedBox(height: 32),
-                          
+
                           ElevatedButton(
                             onPressed: _isSaving ? null : _saveChanges,
                             style: ElevatedButton.styleFrom(
@@ -268,38 +385,138 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
                         ],
                       ),
                     ),
-                    
-                    // Knowledge Tab (Placeholder - will navigate to full screen)
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Knowledge Bases: ${_bot?.knowledgeBaseIds.length ?? 0}',
-                            style: const TextStyle(fontSize: 18),
+
+                    // Knowledge Tab with list of knowledge bases
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Knowledge Base',
+                                style: Theme.of(context).textTheme.headlineMedium,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Choose a knowledge base below to add knowledge units.',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              if (_bot != null) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => BotKnowledgeScreen(
-                                      botId: _bot!.id,
-                                      knowledgeBaseIds: _bot!.knowledgeBaseIds,
+                        ),
+                        const Divider(height: 1),
+
+                        // List of knowledge bases
+                        _isLoadingKnowledge
+                            ? const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(32.0),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              )
+                            : _knowledgeBases.isEmpty
+                                ? Expanded(
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(
+                                            Icons.book,
+                                            size: 64,
+                                            color: Colors.grey,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          const Text(
+                                            'No knowledge bases added yet',
+                                            style: TextStyle(fontSize: 18),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          ElevatedButton.icon(
+                                            onPressed: () {
+                                              if (_bot != null) {
+                                                _navigateToKnowledgeScreen();
+                                              }
+                                            },
+                                            icon: const Icon(Icons.add),
+                                            label: const Text('Add Knowledge'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Theme.of(context).primaryColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                : Expanded(
+                                    child: Column(
+                                      children: [
+                                        // Knowledge list
+                                        Expanded(
+                                          child: ListView.separated(
+                                            itemCount: _knowledgeBases.length,
+                                            separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.black26),
+                                            itemBuilder: (context, index) {
+                                              final knowledge = _knowledgeBases[index];
+                                              return ListTile(
+                                                leading: const Icon(Icons.description, color: Colors.blue),
+                                                title: Text(knowledge.name, style: const TextStyle(color: Colors.white)),
+                                                trailing: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    IconButton(
+                                                      icon: const Icon(Icons.delete_outline),
+                                                      color: Colors.grey,
+                                                      onPressed: () => _removeKnowledgeBase(knowledge),
+                                                      tooltip: 'Remove',
+                                                    ),
+                                                    IconButton(
+                                                      icon: const Icon(Icons.arrow_forward),
+                                                      color: Colors.blue,
+                                                      onPressed: () {
+                                                        // Navigate to knowledge detail screen (not implemented in this example)
+                                                      },
+                                                      tooltip: 'View Details',
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+
+                                        // Add more knowledge button
+                                        Padding(
+                                          padding: const EdgeInsets.all(16.0),
+                                          child: SizedBox(
+                                            width: double.infinity,
+                                            child: ElevatedButton.icon(
+                                              onPressed: () => _navigateToKnowledgeScreen(),
+                                              style: ElevatedButton.styleFrom(
+                                                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(30),
+                                                ),
+                                                backgroundColor: Colors.blue,
+                                              ),
+                                              icon: const Icon(Icons.add, color: Colors.white),
+                                              label: const Text(
+                                                'Add More Knowledge',
+                                                style: TextStyle(color: Colors.white),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ).then((_) => _fetchBotDetails());
-                              }
-                            },
-                            icon: const Icon(Icons.book),
-                            label: const Text('Manage Knowledge'),
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
-                    
+
                     // Preview Tab (Placeholder - will navigate to full screen)
                     Center(
                       child: Column(
@@ -336,7 +553,7 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
                         ],
                       ),
                     ),
-                    
+
                     // Publish Tab (Placeholder - will navigate to full screen)
                     Center(
                       child: Column(
@@ -381,5 +598,17 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
         child: const Icon(Icons.save),
       ) : null,
     );
+  }
+
+  void _navigateToKnowledgeScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BotKnowledgeScreen(
+          botId: _bot!.id,
+          knowledgeBaseIds: _bot!.knowledgeBaseIds,
+        ),
+      ),
+    ).then((_) => _fetchBotDetails());
   }
 }
