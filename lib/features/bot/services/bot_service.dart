@@ -469,102 +469,6 @@ class BotService {
     }
   }
   
-  // Import knowledge to an AI Bot
-  Future<bool> importKnowledge({
-    required String botId, 
-    required List<String> knowledgeBaseIds
-  }) async {
-    try {
-      _logger.i('Importing knowledge to bot $botId');
-      
-      // Get access token
-      final accessToken = _authService.accessToken;
-      if (accessToken == null) {
-        throw 'No access token available. Please log in again.';
-      }
-      
-      // Process each knowledge base ID individually as per API spec
-      bool allSuccess = true;
-      List<String> failedIds = [];
-      
-      for (final knowledgeId in knowledgeBaseIds) {
-        try {
-          _logger.i('Importing knowledge ID $knowledgeId to bot $botId');
-          
-          // Prepare headers
-          final headers = {
-            'Authorization': 'Bearer $accessToken',
-            'Content-Type': 'application/json'
-          };
-          
-          // No request body needed according to the OpenAPI spec
-          // The endpoint URL includes both the assistant ID and knowledge ID
-          
-          // Build URL with the correct path format: /kb-core/v1/ai-assistant/{assistantId}/knowledges/{knowledgeId}
-          const baseUrl = ApiConstants.kbCoreApiUrl;
-          final endpoint = '/kb-core/v1/ai-assistant/$botId/knowledges/$knowledgeId';
-          final uri = Uri.parse(baseUrl + endpoint);
-          
-          _logger.i('Sending request to: $uri');
-          
-          // Send request - using POST method as specified in the API
-          final response = await http.post(
-            uri,
-            headers: headers,
-          );
-          
-          _logger.i('Import knowledge response status: ${response.statusCode}');
-          
-          // Accept 200, 201, and 204 as successful status codes
-          // 204 means "No Content" - request succeeded but no content is returned
-          if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 204) {
-            _logger.i('Knowledge $knowledgeId imported successfully');
-          } else if (response.statusCode == 401) {
-            // Token expired, try to refresh
-            _logger.w('Token expired, attempting to refresh...');
-            final refreshSuccess = await _authService.refreshToken();
-            
-            if (refreshSuccess) {
-              // Recursive call to retry with new token for this knowledge ID
-              return importKnowledge(
-                botId: botId,
-                knowledgeBaseIds: [knowledgeId],
-              );
-            } else {
-              throw 'Authentication expired. Please log in again.';
-            }
-          } else {
-            _logger.e('Failed to import knowledge $knowledgeId: ${response.statusCode}');
-            _logger.e('Response body: ${response.body}');
-            
-            allSuccess = false;
-            failedIds.add(knowledgeId);
-          }
-        } catch (e) {
-          _logger.e('Error importing knowledge $knowledgeId: $e');
-          allSuccess = false;
-          failedIds.add(knowledgeId);
-        }
-      }
-      
-      if (!allSuccess) {
-        if (failedIds.length == knowledgeBaseIds.length) {
-          // All imports failed
-          throw 'Failed to import all knowledge bases: ${failedIds.join(", ")}';
-        } else {
-          // Some imports failed, but not all
-          _logger.w('Some knowledge bases failed to import: ${failedIds.join(", ")}');
-          return true; // Return true since some succeeded
-        }
-      }
-      
-      return true;
-    } catch (e) {
-      _logger.e('Error importing knowledge: $e');
-      rethrow;
-    }
-  }
-  
   // Remove knowledge from an AI Bot
   Future<bool> removeKnowledge({
     required String botId, 
@@ -584,11 +488,9 @@ class BotService {
         'Authorization': 'Bearer $accessToken',
       };
       
-      // Build URL - using kbCoreApiUrl instead of jarvisApiUrl
+      // Build URL with correct path format: /kb-core/v1/ai-assistant/{assistantId}/knowledges/{knowledgeId}
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = ApiConstants.assistantKnowledgeById
-          .replaceAll('{assistantId}', botId)
-          .replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      final endpoint = '/kb-core/v1/ai-assistant/$botId/knowledges/$knowledgeBaseId';
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1856,6 +1758,102 @@ class BotService {
         'message': 'Connection error: $e',
         'timestamp': DateTime.now().toIso8601String(),
       };
+    }
+  }
+
+  // Import knowledge bases to an AI Bot
+  Future<bool> importKnowledge({
+    required String botId, 
+    required List<String> knowledgeBaseIds
+  }) async {
+    try {
+      _logger.i('Importing knowledge to bot $botId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Process each knowledge base ID individually as per API spec
+      bool allSuccess = true;
+      List<String> failedIds = [];
+      
+      for (final knowledgeId in knowledgeBaseIds) {
+        try {
+          _logger.i('Importing knowledge ID $knowledgeId to bot $botId');
+          
+          // Prepare headers
+          final headers = {
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json'
+          };
+          
+          // No request body needed according to the OpenAPI spec
+          // The endpoint URL includes both the assistant ID and knowledge ID
+          
+          // Build URL with the correct path format: /kb-core/v1/ai-assistant/{assistantId}/knowledges/{knowledgeId}
+          const baseUrl = ApiConstants.kbCoreApiUrl;
+          final endpoint = '/kb-core/v1/ai-assistant/$botId/knowledges/$knowledgeId';
+          final uri = Uri.parse(baseUrl + endpoint);
+          
+          _logger.i('Sending request to: $uri');
+          
+          // Send request - using POST method as specified in the API
+          final response = await http.post(
+            uri,
+            headers: headers,
+          );
+          
+          _logger.i('Import knowledge response status: ${response.statusCode}');
+          
+          // Accept 200, 201, and 204 as successful status codes
+          // 204 means "No Content" - request succeeded but no content is returned
+          if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 204) {
+            _logger.i('Knowledge $knowledgeId imported successfully');
+          } else if (response.statusCode == 401) {
+            // Token expired, try to refresh
+            _logger.w('Token expired, attempting to refresh...');
+            final refreshSuccess = await _authService.refreshToken();
+            
+            if (refreshSuccess) {
+              // Recursive call to retry with new token for this knowledge ID
+              return importKnowledge(
+                botId: botId,
+                knowledgeBaseIds: [knowledgeId],
+              );
+            } else {
+              throw 'Authentication expired. Please log in again.';
+            }
+          } else {
+            _logger.e('Failed to import knowledge $knowledgeId: ${response.statusCode}');
+            _logger.e('Response body: ${response.body}');
+            
+            allSuccess = false;
+            failedIds.add(knowledgeId);
+          }
+        } catch (e) {
+          _logger.e('Error importing knowledge $knowledgeId: $e');
+          allSuccess = false;
+          failedIds.add(knowledgeId);
+        }
+      }
+      
+      if (!allSuccess) {
+        if (failedIds.length == knowledgeBaseIds.length) {
+          // All imports failed
+          throw 'Failed to import all knowledge bases: ${failedIds.join(", ")}';
+        } else {
+          // Some imports failed, but not all
+          _logger.w('Some knowledge bases failed to import: ${failedIds.join(", ")}');
+          return true; // Return true since some succeeded
+        }
+      }
+      
+      return true;
+    } catch (e) {
+      _logger.e('Error importing knowledge: $e');
+      rethrow;
     }
   }
 }
