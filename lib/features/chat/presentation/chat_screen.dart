@@ -23,6 +23,8 @@ import '../../../widgets/information.dart'
         InformationVariant,
         InformationIndicator;
 import '../../../features/subscription/presentation/subscription_screen.dart';
+import '../../../features/bot/services/bot_service.dart';
+import '../../../features/bot/models/ai_bot.dart';
 import 'package:flutter/services.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -48,6 +50,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   );
   final AdManager _adManager = AdManager();
   final Logger _logger = Logger();
+  final BotService _botService = BotService(); // Added BotService
 
   bool _isLoading = true;
   bool _isPro = false;
@@ -290,20 +293,91 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       if (_currentConversationId == null) {
         _logger.i('No conversation ID found - creating a new conversation automatically');
       } else {
+        // Check if we're using a custom bot
+      bool isCustomBot = false;
+      for (final assistant in _AssistantSelectorState().assistants) {
+        if (assistant.id == _selectedAssistantId && assistant.isCustomBot) {
+          isCustomBot = true;
+          break;
+        }
+      }
+
+      _logger.i('Sending message to ${isCustomBot ? "custom bot" : "AI model"}: $_selectedAssistantId');
+      
+      if (isCustomBot) {
+        // Handle custom bot response using BotService
+        try {
+          final botResponse = await _botService.askBot(
+            botId: _selectedAssistantId,
+            message: message,
+          );
+          
+          _logger.i('Received bot response');
+
+          if (mounted) {
+            setState(() {
+              if (_messages.isNotEmpty) {
+                _messages[_messages.length - 1] = ConversationMessage(
+                  query: message,
+                  answer: botResponse,
+                  createdAt: _messages[_messages.length - 1].createdAt,
+                  files: [],
+                );
+              }
+              _isSending = false;
+              _isTyping = false;
+              _sendButtonController.reverse();
+            });
+
+            // Show an ad occasionally for free users
+            if (!_isPro) {
+              _adManager.maybeShowInterstitialAd(context);
+            }
+          }
+        } catch (e) {
+          _logger.e('Error sending message to custom bot: $e');
+          
+          if (mounted) {
+            setState(() {
+              if (_messages.isNotEmpty) {
+                _messages[_messages.length - 1] = ConversationMessage(
+                  query: message,
+                  answer: 'Error: ${e.toString()}',
+                  createdAt: _messages[_messages.length - 1].createdAt,
+                  files: [],
+                );
+              }
+              _isSending = false;
+              _isTyping = false;
+              _sendButtonController.reverse();
+            });
+
+            // Show error message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error with bot: ${e.toString()}'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        }
+      } else {
+        // Original code for AI models with ChatService
         _logger.i('Sending message with conversation ID: $_currentConversationId');
       }
 
-      // Always send message - conversation ID will be null for new conversations
+        // Always send message - conversation ID will be null for new conversations
       // which will automatically create a new conversation on the server
-      Map<String, dynamic> response;
-      try {
-        response = await _chatService.sendMessage(
-          content: message,
-          assistantId: _selectedAssistantId,
-          conversationId: _currentConversationId,
-        );
-
-        _logger.i('Received response: ${jsonEncode(response)}');
+        Map<String, dynamic> response;
+        try {
+          response = await _chatService.sendMessage(
+            content: message,
+            assistantId: _selectedAssistantId,
+            conversationId: _currentConversationId,
+          );
+  
+          _logger.i('Received response: ${jsonEncode(response)}');
 
         if (mounted) {
           String answer = '';
@@ -362,119 +436,120 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             answer = (response['answers'] as List<dynamic>).first.toString();
           }
 
-          setState(() {
-            if (_messages.isNotEmpty) {
-              _messages[_messages.length - 1] = ConversationMessage(
-                query: message,
-                answer: answer,
-                createdAt: _messages[_messages.length - 1].createdAt,
-                files: [],
-              );
-            }
-            _isSending = false;
-            _isTyping = false;
-            _sendButtonController.reverse();
-          });
+            setState(() {
+              if (_messages.isNotEmpty) {
+                _messages[_messages.length - 1] = ConversationMessage(
+                  query: message,
+                  answer: answer,
+                  createdAt: _messages[_messages.length - 1].createdAt,
+                  files: [],
+                );
+              }
+              _isSending = false;
+              _isTyping = false;
+              _sendButtonController.reverse();
+            });
           
           // Scroll to bottom after receiving AI response
           _scrollToBottom();
 
-          // Show an ad occasionally for free users
-          if (!_isPro) {
-            _adManager.maybeShowInterstitialAd(context);
+            // Show an ad occasionally for free users
+            if (!_isPro) {
+              _adManager.maybeShowInterstitialAd(context);
+            }
           }
-        }
-      } catch (e) {
-        _logger.e('Error sending message (first attempt): $e');
+        } catch (e) {
+          _logger.e('Error sending message (first attempt): $e');
+  
+          // Check for token-related errors
+          if (e.toString().toLowerCase().contains('insufficient') ||
+              e.toString().toLowerCase().contains('token') ||
+              e.toString().toLowerCase().contains('quota') ||
+              e.toString().toLowerCase().contains('limit')) {
+              // Handle insufficient tokens error
+            _handleInsufficientTokensError();
+            return;
+          }
 
-        // Check for token-related errors
-        if (e.toString().toLowerCase().contains('insufficient') ||
-            e.toString().toLowerCase().contains('token') ||
-            e.toString().toLowerCase().contains('quota') ||
-            e.toString().toLowerCase().contains('limit')) {
-          // Handle insufficient tokens error
-          _handleInsufficientTokensError();
-          return;
-        }
-
-        // If the message fails, try to create a new conversation
-        if (_currentConversationId != null) {
-          try {
-            _currentConversationId = null;
-            response = await _chatService.sendMessage(
-              content: message,
-              assistantId: _selectedAssistantId,
-              conversationId: null, // Force creating a new conversation
-            );
-
-            _logger.i(
+          // If the message fails, try to create a new conversation
+          if (_currentConversationId != null) {
+            try {
+              _currentConversationId = null;
+              response = await _chatService.sendMessage(
+                content: message,
+                assistantId: _selectedAssistantId,
+                conversationId: null, // Force creating a new conversation
+              );
+  
+              _logger.i(
                 'Retry successful, received response: ${jsonEncode(response)}');
 
-            if (mounted) {
-              String answer = '';
-              String? newConversationId;
-
-              // Extract conversation ID
-              if (response.containsKey('conversation_id')) {
-                newConversationId = response['conversation_id'];
-              }
-
-              _currentConversationId = newConversationId;
-              _logger.i(
+              if (mounted) {
+                String answer = '';
+                String? newConversationId;
+  
+                // Extract conversation ID
+                if (response.containsKey('conversation_id')) {
+                  newConversationId = response['conversation_id'];
+                }
+  
+                _currentConversationId = newConversationId;
+                _logger.i(
                   'New conversation created with ID: $_currentConversationId');
               
               // Clear the conversation cache to ensure the drawer shows the new conversation
               _chatService.clearCache();
-
-              // Extract answer text
-              if (response.containsKey('answers') &&
-                  response['answers'] is List &&
-                  (response['answers'] as List).isNotEmpty) {
-                answer =
+  
+                // Extract answer text
+                if (response.containsKey('answers') &&
+                    response['answers'] is List &&
+                    (response['answers'] as List).isNotEmpty) {
+                  answer =
                     (response['answers'] as List<dynamic>).first.toString();
+                }
+
+                setState(() {
+                  if (_messages.isNotEmpty) {
+                    _messages[_messages.length - 1] = ConversationMessage(
+                      query: message,
+                      answer: answer,
+                      createdAt: _messages[_messages.length - 1].createdAt,
+                      files: [],
+                    );
+                  }
+                  _isSending = false;
+                  _isTyping = false;
+                  _sendButtonController.reverse();
+                });
+              }
+            } catch (e2) {
+              _logger.e('Error sending message (retry attempt): $e2');
+  
+              // Check if this is also a token error
+              if (e2.toString().toLowerCase().contains('insufficient') ||
+                  e2.toString().toLowerCase().contains('token') ||
+                  e2.toString().toLowerCase().contains('quota') ||
+                  e2.toString().toLowerCase().contains('limit')) {
+                  // Handle insufficient tokens error
+                _handleInsufficientTokensError();
+                return;
               }
 
-              setState(() {
-                if (_messages.isNotEmpty) {
-                  _messages[_messages.length - 1] = ConversationMessage(
-                    query: message,
-                    answer: answer,
-                    createdAt: _messages[_messages.length - 1].createdAt,
-                    files: [],
-                  );
-                }
-                _isSending = false;
-                _isTyping = false;
-                _sendButtonController.reverse();
-              });
-            }
-          } catch (e2) {
-            _logger.e('Error sending message (retry attempt): $e2');
-
-            // Check if this is also a token error
-            if (e2.toString().toLowerCase().contains('insufficient') ||
-                e2.toString().toLowerCase().contains('token') ||
-                e2.toString().toLowerCase().contains('quota') ||
-                e2.toString().toLowerCase().contains('limit')) {
-              // Handle insufficient tokens error
-              _handleInsufficientTokensError();
-              return;
-            }
-
-            if (mounted) {
-              setState(() {
-                if (_messages.isNotEmpty) {
-                  _messages[_messages.length - 1] = ConversationMessage(
-                    query: message,
-                    answer: 'Error: ${e2.toString()}',
-                    createdAt: _messages[_messages.length - 1].createdAt,
-                    files: [],
-                  );
-                }
-                _isSending = false;
-                _isTyping = false;
-                _sendButtonController.reverse();
-              });
+              if (mounted) {
+                setState(() {
+                  if (_messages.isNotEmpty) {
+                    _messages[_messages.length - 1] = ConversationMessage(
+                      query: message,
+                      answer: 'Error: ${e2.toString()}',
+                      createdAt: _messages[_messages.length - 1].createdAt,
+                      files: [],
+                    );
+                  }
+                  _isSending = false;
+                  _isTyping = false;
+                  _sendButtonController.reverse();
+                });
+              }
             }
           }
         }
@@ -1244,20 +1319,24 @@ class Assistant {
   final String id;
   final String name;
   final String description;
+  final bool isCustomBot;
 
   const Assistant({
     required this.id,
     required this.name,
     required this.description,
+    this.isCustomBot = false,
   });
 }
 
 class _AssistantSelectorState extends State<AssistantSelector> {
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
+  final Logger _logger = Logger();
+  final BotService _botService = BotService();
 
-  // Fixed the model list to remove duplicates and correct model names
-  final assistants = [
+  // Base AI models
+  final List<Assistant> _baseAssistants = [
     Assistant(
         id: 'gpt-4o',
         name: 'GPT-4o',
@@ -1278,7 +1357,57 @@ class _AssistantSelectorState extends State<AssistantSelector> {
         id: 'gemini-1.5-pro-latest',
         name: 'Gemini 1.5 Pro',
         description: 'Google\'s advanced AI model'),
+    Assistant(
+        id: 'deepseek-chat',
+        name: 'Deepseek Chat',
+        description: 'DeepSeek\'s conversational AI model'),
   ];
+  
+  // Custom bots from user
+  List<Assistant> _customBots = [];
+  bool _isLoadingBots = false;
+  String? _botsError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCustomBots();
+  }
+  
+  Future<void> _loadCustomBots() async {
+    if (mounted) {
+      setState(() {
+        _isLoadingBots = true;
+        _botsError = null;
+      });
+    }
+    
+    try {
+      final bots = await _botService.getBots();
+      
+      if (mounted) {
+        setState(() {
+          _customBots = bots.map((bot) => Assistant(
+            id: bot.id,
+            name: bot.name,
+            description: bot.description,
+            isCustomBot: true,
+          )).toList();
+          _isLoadingBots = false;
+        });
+      }
+    } catch (e) {
+      _logger.e('Error loading custom bots: $e');
+      if (mounted) {
+        setState(() {
+          _botsError = e.toString();
+          _isLoadingBots = false;
+        });
+      }
+    }
+  }
+
+  List<Assistant> get assistants => [..._baseAssistants, ..._customBots];
 
   void _showMenu() {
     _overlayEntry = _buildOverlayEntry();
@@ -1314,6 +1443,7 @@ class _AssistantSelectorState extends State<AssistantSelector> {
                 child: Material(
                   color: Colors.transparent,
                   child: Container(
+                    height: 400, // Fixed height with scrolling
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surface,
                       border: isDarkMode
@@ -1328,23 +1458,116 @@ class _AssistantSelectorState extends State<AssistantSelector> {
                         ),
                       ],
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        for (var assistant in assistants)
-                          _buildMenuOption(
-                            id: assistant.id,
-                            title: assistant.name,
-                            subtitle: assistant.description,
-                            selected:
-                                widget.selectedAssistantId == assistant.id,
-                            onTap: () {
-                              widget.onSelect(assistant.id);
-                              _hideMenu();
-                            },
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Text(
+                            'Base AI Models',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.primary,
+                            ),
                           ),
+                        ),
+                        Expanded(
+                          child: ListView(
+                            shrinkWrap: true,
+                            children: [
+                              // Base AI models
+                              ..._baseAssistants.map((assistant) => _buildMenuOption(
+                                id: assistant.id,
+                                title: assistant.name,
+                                subtitle: assistant.description,
+                                selected: widget.selectedAssistantId == assistant.id,
+                                isCustomBot: false,
+                                onTap: () {
+                                  widget.onSelect(assistant.id);
+                                  _hideMenu();
+                                },
+                              )),
+                              
+                              // Divider between models and bots
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Divider(),
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 4.0, top: 8.0, bottom: 8.0),
+                                      child: Text(
+                                        'Your Bots',
+                                        style: theme.textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              
+                              // Custom bots
+                              if (_isLoadingBots)
+                                Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                )
+                              else if (_botsError != null)
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(
+                                    'Error loading bots: $_botsError',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                )
+                              else if (_customBots.isEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(
+                                    'No custom bots found',
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                )
+                              else
+                                ..._customBots.map((bot) => _buildMenuOption(
+                                  id: bot.id,
+                                  title: bot.name,
+                                  subtitle: bot.description,
+                                  selected: widget.selectedAssistantId == bot.id,
+                                  isCustomBot: true,
+                                  onTap: () {
+                                    widget.onSelect(bot.id);
+                                    _hideMenu();
+                                  },
+                                )),
+                            ],
+                          ),
+                        ),
+                        
+                        // Create new bot button
+                        Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: TextButton.icon(
+                            onPressed: () {
+                              _hideMenu();
+                              Navigator.of(context).pushNamed('/bots');
+                            },
+                            icon: Icon(Icons.add),
+                            label: Text('Manage Bots'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1363,6 +1586,7 @@ class _AssistantSelectorState extends State<AssistantSelector> {
     required String subtitle,
     required bool selected,
     required VoidCallback onTap,
+    bool isCustomBot = false,
   }) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
@@ -1414,6 +1638,8 @@ class _AssistantSelectorState extends State<AssistantSelector> {
                 ],
               ),
             ),
+            if (isCustomBot)
+              Icon(Icons.smart_toy, color: color.muted, size: 16),
             const SizedBox(width: 1),
             if (selected)
               Icon(Icons.check, color: theme.colorScheme.primary, size: 20),
@@ -1426,9 +1652,17 @@ class _AssistantSelectorState extends State<AssistantSelector> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    String title = assistants
-        .firstWhere((element) => element.id == widget.selectedAssistantId)
-        .name;
+    String title = "AI Assistant";
+    bool isCustomBot = false;
+    
+    // Find the selected assistant to display its name correctly
+    for (final assistant in assistants) {
+      if (assistant.id == widget.selectedAssistantId) {
+        title = assistant.name;
+        isCustomBot = assistant.isCustomBot;
+        break;
+      }
+    }
 
     return CompositedTransformTarget(
       link: _layerLink,
@@ -1459,6 +1693,9 @@ class _AssistantSelectorState extends State<AssistantSelector> {
                 title,
                 style: theme.textTheme.titleMedium,
               ),
+              const SizedBox(width: 2),
+              if (isCustomBot)
+                Icon(Icons.smart_toy, size: 14, color: theme.colorScheme.onSurface.withOpacity(0.7)),
             ],
           ),
         ),

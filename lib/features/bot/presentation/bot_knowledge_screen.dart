@@ -53,14 +53,27 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
         _errorMessage = '';
       });
       
-      final knowledgeBases = await _botService.getKnowledgeBases();
+      // First, get all available knowledge bases
+      final allKnowledgeBases = await _botService.getKnowledgeBases();
+      
+      // Then, get knowledge bases that are already imported to this bot
+      final importedKnowledgeBases = await _botService.getImportedKnowledge(
+        botId: widget.botId,
+        limit: 50 // Get a reasonable limit of imported knowledge bases
+      );
+      
+      // Extract IDs of imported knowledge bases
+      final importedIds = importedKnowledgeBases.map((kb) => kb.id).toList();
       
       if (!mounted) return;
       
       setState(() {
-        _allKnowledgeBases = knowledgeBases;
+        _allKnowledgeBases = allKnowledgeBases;
+        _botKnowledgeBaseIds = importedIds;
         _isLoading = false;
       });
+      
+      _logger.i('Fetched ${allKnowledgeBases.length} knowledge bases, ${importedIds.length} are imported to this bot');
     } catch (e) {
       _logger.e('Error fetching knowledge bases: $e');
       
@@ -91,8 +104,9 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
         
         if (!mounted) return;
         
+        // Force UI update by creating a new list
         setState(() {
-          _botKnowledgeBaseIds.remove(knowledge.id);
+          _botKnowledgeBaseIds = List.from(_botKnowledgeBaseIds)..remove(knowledge.id);
         });
         
         // Use scaffoldMessenger instead of context
@@ -120,8 +134,9 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
         
         if (!mounted) return;
         
+        // Force UI update by creating a new list
         setState(() {
-          _botKnowledgeBaseIds.add(knowledge.id);
+          _botKnowledgeBaseIds = List.from(_botKnowledgeBaseIds)..add(knowledge.id);
         });
         
         if (!mounted) return;
