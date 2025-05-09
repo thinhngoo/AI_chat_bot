@@ -6,7 +6,7 @@ import '../services/email_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/text_field.dart';
 import '../../../widgets/button.dart';
-
+import '../../../widgets/information.dart';
 class EmailComposeScreen extends StatefulWidget {
   final String originalEmail;
   final EmailActionType actionType;
@@ -240,54 +240,18 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
           ],
         ),
         body: _isLoading
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      color: colors.foreground.withAlpha(160),
-                    ),
-                    const SizedBox(height: 16),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Composing ${widget.actionType.label.toLowerCase()} email...',
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                  ],
-                ),
-              )
+            ? 
+            InformationIndicator(
+              variant: InformationVariant.loading,
+              message: 'Composing ${widget.actionType.label.toLowerCase()} email...',
+            )
             : _errorMessage.isNotEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 48,
-                            color: colors.error,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Error generating email',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _errorMessage,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: colors.error),
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton(
-                            onPressed: _generateResponse,
-                            child: const Text('Try Again'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
+              ? InformationIndicator(
+                variant: InformationVariant.error,
+                message: _errorMessage,
+                buttonText: 'Try Again',
+                onButtonPressed: _generateResponse,
+              )
                 : Column(
                     children: [
                       Expanded(
@@ -383,19 +347,19 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                     Expanded(
                                         child: _buildImprovementCard(
                                             EmailActionType.formal)),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 4),
                                     Expanded(
                                         child: _buildImprovementCard(
                                             EmailActionType.informal)),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 4),
                                     Expanded(
                                         child: _buildImprovementCard(
                                             EmailActionType.shorter)),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 4),
                                     Expanded(
                                         child: _buildImprovementCard(
                                             EmailActionType.detailed)),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 4),
                                     Expanded(
                                         child: _buildImprovementCard(
                                             EmailActionType.urgent)),
@@ -467,9 +431,15 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                           color: colors.background,
+                          border: Border(
+                            top: BorderSide(
+                              color: colors.foreground.withAlpha(20),
+                              width: 1,
+                            ),
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: colors.foreground.withAlpha(30),
+                              color: isDarkMode ? Colors.transparent : colors.foreground.withAlpha(30),
                               blurRadius: 3,
                               offset: const Offset(0, -1),
                             ),
@@ -528,7 +498,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: _isImproving ? colors.primary.withAlpha(40) : null,
+            color: _isImproving ? colors.primary : colors.primary.withAlpha(20),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: colors.primary.withAlpha(100),
@@ -540,10 +510,12 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
             children: [
               Icon(
                 actionType.icon,
-                color: colors.primary,
+                color: _isImproving ? colors.primaryForeground : colors.primary,
                 size: 24,
               ),
+
               const SizedBox(height: 4),
+              
               Text(
                 actionType.label,
                 textAlign: TextAlign.center,

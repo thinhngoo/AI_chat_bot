@@ -48,7 +48,7 @@ enum EmailActionType {
   thanks(Icons.sentiment_very_satisfied, 'Thank You'),
   sorry(Icons.sentiment_very_dissatisfied, 'Apology'),
   followUp(Icons.follow_the_signs, 'Follow-up'),
-  requestInfo(Icons.help_outline, 'Request Info'),
+  requestInfo(Icons.help_outline, 'Ask Info'),
   positive(Icons.thumb_up, 'Positive'),
   negative(Icons.thumb_down, 'Negative'),
   formal(Icons.business, 'Formal'),

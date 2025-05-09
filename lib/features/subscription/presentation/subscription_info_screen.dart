@@ -353,7 +353,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
             if (!isPro)
               LargeButton(
                 label: 'Upgrade for Unlimited',
-                icon: Icons.workspace_premium,
+                icon: Icons.diamond,
                 onPressed: _navigateToUpgradeScreen,
                 isDarkMode: isDarkMode,
               ),
@@ -395,9 +395,9 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
             Row(
               children: [
                 Icon(
-                  isPro ? Icons.workspace_premium : Icons.account_circle,
+                  isPro ? Icons.diamond : Icons.account_circle,
                   size: 40,
-                  color: isPro ? Colors.amber : theme.colorScheme.primary,
+                  color: isPro ? isDarkMode ? Colors.amberAccent : Colors.amber : theme.colorScheme.primary,
                 ),
                 
                 const SizedBox(width: 12),
@@ -424,7 +424,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                 if (!isPro)
                   MiniGhostButton(
                     label: 'Upgrade',
-                    icon: Icons.workspace_premium,
+                    icon: Icons.diamond,
                     onPressed: onUpgrade,
                     color: colors.cardForeground,
                     isDarkMode: isDarkMode,
@@ -632,7 +632,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                 LinearProgressIndicator(
                   minHeight: 8,
                   borderRadius: BorderRadius.circular(16),
-                  value: usageStats.usagePercentage,
+                  value: isPro ? 1 : usageStats.usagePercentage,
                   backgroundColor: theme.colorScheme.onSurface.withAlpha(30),
                   valueColor: isPro ? AlwaysStoppedAnimation<Color>(colors.success) : AlwaysStoppedAnimation<Color>(
                     Color.lerp(Colors.green, Colors.red, usageStats.usagePercentage) ?? Colors.red,
