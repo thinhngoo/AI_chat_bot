@@ -479,7 +479,8 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
                 color: isDarkMode 
                     ? const Color(0xFF121212) 
                     : const Color(0xFFF5F5F5),
-                image: DecorationImage(
+                // Temporarily comment out the background image
+                /*image: DecorationImage(
                   image: const AssetImage('assets/images/chat_background.png'),
                   fit: BoxFit.cover,
                   opacity: 0.05,
@@ -487,7 +488,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
                     theme.colorScheme.primary.withAlpha(25),  // Approximately 0.1 opacity
                     BlendMode.dstATop,
                   ),
-                ),
+                ),*/
               ),
               child: ListView.builder(
                 controller: _scrollController,
