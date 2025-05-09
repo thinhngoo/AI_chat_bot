@@ -208,9 +208,8 @@ class _BotListScreenState extends State<BotListScreen>
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12.0),
                 ),
-                filled: true,
-                fillColor: isDarkMode
-                    ? Colors.grey.shade800.withOpacity(0.5)
+                filled: true,                fillColor: isDarkMode
+                    ? Colors.grey.shade800.withAlpha(127) // Changed from withOpacity(0.5) to withAlpha(127) - 0.5*255=127
                     : Colors.grey.shade50,
               ),
               onChanged: (value) {
@@ -228,9 +227,8 @@ class _BotListScreenState extends State<BotListScreen>
               child: Row(
                 children: [
                   Text(
-                    'Showing ${_filteredBots.length} of ${_bots.length} bots',
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    'Showing ${_filteredBots.length} of ${_bots.length} bots',                    style: TextStyle(
+                      color: theme.colorScheme.onSurface.withAlpha(178), // Changed from withOpacity(0.7) to withAlpha(178) - 0.7*255=178
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -240,7 +238,7 @@ class _BotListScreenState extends State<BotListScreen>
                       '${_bots.where((bot) => bot.isPublished).length} published',
                       style: const TextStyle(fontSize: 12),
                     ),
-                    backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                    backgroundColor: theme.colorScheme.primary.withAlpha(25), // Changed from withOpacity(0.1) to withAlpha(25) - 0.1*255=25
                     avatar: CircleAvatar(
                       backgroundColor: theme.colorScheme.primary,
                       radius: 10,
@@ -288,9 +286,8 @@ class _BotListScreenState extends State<BotListScreen>
                               children: [
                                 Icon(
                                   Icons.adb,
-                                  size: 72,
-                                  color: theme.colorScheme.primary
-                                      .withOpacity(0.5),
+                                  size: 72,                                  color: theme.colorScheme.primary
+                                      .withAlpha(127), // Changed from withOpacity(0.5) to withAlpha(127) - 0.5*255=127
                                 ),
                                 const SizedBox(height: 16),
                                 const Text(
@@ -341,10 +338,9 @@ class _BotListScreenState extends State<BotListScreen>
                                     const SizedBox(height: 8),
                                     Text(
                                       'Try a different search term',
-                                      style: TextStyle(
-                                        fontSize: 16,
+                                      style: TextStyle(                                        fontSize: 16,
                                         color: theme.colorScheme.onSurface
-                                            .withOpacity(0.7),
+                                            .withAlpha(178), // Changed from withOpacity(0.7) to withAlpha(178) - 0.7*255=178
                                       ),
                                     ),
                                     const SizedBox(height: 16),
@@ -456,9 +452,8 @@ class BotCard extends StatelessWidget {
                 // Bot icon
                 Container(
                   width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
+                  height: 40,                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withAlpha(25), // Changed from withOpacity(0.1) to withAlpha(25) - 0.1*255=25
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(

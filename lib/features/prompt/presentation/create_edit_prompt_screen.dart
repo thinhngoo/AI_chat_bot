@@ -7,12 +7,11 @@ import '../services/prompt_service.dart';
 class CreateEditPromptScreen extends StatefulWidget {
   final Prompt? prompt;
   final List<String> availableCategories;
-
   const CreateEditPromptScreen({
-    Key? key,
+    super.key,
     this.prompt,
     required this.availableCategories,
-  }) : super(key: key);
+  });
 
   @override
   State<CreateEditPromptScreen> createState() => _CreateEditPromptScreenState();
@@ -77,9 +76,8 @@ class _CreateEditPromptScreenState extends State<CreateEditPromptScreen> {
       final title = _titleController.text.trim();
       final content = _contentController.text.trim();
       final description = _descriptionController.text.trim();
-      
-      // Always use "other" as category which we know works with the API
-      final validCategory = "other";
+        // Always use 'other' as category which we know works with the API
+      final validCategory = 'other';
       
       if (widget.prompt == null) {
         // Create new prompt
@@ -240,9 +238,8 @@ class _CreateEditPromptScreenState extends State<CreateEditPromptScreen> {
               SwitchListTile(
                 title: const Text('Make this prompt public'),
                 subtitle: Text(
-                  'Public prompts can be seen and used by all users',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  'Public prompts can be seen and used by all users',                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(153), // ~0.6 opacity
                     fontSize: 12,
                   ),
                 ),
@@ -312,9 +309,8 @@ class _CreateEditPromptScreenState extends State<CreateEditPromptScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Text(
-        text,
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+        text,        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface.withAlpha(178), // ~0.7 opacity
           fontSize: 14,
         ),
       ),

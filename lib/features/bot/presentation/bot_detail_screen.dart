@@ -151,13 +151,12 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
     try {
       setState(() {
         _isLoadingKnowledge = true;
-      });
-
-      await _botService.removeKnowledge(
+      });      await _botService.removeKnowledge(
         botId: widget.botId,
         knowledgeBaseId: knowledge.id,
       );
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Removed "${knowledge.name}" from bot'),
@@ -197,20 +196,19 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
       await _botService.importKnowledge(
         botId: widget.botId,
         knowledgeBaseIds: [knowledge.id],
-      );
-
-      // Refresh knowledge bases
+      );      // Refresh knowledge bases
       _fetchKnowledgeBases();
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Added "${knowledge.name}" back to bot'),
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
-      _logger.e('Error adding knowledge base back: $e');
+    } catch (e) {      _logger.e('Error adding knowledge base back: $e');
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
