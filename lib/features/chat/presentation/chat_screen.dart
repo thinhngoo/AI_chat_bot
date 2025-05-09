@@ -16,8 +16,14 @@ import '../../../features/subscription/services/ad_manager.dart';
 import '../../../features/subscription/services/subscription_service.dart';
 import 'assistant_management_screen.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../widgets/information.dart';
+import '../../../widgets/information.dart'
+    show
+        SnackBarVariant,
+        GlobalSnackBar,
+        InformationVariant,
+        InformationIndicator;
 import '../../../features/subscription/presentation/subscription_screen.dart';
+import 'package:flutter/services.dart';
 
 class ChatScreen extends StatefulWidget {
   final Function toggleTheme;
@@ -58,7 +64,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   // Animation controllers
   late AnimationController _sendButtonController;
 
-  String _selectedAssistantId = 'gpt-4o'; // Changed from 'gpt-4.1' to 'gpt-4o' which is definitely supported
+  String _selectedAssistantId = 'gpt-4o';
 
   // Prompt selector state
   bool _showPromptSelector = false;
@@ -158,8 +164,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         if (conversations.isEmpty) {
           setState(() {
             _isLoading = false;
-            _errorMessage =
-                'No conversations found. Start a new conversation below!';
+            // Don't set error message for new users with no conversations
             _currentConversationId = null;
           });
           return;
@@ -200,10 +205,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
         _logger.e('Error in _fetchConversationHistory: $e');
 
-        ScaffoldMessenger.of(context).showSnackBar(
+        GlobalSnackBar.showSnackBar(
+          context,
           SnackBar(
             content: Text('Unable to load conversations: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
             duration: const Duration(seconds: 5),
             action: _currentConversationId != null
                 ? SnackBarAction(
@@ -213,7 +219,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         _currentConversationId = null;
                         _messages = [];
                       });
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      GlobalSnackBar.hideCurrent(context);
                     },
                   )
                 : null,
@@ -237,9 +243,25 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
 
+  // Helper method to scroll to the bottom of the chat
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
+
+    // Hide keyboard when sending a message
+    FocusScope.of(context).unfocus();
 
     setState(() {
       _isSending = true;
@@ -252,7 +274,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
       final userMessage = ConversationMessage(
         query: message,
-        answer: 'Thinking...',
+        answer: '',
         createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
         files: [],
       );
@@ -260,21 +282,19 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       setState(() {
         _messages = [..._messages, userMessage];
       });
+      
+      // Scroll to bottom after adding user message
+      _scrollToBottom();
 
-      // Auto-scroll to bottom when a new message is added
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
+      // Check if this is a new conversation
+      if (_currentConversationId == null) {
+        _logger.i('No conversation ID found - creating a new conversation automatically');
+      } else {
+        _logger.i('Sending message with conversation ID: $_currentConversationId');
+      }
 
-      _logger.i('Sending message with conversation ID: $_currentConversationId');
-
-      // Try with retry logic if first attempt fails
+      // Always send message - conversation ID will be null for new conversations
+      // which will automatically create a new conversation on the server
       Map<String, dynamic> response;
       try {
         response = await _chatService.sendMessage(
@@ -282,58 +302,62 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           assistantId: _selectedAssistantId,
           conversationId: _currentConversationId,
         );
-        
+
         _logger.i('Received response: ${jsonEncode(response)}');
 
         if (mounted) {
           String answer = '';
           String? newConversationId = _currentConversationId;
           int? remainingUsage;
-          
+
           // Extract conversation ID from different possible locations in response
           if (response.containsKey('conversation_id')) {
             newConversationId = response['conversation_id'];
           }
-          
+
           // Get remaining usage if available
           if (response.containsKey('remaining_usage')) {
             remainingUsage = response['remaining_usage'];
             _logger.i('Remaining tokens: $remainingUsage');
-            
+
             // If tokens are running low, show a warning
             if (remainingUsage != null && remainingUsage < 10) {
               // Show a warning once the message is processed
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('You are running low on tokens. Your remaining usage: $remainingUsage tokens.'),
-                      backgroundColor: Colors.orange,
-                      duration: const Duration(seconds: 5),
-                      action: SnackBarAction(
-                        label: 'Upgrade',
-                        onPressed: () {
-                          // Navigate to subscription screen
-                          _navigateToSubscriptionScreen();
-                          _logger.i('User clicked upgrade button from low tokens warning');
-                        },
-                      ),
-                    ),
+                  GlobalSnackBar.show(
+                    context: context,
+                    message:
+                        'You are running low on tokens. Your remaining usage: $remainingUsage tokens.',
+                    variant: SnackBarVariant.warning,
+                    duration: const Duration(seconds: 5),
+                    actionLabel: 'Upgrade',
+                    onActionPressed: () {
+                      // Navigate to subscription screen
+                      _navigateToSubscriptionScreen();
+                      _logger.i(
+                          'User clicked upgrade button from low tokens warning');
+                    },
                   );
                 }
               });
             }
           }
-          
+
           // Update conversation ID if we got a new one
-          if (newConversationId != null && (_currentConversationId == null || _currentConversationId != newConversationId)) {
+          if (newConversationId != null &&
+              (_currentConversationId == null ||
+                  _currentConversationId != newConversationId)) {
             _currentConversationId = newConversationId;
             _logger.i('Updated conversation ID to: $_currentConversationId');
+            
+            // Clear the conversation cache to ensure the drawer shows the new conversation
+            _chatService.clearCache();
           }
-          
+
           // Extract answer text
-          if (response.containsKey('answers') && 
-              response['answers'] is List && 
+          if (response.containsKey('answers') &&
+              response['answers'] is List &&
               (response['answers'] as List).isNotEmpty) {
             answer = (response['answers'] as List<dynamic>).first.toString();
           }
@@ -351,6 +375,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             _isTyping = false;
             _sendButtonController.reverse();
           });
+          
+          // Scroll to bottom after receiving AI response
+          _scrollToBottom();
 
           // Show an ad occasionally for free users
           if (!_isPro) {
@@ -359,13 +386,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         }
       } catch (e) {
         _logger.e('Error sending message (first attempt): $e');
-        
+
         // Check for token-related errors
-        if (e.toString().toLowerCase().contains('insufficient') || 
+        if (e.toString().toLowerCase().contains('insufficient') ||
             e.toString().toLowerCase().contains('token') ||
             e.toString().toLowerCase().contains('quota') ||
             e.toString().toLowerCase().contains('limit')) {
-          
           // Handle insufficient tokens error
           _handleInsufficientTokensError();
           return;
@@ -380,26 +406,32 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               assistantId: _selectedAssistantId,
               conversationId: null, // Force creating a new conversation
             );
-            
-            _logger.i('Retry successful, received response: ${jsonEncode(response)}');
+
+            _logger.i(
+                'Retry successful, received response: ${jsonEncode(response)}');
 
             if (mounted) {
               String answer = '';
               String? newConversationId;
-              
+
               // Extract conversation ID
               if (response.containsKey('conversation_id')) {
                 newConversationId = response['conversation_id'];
               }
-              
+
               _currentConversationId = newConversationId;
-              _logger.i('New conversation created with ID: $_currentConversationId');
+              _logger.i(
+                  'New conversation created with ID: $_currentConversationId');
               
+              // Clear the conversation cache to ensure the drawer shows the new conversation
+              _chatService.clearCache();
+
               // Extract answer text
-              if (response.containsKey('answers') && 
-                  response['answers'] is List && 
+              if (response.containsKey('answers') &&
+                  response['answers'] is List &&
                   (response['answers'] as List).isNotEmpty) {
-                answer = (response['answers'] as List<dynamic>).first.toString();
+                answer =
+                    (response['answers'] as List<dynamic>).first.toString();
               }
 
               setState(() {
@@ -418,13 +450,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             }
           } catch (e2) {
             _logger.e('Error sending message (retry attempt): $e2');
-            
+
             // Check if this is also a token error
-            if (e2.toString().toLowerCase().contains('insufficient') || 
+            if (e2.toString().toLowerCase().contains('insufficient') ||
                 e2.toString().toLowerCase().contains('token') ||
                 e2.toString().toLowerCase().contains('quota') ||
                 e2.toString().toLowerCase().contains('limit')) {
-              
               // Handle insufficient tokens error
               _handleInsufficientTokensError();
               return;
@@ -463,13 +494,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             'Error with conversation. Starting a new chat on next message.';
         _logger.i('Reset conversation ID due to error');
       }
-      
+
       // Check for token-related errors
-      else if (errorMessage.toLowerCase().contains('insufficient') || 
-               errorMessage.toLowerCase().contains('token') ||
-               errorMessage.toLowerCase().contains('quota') ||
-               errorMessage.toLowerCase().contains('limit')) {
-        
+      else if (errorMessage.toLowerCase().contains('insufficient') ||
+          errorMessage.toLowerCase().contains('token') ||
+          errorMessage.toLowerCase().contains('quota') ||
+          errorMessage.toLowerCase().contains('limit')) {
         // Handle insufficient tokens error
         _handleInsufficientTokensError();
         return;
@@ -489,94 +519,82 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _sendButtonController.reverse();
       });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error sending message: $errorMessage'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-            action: _currentConversationId != null
-                ? SnackBarAction(
-                    label: 'New Chat',
-                    onPressed: () {
-                      setState(() {
-                        _currentConversationId = null;
-                        _messages = [];
-                      });
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    },
-                  )
-                : null,
-          ),
-        );
-      }
+      // Use the safe method that handles mounted check internally
+      GlobalSnackBar.showSafe(
+        this,
+        message: 'Error sending message: $errorMessage',
+        variant: SnackBarVariant.error,
+        duration: const Duration(seconds: 5),
+        actionLabel: _currentConversationId != null ? 'New Chat' : null,
+        onActionPressed: _currentConversationId != null
+            ? () {
+                setState(() {
+                  _currentConversationId = null;
+                  _messages = [];
+                });
+                GlobalSnackBar.hideCurrent(context);
+              }
+            : null,
+      );
     }
   }
-  
+
   void _handleInsufficientTokensError() {
     if (!mounted) return;
-    
-    // Update the UI to show error in message
+
+    // Remove the last message that was just sent
     setState(() {
       if (_messages.isNotEmpty) {
-        _messages[_messages.length - 1] = ConversationMessage(
-          query: _messages[_messages.length - 1].query,
-          answer: 'Error: Insufficient tokens. Please upgrade your subscription to continue chatting.',
-          createdAt: _messages[_messages.length - 1].createdAt,
-          files: [],
-        );
+        // Remove the last message completely
+        _messages.removeLast();
       }
       _isSending = false;
       _isTyping = false;
       _sendButtonController.reverse();
     });
-    
-    // Show a more detailed error with an action to upgrade
+
+    // Show a detailed error with an action to upgrade
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('You have run out of tokens. Please upgrade your subscription to continue using the AI chat.'),
-          backgroundColor: Colors.deepOrange,
-          duration: const Duration(seconds: 10),
-          action: SnackBarAction(
-            label: 'Upgrade',
-            textColor: Colors.white,
-            onPressed: () {
-              // Navigate to subscription screen
-              _navigateToSubscriptionScreen();
-              _logger.i('User clicked upgrade button after seeing insufficient tokens error');
-            },
-          ),
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message:
+            'You have run out of tokens. Please upgrade your subscription to continue using the AI chat.',
+        variant: SnackBarVariant.error,
+        duration: const Duration(seconds: 10),
+        actionLabel: 'Upgrade',
+        onActionPressed: () {
+          // Navigate to subscription screen
+          _navigateToSubscriptionScreen();
+          _logger.i(
+              'User clicked upgrade button after seeing insufficient tokens error');
+        },
       );
     });
   }
-  
+
   // Helper method to navigate to subscription or pricing
   void _navigateToSubscriptionScreen() async {
     // Direct to external pricing URL
     const String pricingUrl = 'https://dev.jarvis.cx/pricing';
-    
+
     try {
       _logger.i('Opening pricing page: $pricingUrl');
-      
+
       // Launch the pricing URL in the browser
       final Uri url = Uri.parse(pricingUrl);
       if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-        throw 'Không thể mở trang nâng cấp tài khoản';
+        throw 'Unable to open subscription upgrade page';
       }
     } catch (e) {
       _logger.e('Error opening pricing page: $e');
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Không thể mở trang nâng cấp: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
+
+      // Use the safe method that handles mounted check internally
+      GlobalSnackBar.showSafe(
+        this,
+        message: 'Unable to open upgrade page: $e',
+        variant: SnackBarVariant.error,
+        duration: const Duration(seconds: 3),
+      );
     }
   }
 
@@ -588,9 +606,323 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         return assistant.name;
       }
     }
-    
+
     // Fallback if not found - just format the ID nicely
     return modelId.toUpperCase().replaceAll('-', ' ');
+  }
+
+  // Build the chat messages widget
+  Widget _buildChatMessages(ThemeData theme, dynamic colors) {
+    if (_isLoading ||
+        (_errorMessage.isNotEmpty && _messages.isEmpty) ||
+        _messages.isEmpty) {
+      return Expanded(
+        child: _isLoading
+            ? InformationIndicator(
+                variant: InformationVariant.loading,
+              )
+            : _errorMessage.isNotEmpty && _messages.isEmpty
+                ? InformationIndicator(
+                    variant: InformationVariant.error,
+                    message: _errorMessage,
+                    buttonText: 'Retry',
+                    onButtonPressed: _fetchConversationHistory,
+                  )
+                : Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.auto_awesome,
+                          size: 64,
+                          color: colors.muted.withAlpha(128),
+                        ),
+                      ],
+                    ),
+                  ),
+      );
+    }
+
+    return Expanded(
+      child: ListView.builder(
+        controller: _scrollController,
+        reverse: false,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        itemCount: _messages.length,
+        itemBuilder: (context, index) {
+          final message = _messages[index];
+          final isUserMessage = message.query.isNotEmpty;
+          final messageText = isUserMessage ? message.query : message.answer;
+
+          // Display both query and answer for each message
+          if (isUserMessage) {
+            return Padding(
+              // Add padding to the bottom of the message
+              padding: const EdgeInsets.only(bottom: 28.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // User question bubble
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20),
+                              bottomLeft: Radius.circular(20),
+                              bottomRight: Radius.circular(4),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withAlpha(13),
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: SelectableText(
+                            message.query,
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurface,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // AI answer - simplified, no bubble UI
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8, right: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Only hide the answer if this is the last message and we're currently typing
+                        if (!(_isTyping && index == _messages.length - 1)) ...[
+                          SelectableText(
+                            message.answer,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          if (message.answer.isNotEmpty)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: IconButton(
+                                icon: Icon(
+                                  Icons.copy,
+                                  size: 18,
+                                  color: colors.muted,
+                                ),
+                                tooltip: 'Copy to clipboard',
+                                padding: const EdgeInsets.only(left: 0),
+                                visualDensity: const VisualDensity(horizontal: -4.0, vertical: 0),
+                                onPressed: () {
+                                  // Copy message to clipboard
+                                  Clipboard.setData(
+                                      ClipboardData(text: message.answer));
+
+                                  // Show a snackbar confirmation
+                                  GlobalSnackBar.show(
+                                    context: context,
+                                    message: 'Response copied to clipboard',
+                                    variant: SnackBarVariant.success,
+                                    duration: const Duration(seconds: 2),
+                                  );
+                                },
+                              ),
+                            ),
+                        ],
+                        // Show typing indicator for the last message when typing
+                        if (_isTyping && index == _messages.length - 1)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4.0, left: 4.0),
+                            child: TypingIndicator(isTyping: true),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          } else {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 32.0, left: 8, right: 16),
+              child: SelectableText(
+                messageText,
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface,
+                  height: 1.4,
+                ),
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  // Build the message input area widget
+  Widget _buildMessageInputArea(
+      ThemeData theme, bool isDarkMode, dynamic colors) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(6, 4, 6, 8),
+      margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 6.0),
+      decoration: BoxDecoration(
+        color: colors.input,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colors.border,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(13),
+            blurRadius: 5,
+            offset: const Offset(0, -1),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Message text field row
+            TextField(
+              controller: _messageController,
+              focusNode: _messageFocusNode,
+              maxLines: 5,
+              minLines: 1,
+              textInputAction: TextInputAction.newline,
+              keyboardType: TextInputType.multiline,
+              cursorColor: colors.inputForeground,
+              decoration: InputDecoration(
+                fillColor: colors.input,
+                filled: true,
+                hintText: 'Type a message or / for prompts...',
+                border: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                isDense: true,
+                hintStyle: TextStyle(
+                  color: colors.muted,
+                ),
+              ),
+              onSubmitted: (_) => _sendMessage(),
+              onChanged: (text) {
+                setState(() {
+                  // This forces the send button to update
+                });
+              },
+            ),
+
+            // Buttons row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    // Voice input button
+                    IconButton(
+                      icon: Icon(
+                        Icons.mic_none,
+                        color: colors.muted,
+                      ),
+                      onPressed: () {
+                        GlobalSnackBar.show(
+                          context: context,
+                          message: 'Voice input coming soon',
+                          variant: SnackBarVariant.info,
+                        );
+                      },
+                    ),
+
+                    // Image upload button
+                    IconButton(
+                      icon: Icon(
+                        Icons.image_outlined,
+                        color: colors.muted,
+                      ),
+                      onPressed: () {
+                        GlobalSnackBar.show(
+                          context: context,
+                          message: 'Image upload coming soon',
+                          variant: SnackBarVariant.info,
+                        );
+                      },
+                    ),
+
+                    // Prompt selector
+                    IconButton(
+                      icon: Icon(
+                        Icons.format_quote,
+                        color: colors.muted,
+                      ),
+                      onPressed: () {
+                        // Show the prompt selector dialog directly with empty query
+                        PromptSelector.show(context, '', _handlePromptSelected);
+                      },
+                    ),
+                  ],
+                ),
+
+                // Send button
+                AnimatedBuilder(
+                  animation: _sendButtonController,
+                  builder: (context, child) {
+                    final bool showLoading = _sendButtonController.status ==
+                            AnimationStatus.forward ||
+                        _sendButtonController.status ==
+                            AnimationStatus.completed;
+                    final bool isDisabled =
+                        _messageController.text.trim().isEmpty || _isSending;
+
+                    return Material(
+                      color: isDisabled
+                          ? colors.muted.withAlpha(30)
+                          : colors.inputForeground,
+                      borderRadius: BorderRadius.circular(24),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(24),
+                        onTap: isDisabled ? null : _sendMessage,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          child: showLoading
+                              ? SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      colors.muted,
+                                    ),
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.arrow_upward,
+                                  color: isDisabled
+                                      ? colors.muted.withAlpha(128)
+                                      : colors.input,
+                                  size: 24,
+                                ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildChatHistoryDrawer(ThemeData theme, bool isDarkMode) {
@@ -607,7 +939,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Lịch sử chat',
+                    'Chat History',
                     style: TextStyle(
                       color: theme.colorScheme.onPrimary,
                       fontSize: 24,
@@ -623,15 +955,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         _messages = [];
                       });
                       Navigator.pop(context); // Close the drawer
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Đã bắt đầu cuộc trò chuyện mới'),
-                          duration: Duration(seconds: 2),
-                        ),
+                      GlobalSnackBar.show(
+                        context: context,
+                        message: 'Started a new conversation',
+                        variant: SnackBarVariant.success,
+                        duration: const Duration(seconds: 2),
                       );
                     },
                     icon: const Icon(Icons.add),
-                    label: const Text('Chat mới'),
+                    label: const Text('New Chat'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
                           isDarkMode ? Colors.teal.shade700 : Colors.white,
@@ -703,13 +1035,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xóa cuộc trò chuyện'),
+        title: const Text('Delete Conversation'),
         content:
-            const Text('Bạn có chắc chắn muốn xóa cuộc trò chuyện này không?'),
+            const Text('Are you sure you want to delete this conversation?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () async {
@@ -726,20 +1058,33 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   });
                 }
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đã xóa cuộc trò chuyện')),
+                // Store context in variable to capture when button was pressed
+                final BuildContext contextCaptured = context;
+
+                // Use the safe method that handles mounted check internally
+                GlobalSnackBar.showSafe(
+                  this,
+                  message: 'Conversation deleted',
+                  variant: SnackBarVariant.success,
                 );
 
-                // Close and reopen drawer to refresh
-                Navigator.pop(context);
-                Scaffold.of(context).openDrawer();
+                // Check if widget is still mounted before navigating
+                if (mounted) {
+                  // Close and reopen drawer to refresh
+                  Navigator.pop(contextCaptured);
+                  Scaffold.of(contextCaptured).openDrawer();
+                }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Không thể xóa: $e')),
+                // Use the safe method that handles mounted check internally
+                GlobalSnackBar.showSafe(
+                  this,
+                  message: 'Unable to delete: $e',
+                  variant: SnackBarVariant.error,
+                  duration: const Duration(seconds: 3),
                 );
               }
             },
-            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -774,8 +1119,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           _isLoading = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading conversation: $e')),
+        GlobalSnackBar.show(
+          context: context,
+          message: 'Error loading conversation: $e',
+          variant: SnackBarVariant.error,
+          duration: const Duration(seconds: 3),
         );
       }
     }
@@ -794,7 +1142,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           builder: (context) => Padding(
             padding: const EdgeInsets.all(8.0),
             child: IconButton(
-              icon: const Icon(Icons.menu),
+              icon: Icon(Icons.menu, color: colors.foreground),
               tooltip: 'Chat History',
               onPressed: () {
                 Scaffold.of(context).openDrawer();
@@ -809,43 +1157,54 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               _logger.i('Switching model from $_selectedAssistantId to $id');
               setState(() {
                 _selectedAssistantId = id;
-                
+
                 // Reset conversation ID when changing models to avoid thinking state problems
                 _currentConversationId = null;
-                
-                // Remove any "Thinking..." messages that might be present
-                _messages = _messages.where((message) => 
-                  message.answer != 'Thinking...').toList();
-                
+
+                // Remove any messages with empty answers that might be in the typing state
+                _messages = _messages
+                    .where((message) => message.answer.isNotEmpty)
+                    .toList();
+
                 // Reset loading states
                 _isSending = false;
                 _isTyping = false;
                 _sendButtonController.reverse();
               });
-              
+
               // Show a small confirmation
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Switched to ${_getModelDisplayName(id)}'),
-                  duration: const Duration(seconds: 1),
-                ),
+              GlobalSnackBar.show(
+                context: context,
+                message: 'Switched to ${_getModelDisplayName(id)}',
+                variant: SnackBarVariant.info,
+                duration: const Duration(seconds: 1),
               );
             }
           },
         ),
         centerTitle: true,
         actions: [
-          // Light/dark mode toggle
+          // New chat button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: IconButton(
               icon: Icon(
-                isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                semanticLabel:
-                    isDarkMode ? 'Switch to light mode' : 'Switch to dark mode',
+                Icons.edit_document,
+                color: colors.foreground,
               ),
-              tooltip: isDarkMode ? 'Light mode' : 'Dark mode',
-              onPressed: () => widget.toggleTheme(),
+              tooltip: 'New conversation',
+              onPressed: () {
+                setState(() {
+                  _currentConversationId = null;
+                  _messages = [];
+                });
+                GlobalSnackBar.show(
+                  context: context,
+                  message: 'Started a new conversation',
+                  variant: SnackBarVariant.success,
+                  duration: const Duration(seconds: 2),
+                );
+              },
             ),
           ),
         ],
@@ -857,340 +1216,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             // Show ad banner for free users
             if (!_isPro) const AdBannerWidget(),
 
-            // Empty conversation state or loading state
-            if (_isLoading ||
-                (_errorMessage.isNotEmpty && _messages.isEmpty) ||
-                _messages.isEmpty)
-              Expanded(
-                child: _isLoading
-                    ? InformationIndicator(
-                        variant: InformationVariant.loading,
-                        message: 'Loading conversations...',
-                      )
-                    : _errorMessage.isNotEmpty && _messages.isEmpty
-                        ? InformationIndicator(
-                            variant: InformationVariant.error,
-                            message: _errorMessage,
-                            buttonText: 'Retry',
-                            onButtonPressed: _fetchConversationHistory,
-                          )
-                        : Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.chat_bubble,
-                                  size: 64,
-                                  color: colors.muted.withAlpha(128),
-                                ),
-                              ],
-                            ),
-                          ),
-              ),
+            _buildChatMessages(theme, colors),
 
-            // Chat messages
-            if (!_isLoading && _errorMessage.isEmpty && _messages.isNotEmpty)
-              Expanded(
-                child: ListView.builder(
-                  controller: _scrollController,
-                  reverse: false,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  itemCount: _messages.length,
-                  itemBuilder: (context, index) {
-                    final message = _messages[index];
-                    final isUserMessage =
-                        message.query != null && message.query.isNotEmpty;
-                    final messageText =
-                        isUserMessage ? message.query : message.answer;
-                    final messageDate = DateTime.fromMillisecondsSinceEpoch(
-                        message.createdAt * 1000);
-                    final isLastMessage = index == _messages.length - 1;
-
-                    // Display both query and answer for each message
-                    if (isUserMessage) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // User query
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Flexible(
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.surface,
-                                      borderRadius: BorderRadius.only(
-                                        topLeft: const Radius.circular(20),
-                                        topRight: const Radius.circular(20),
-                                        bottomLeft: const Radius.circular(20),
-                                        bottomRight: const Radius.circular(4),
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withAlpha(13),
-                                          blurRadius: 5,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: SelectableText(
-                                      message.query,
-                                      style: TextStyle(
-                                        color: theme.colorScheme.onSurface,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-
-                            // AI answer - simplified, no bubble UI
-                            Padding(
-                              padding: const EdgeInsets.only(left: 8, right: 16),
-                              child: SelectableText(
-                                message.answer,
-                                style: TextStyle(
-                                  color: theme.colorScheme.onSurface,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    } else {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0, left: 8, right: 16),
-                        child: SelectableText(
-                          messageText,
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurface,
-                            height: 1.4,
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ),
-
-            // Show typing indicator when AI is thinking
-            // if (_isTyping)
-            // if (true)
-            //   Align(
-            //     alignment: Alignment.centerLeft,
-            //     child: Padding(
-            //       padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
-            //       child: TypingIndicator(isTyping: true),
-            //     ),
-            //   ),
-
-            // Message input area
-            Container(
-              padding: const EdgeInsets.fromLTRB(6, 4, 6, 8),
-              margin:
-                  const EdgeInsets.symmetric(horizontal: 4.0, vertical: 6.0),
-              decoration: BoxDecoration(
-                color: colors.input,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: colors.border,
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(13),
-                    blurRadius: 5,
-                    offset: const Offset(0, -1),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    // Message text field row
-                    TextField(
-                      controller: _messageController,
-                      focusNode: _messageFocusNode,
-                      maxLines: null,
-                      minLines: 1,
-                      textInputAction: TextInputAction.newline,
-                      keyboardType: TextInputType.multiline,
-                      cursorColor: colors.inputForeground,
-                      decoration: InputDecoration(
-                        fillColor: colors.input,
-                        filled: true,
-                        hintText: 'Type a message or / for prompts...',
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12, horizontal: 8),
-                        isDense: true,
-                        hintStyle: TextStyle(
-                          color:
-                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                        ),
-                      ),
-                      onSubmitted: (_) => _sendMessage(),
-                      onChanged: (text) {
-                        setState(() {
-                          // This forces the send button to update
-                        });
-                      },
-                    ),
-
-                    // Buttons row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            // Voice input button
-                            IconButton(
-                              icon: Icon(
-                                Icons.mic_none,
-                                color: colors.muted,
-                              ),
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Voice input coming soon')),
-                                );
-                              },
-                            ),
-
-                            // Image upload button
-                            IconButton(
-                              icon: Icon(
-                                Icons.image_outlined,
-                                color: colors.muted,
-                              ),
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content:
-                                          Text('Image upload coming soon')),
-                                );
-                              },
-                            ),
-
-                            // Prompt selector
-                            IconButton(
-                              icon: Icon(
-                                Icons.format_quote,
-                                color: colors.muted,
-                              ),
-                              onPressed: () {
-                                // Show the prompt selector dialog directly with empty query
-                                PromptSelector.show(
-                                    context, '', _handlePromptSelected);
-                              },
-                            ),
-
-                            // Create new prompt button
-                            IconButton(
-                              icon: Icon(
-                                Icons.add_box_outlined,
-                                color: colors.muted,
-                              ),
-                              onPressed: _createNewPrompt,
-                            ),
-                          ],
-                        ),
-
-                        // Send button
-                        AnimatedBuilder(
-                          animation: _sendButtonController,
-                          builder: (context, child) {
-                            final bool showLoading =
-                                _sendButtonController.status ==
-                                        AnimationStatus.forward ||
-                                    _sendButtonController.status ==
-                                        AnimationStatus.completed;
-
-                            return Material(
-                              color: _messageController.text.isNotEmpty
-                                  ? colors.inputForeground
-                                  : colors.muted.withAlpha(30),
-                              borderRadius: BorderRadius.circular(24),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(24),
-                                onTap: (_messageController.text
-                                            .trim()
-                                            .isNotEmpty &&
-                                        !_isSending)
-                                    ? _sendMessage
-                                    : null,
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  child: showLoading
-                                      ? SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                              colors.muted,
-                                            ),
-                                          ),
-                                        )
-                                      : Icon(
-                                          Icons.arrow_upward,
-                                          color: _messageController.text
-                                                  .trim()
-                                                  .isEmpty
-                                              ? colors.muted.withAlpha(128)
-                                              : colors.input,
-                                          size: 24,
-                                        ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildMessageInputArea(theme, isDarkMode, colors),
           ],
         ),
-      ),
-      floatingActionButton: _messages.isNotEmpty
-          ? Container(
-              margin: const EdgeInsets.only(bottom: 90),
-              child: FloatingActionButton(
-                onPressed: () {
-                  setState(() {
-                    _currentConversationId = null;
-                    _messages = [];
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Started a new conversation'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-                tooltip: 'New chat',
-                backgroundColor: colors.card,
-                child: const Icon(Icons.add, size: 24),
-              ),
-            )
-          : null,
-      floatingActionButtonLocation: _ShiftedFloatingActionButtonLocation(
-        FloatingActionButtonLocation.endFloat,
-        10.0, // Shift 8px to the right
       ),
     );
   }
@@ -1225,7 +1255,7 @@ class Assistant {
 class _AssistantSelectorState extends State<AssistantSelector> {
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
-  
+
   // Fixed the model list to remove duplicates and correct model names
   final assistants = [
     Assistant(
@@ -1242,7 +1272,7 @@ class _AssistantSelectorState extends State<AssistantSelector> {
         description: 'Quick responses with Claude AI'),
     Assistant(
         id: 'claude-3-sonnet-20240229',
-        name: 'Claude 3 Sonnet', 
+        name: 'Claude 3 Sonnet',
         description: 'More powerful Claude model'),
     Assistant(
         id: 'gemini-1.5-pro-latest',
@@ -1384,6 +1414,7 @@ class _AssistantSelectorState extends State<AssistantSelector> {
                 ],
               ),
             ),
+            const SizedBox(width: 1),
             if (selected)
               Icon(Icons.check, color: theme.colorScheme.primary, size: 20),
           ],
@@ -1419,7 +1450,7 @@ class _AssistantSelectorState extends State<AssistantSelector> {
                 width: 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: Colors.green,
+                  color: theme.colorScheme.primary,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -1433,19 +1464,6 @@ class _AssistantSelectorState extends State<AssistantSelector> {
         ),
       ),
     );
-  }
-}
-
-class _ShiftedFloatingActionButtonLocation extends FloatingActionButtonLocation {
-  final FloatingActionButtonLocation location;
-  final double offsetX;
-
-  _ShiftedFloatingActionButtonLocation(this.location, this.offsetX);
-
-  @override
-  Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
-    final Offset offset = location.getOffset(scaffoldGeometry);
-    return Offset(offset.dx + offsetX, offset.dy);
   }
 }
 
@@ -1473,7 +1491,7 @@ class _ChatHistoryList extends StatefulWidget {
 class _ChatHistoryListState extends State<_ChatHistoryList> {
   final Logger _logger = Logger();
   final ChatService _chatService = ChatService();
-  
+
   // Local cache for faster UI rendering
   List<Map<String, dynamic>>? _conversations;
   bool _isLoading = true;
@@ -1510,7 +1528,7 @@ class _ChatHistoryListState extends State<_ChatHistoryList> {
         assistantId: widget.selectedAssistantId,
         limit: 20,
       );
-      
+
       if (mounted) {
         setState(() {
           _conversations = conversations;
@@ -1533,7 +1551,7 @@ class _ChatHistoryListState extends State<_ChatHistoryList> {
     if (title != null && title.isNotEmpty) {
       return title.length > 30 ? '${title.substring(0, 27)}...' : title;
     }
-    
+
     // Use first_message as fallback if available
     final firstMessage = conversation['first_message'] as String? ?? '';
     if (firstMessage.isNotEmpty) {
@@ -1552,14 +1570,14 @@ class _ChatHistoryListState extends State<_ChatHistoryList> {
         // Ignore parsing errors
       }
     }
-    
+
     return 'Untitled Conversation';
   }
 
   String _getConversationTimestamp(dynamic conversation) {
     final createdAtStr = conversation['createdAt'] as String?;
     if (createdAtStr == null) return '';
-    
+
     try {
       final date = DateTime.parse(createdAtStr);
       final now = DateTime.now();
@@ -1586,7 +1604,7 @@ class _ChatHistoryListState extends State<_ChatHistoryList> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    
+
     // Show loading spinner while fetching conversations
     if (_isLoading) {
       return const Center(
@@ -1633,7 +1651,7 @@ class _ChatHistoryListState extends State<_ChatHistoryList> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Chưa có cuộc trò chuyện nào',
+              'No conversations yet',
               style: TextStyle(
                 color: theme.colorScheme.onSurface.withAlpha(153),
               ),

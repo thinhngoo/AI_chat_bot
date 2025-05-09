@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 
 /// Utility class for handling and formatting errors consistently throughout the app
@@ -62,23 +61,6 @@ class ErrorUtils {
     );
   }
   
-  /// Show a snackbar with error message
-  static void showErrorSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 5),
-        action: StackBarAction(
-          label: 'OK',
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
-      ),
-    );
-  }
-  
   /// Format API errors based on common response patterns
   static String formatApiError(Map<String, dynamic> errorResponse) {
     // Check for standard error message field
@@ -118,14 +100,4 @@ class ErrorUtils {
     // Default message if no known field is found
     return 'Đã xảy ra lỗi không xác định.';
   }
-}
-
-/// Custom action for error snackbars
-class StackBarAction extends SnackBarAction {
-  const StackBarAction({
-    required super.label,
-    required super.onPressed,
-    super.key,
-    super.textColor = Colors.white,
-  });
 }

@@ -173,8 +173,6 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
-    final AppColors colors = AppColors.dark;
-
     return AuthBackground(
       child: SafeArea(
         child: _isSuccess

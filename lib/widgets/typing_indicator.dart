@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// A typing indicator widget that shows animated dots
-/// to indicate the other person is typing
 class TypingIndicator extends StatefulWidget {
   final bool isTyping;
 
-  /// Creates a typing indicator
-  ///
-  /// [isTyping] determines whether the typing animation is active
   const TypingIndicator({
     super.key,
     required this.isTyping,
@@ -72,20 +67,11 @@ class _TypingIndicatorState extends State<TypingIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDarkTheme = theme.brightness == Brightness.dark;
-
     return SizeTransition(
       sizeFactor: _indicatorSpaceAnimation,
       axisAlignment: -1.0,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        decoration: BoxDecoration(
-          color: isDarkTheme
-              ? Colors.grey[800]?.withAlpha(64)
-              : Colors.grey[200]?.withAlpha(64),
-          borderRadius: BorderRadius.circular(16.0),
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
@@ -98,19 +84,16 @@ class _TypingIndicatorState extends State<TypingIndicator>
                 // Use the controller's value to calculate opacity and scale
                 final value = _calculateAnimationValue(delay);
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                  child: Transform.scale(
-                    scale: 0.8 + (value * 0.4),
-                    child: Opacity(
-                      opacity: 0.4 + (value * 0.6),
-                      child: Container(
-                        width: 8.0,
-                        height: 8.0,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.onSurface.withAlpha(240),
-                          shape: BoxShape.circle,
-                        ),
+                return Transform.scale(
+                  scale: 0.8 + (value * 0.4),
+                  child: Opacity(
+                    opacity: 0.4 + (value * 0.6),
+                    child: Container(
+                      width: 12.0,
+                      height: 8.0,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
+                        shape: BoxShape.circle,
                       ),
                     ),
                   ),

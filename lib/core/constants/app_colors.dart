@@ -32,6 +32,8 @@ abstract class AppColors {
   Color get errorForeground;
   Color get success;
   Color get successForeground;
+  Color get warning;
+  Color get warningForeground;
   Color get delete;
   Color get deleteForeground;
 
@@ -85,19 +87,23 @@ class DarkColors implements AppColors {
 
   // Border colors
   @override
-  final Color border = Colors.grey.shade700;
+  final Color border = Colors.grey.shade800;
   @override
   final Color ring = const Color(0xFFD4C9C9);
 
   // Additional colors
   @override
-  final Color error = const Color(0xFFE57373);
+  final Color error = Colors.redAccent;
   @override
-  final Color errorForeground = const Color(0xFFD32F2F);
+  final Color errorForeground = const Color(0xFFFFFFFF);
   @override
-  final Color success = Colors.greenAccent;
+  final Color success = Colors.green;
   @override
-  final Color successForeground = const Color(0xFF388E3C);
+  final Color successForeground = const Color(0xFFFFFFFF);
+  @override
+  final Color warning = Colors.orangeAccent;
+  @override
+  final Color warningForeground = const Color(0xFFFFFFFF);
   @override
   final Color delete = const Color(0xFFE57373);
   @override
@@ -137,15 +143,15 @@ class LightColors implements AppColors {
   @override
   final Color card = const Color(0xFFFFFFFF);
   @override
-  final Color cardForeground = const Color(0xFF0F1419);
+  final Color cardForeground = const Color(0xFF0A0A0A);
   @override
   final Color button = const Color(0xFFFFFFFF);
   @override
-  final Color buttonForeground = const Color(0xFF0F1419);
+  final Color buttonForeground = const Color(0xFF0A0A0A);
   @override
   final Color input = const Color(0xFFFFFFFF);
   @override
-  final Color inputForeground = const Color(0xFF131416);
+  final Color inputForeground = const Color(0xFF0A0A0A);
 
   // Border colors
   @override
@@ -155,15 +161,19 @@ class LightColors implements AppColors {
 
   // Additional colors
   @override
-  final Color error = const Color(0xFFEF4444);
+  final Color error = Colors.red;
   @override
   final Color errorForeground = const Color(0xFFFFFFFF);
   @override
-  final Color success = const Color(0xFF22C55E);
+  final Color success = Colors.green;
   @override
   final Color successForeground = const Color(0xFFFFFFFF);
   @override
-  final Color delete = const Color(0xFFEF4444);
+  final Color warning = Colors.orange;
+  @override
+  final Color warningForeground = const Color(0xFFFFFFFF);
+  @override
+  final Color delete = Colors.red;
   @override
   final Color deleteForeground = const Color(0xFFFFFFFF);
 }
