@@ -198,8 +198,8 @@ class _EmailScreenState extends State<EmailScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Icon(
-                Icons.verified,
-                color: colors.primary,
+                Icons.diamond,
+                color: isDarkMode ? Colors.amberAccent : Colors.amber,
               ),
             ),
         ],
@@ -208,7 +208,6 @@ class _EmailScreenState extends State<EmailScreen> {
         onTap: () => FocusScope.of(context).unfocus(),
         child: Column(
           children: [
-            // Show ad banner for free users
             if (!_isPro) const AdBannerWidget(),
 
             Expanded(
@@ -216,26 +215,29 @@ class _EmailScreenState extends State<EmailScreen> {
                 controller: _scrollController,
                 padding: const EdgeInsets.all(16.0),
                 children: [
-                  // Section title
                   Text(
                     'AI Email Assistant',
                     style: theme.textTheme.headlineMedium,
                   ),
+
                   const SizedBox(height: 8),
+                  
                   Text(
                     'Get AI help composing professional emails for any situation',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: colors.muted,
                     ),
                   ),
+                  
                   const SizedBox(height: 24),
 
-                  // Email input section
                   Text(
                     'First, paste the email you received:',
                     style: theme.textTheme.bodyMedium,
                   ),
+
                   const SizedBox(height: 8),
+                  
                   CustomTextField(
                     controller: _originalEmailController,
                     label: 'Email Content',
@@ -248,8 +250,9 @@ class _EmailScreenState extends State<EmailScreen> {
                       setState(() {}); // Trigger rebuild to update button state
                     },
                   ),
+                  
                   const SizedBox(height: 12),
-                  // Delete button
+                  
                   if (_originalEmailController.text.isNotEmpty)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -263,9 +266,9 @@ class _EmailScreenState extends State<EmailScreen> {
                         ),
                       ],
                     ),
+                  
                   const SizedBox(height: 12),
 
-                  // Sample emails section
                   Wrap(
                     alignment: WrapAlignment.start,
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -302,7 +305,6 @@ class _EmailScreenState extends State<EmailScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Get suggestions button
                   LargeButton(
                     label: 'Get AI Suggestions',
                     icon: Icons.auto_awesome,
@@ -315,7 +317,6 @@ class _EmailScreenState extends State<EmailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Error message
                   if (_errorMessage.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.all(12.0),
@@ -376,8 +377,8 @@ class _EmailScreenState extends State<EmailScreen> {
                           const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         childAspectRatio: 1.5,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 6,
+                        mainAxisSpacing: 6,
                       ),
                       itemCount: _suggestions.length,
                       itemBuilder: (context, index) {
@@ -403,8 +404,8 @@ class _EmailScreenState extends State<EmailScreen> {
                   // Email action types
                   GridView.count(
                     crossAxisCount: 3,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 1,
+                    crossAxisSpacing: 1,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
@@ -433,8 +434,8 @@ class _EmailScreenState extends State<EmailScreen> {
                   // Formatting options
                   GridView.count(
                     crossAxisCount: 3,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 1,
+                    crossAxisSpacing: 1,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
@@ -480,9 +481,11 @@ class _EmailScreenState extends State<EmailScreen> {
                   children: [
                     Icon(
                       suggestion.actionType.icon,
-                      color: theme.colorScheme.primary,
+                      color: colors.primary,
                     ),
+
                     const SizedBox(width: 8),
+                    
                     Text(
                       suggestion.actionType.label,
                       style: theme.textTheme.headlineSmall,
@@ -520,7 +523,9 @@ class _EmailScreenState extends State<EmailScreen> {
 
     return Card(
       elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: InkWell(
         onTap: isDisabled ? null : () => _navigateToComposeScreen(actionType),
         borderRadius: BorderRadius.circular(12),
@@ -533,14 +538,19 @@ class _EmailScreenState extends State<EmailScreen> {
               children: [
                 Icon(
                   actionType.icon,
-                  size: 36,
-                  color: isDisabled ? colors.muted : colors.primary,
+                  size: 32,
+                  color: colors.primary,
                 ),
+
                 const SizedBox(height: 8),
+                
                 Text(
                   actionType.label,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.headlineSmall,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colors.cardForeground,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
