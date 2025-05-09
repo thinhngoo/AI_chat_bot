@@ -117,7 +117,7 @@ class PromptService {
     required String description,
     required String category,
     required bool isPublic,
-    String language = "English", // Add default language parameter
+    String language = 'English', // Add default language parameter
   }) async {
     try {
       // Ensure auth service is initialized
@@ -194,7 +194,7 @@ class PromptService {
     required String description,
     required String category,
     required bool isPublic,
-    String language = "English", // Add default language parameter
+    String language = 'English', // Add default language parameter
   }) async {
     try {
       // Ensure auth service is initialized
@@ -214,8 +214,8 @@ class PromptService {
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$promptId');
       
       // Use a simple fixed category to avoid potential issues
-      final String validCategory = "other";
-      
+      final String validCategory = 'other';
+
       final body = jsonEncode({
         'title': title,
         'content': content,
