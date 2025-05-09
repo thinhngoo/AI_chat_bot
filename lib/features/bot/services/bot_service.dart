@@ -341,14 +341,14 @@ class BotService {
       // Build request body - only include fields that are provided
       final Map<String, dynamic> body = {};
       
-      if (name != null) body['name'] = name;
+      if (name != null) body['assistantName'] = name; // Changed to 'assistantName' to match API spec
       if (description != null) body['description'] = description;
       if (model != null) body['model'] = model;
       if (prompt != null) body['instructions'] = prompt; // API expects 'instructions'
       
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.botById.replaceAll('{botId}', botId);
+      // Build URL - Using kbCoreApiUrl and assistantById instead of jarvisApiUrl and botById
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = ApiConstants.assistantById.replaceAll('{assistantId}', botId);
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -365,6 +365,16 @@ class BotService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         _logger.i('Bot updated successfully');
+        
+        // Update cache if it exists
+        if (_cachedBots != null) {
+          final index = _cachedBots!.indexWhere((b) => b.id == botId);
+          if (index >= 0) {
+            final updatedBot = AIBot.fromJson(data);
+            _cachedBots![index] = updatedBot;
+          }
+        }
+        
         return AIBot.fromJson(data);
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
@@ -413,9 +423,9 @@ class BotService {
         'Authorization': 'Bearer $accessToken',
       };
       
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.botById.replaceAll('{botId}', botId);
+      // Build URL - Using kbCoreApiUrl and assistantById instead of jarvisApiUrl and botById
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = ApiConstants.assistantById.replaceAll('{assistantId}', botId);
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -427,6 +437,12 @@ class BotService {
       
       if (response.statusCode == 200 || response.statusCode == 204) {
         _logger.i('Bot deleted successfully');
+        
+        // Invalidate cache
+        if (_cachedBots != null) {
+          _cachedBots!.removeWhere((bot) => bot.id == botId);
+        }
+        
         return true;
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
