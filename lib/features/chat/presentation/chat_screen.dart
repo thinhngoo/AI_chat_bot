@@ -1640,7 +1640,6 @@ class _ChatHistoryList extends StatefulWidget {
   final Function(String) onDeleteConversation;
   final bool isDarkMode;
   const _ChatHistoryList({
-    super.key,
     required this.selectedAssistantId,
     required this.currentConversationId,
     required this.onConversationSelected,
