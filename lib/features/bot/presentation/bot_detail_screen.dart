@@ -457,30 +457,100 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
                                       children: [
                                         // Knowledge list
                                         Expanded(
-                                          child: ListView.separated(
+                                          child: ListView.builder(
                                             itemCount: _knowledgeBases.length,
-                                            separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.black26),
+                                            padding: const EdgeInsets.all(8.0),
                                             itemBuilder: (context, index) {
                                               final knowledge = _knowledgeBases[index];
-                                              return ListTile(
-                                                leading: const Icon(Icons.description, color: Colors.blue),
-                                                title: Text(knowledge.name, style: const TextStyle(color: Colors.white)),
-                                                trailing: Row(
-                                                  mainAxisSize: MainAxisSize.min,
+                                              return Card(
+                                                margin: const EdgeInsets.symmetric(
+                                                  horizontal: 8.0,
+                                                  vertical: 6.0,
+                                                ),
+                                                elevation: 2,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  side: BorderSide(
+                                                    color: Theme.of(context).colorScheme.primary,
+                                                    width: 1
+                                                  ),
+                                                ),
+                                                child: Column(
                                                   children: [
-                                                    IconButton(
-                                                      icon: const Icon(Icons.delete_outline),
-                                                      color: Colors.grey,
-                                                      onPressed: () => _removeKnowledgeBase(knowledge),
-                                                      tooltip: 'Remove',
+                                                    ListTile(
+                                                      title: Text(
+                                                        knowledge.name,
+                                                        style: const TextStyle(
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                      subtitle: Text(
+                                                        knowledge.description,
+                                                        style: TextStyle(
+                                                          color: Colors.grey[300],
+                                                        ),
+                                                      ),
+                                                      leading: CircleAvatar(
+                                                        backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(25),
+                                                        child: Icon(
+                                                          _getKnowledgeTypeIcon(knowledge.type),
+                                                          color: Theme.of(context).colorScheme.primary,
+                                                        ),
+                                                      ),
+                                                      trailing: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          IconButton(
+                                                            icon: const Icon(Icons.delete_outline),
+                                                            color: Colors.grey,
+                                                            onPressed: () => _removeKnowledgeBase(knowledge),
+                                                            tooltip: 'Remove',
+                                                          ),
+                                                          IconButton(
+                                                            icon: const Icon(Icons.arrow_forward),
+                                                            color: Colors.blue,
+                                                            onPressed: () {
+                                                              // Navigate to knowledge detail screen (not implemented in this example)
+                                                            },
+                                                            tooltip: 'View Details',
+                                                          ),
+                                                        ],
+                                                      ),
                                                     ),
-                                                    IconButton(
-                                                      icon: const Icon(Icons.arrow_forward),
-                                                      color: Colors.blue,
-                                                      onPressed: () {
-                                                        // Navigate to knowledge detail screen (not implemented in this example)
-                                                      },
-                                                      tooltip: 'View Details',
+                                                    
+                                                    // Additional details
+                                                    Padding(
+                                                      padding: const EdgeInsets.only(
+                                                        left: 16.0, 
+                                                        right: 16.0,
+                                                        bottom: 12.0,
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                        children: [
+                                                          // Document count
+                                                          Chip(
+                                                            label: Text(
+                                                              '${knowledge.documentCount} documents',
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                color: Theme.of(context).colorScheme.onSurface,
+                                                              ),
+                                                            ),
+                                                            backgroundColor: Theme.of(context).colorScheme.surface,
+                                                          ),
+                                                          
+                                                          // Last updated
+                                                          Text(
+                                                            'Updated: ${_formatDate(knowledge.updatedAt)}',
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                              color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
                                                     ),
                                                   ],
                                                 ),
@@ -610,5 +680,41 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
         ),
       ),
     ).then((_) => _fetchBotDetails());
+  }
+
+  IconData _getKnowledgeTypeIcon(KnowledgeType type) {
+    switch (type) {
+      case KnowledgeType.document:
+        return Icons.description;
+      case KnowledgeType.website:
+        return Icons.language;
+      case KnowledgeType.googleDrive:
+        return Icons.drive_folder_upload;
+      case KnowledgeType.slack:
+        return Icons.chat;
+      case KnowledgeType.confluence:
+        return Icons.article;
+      case KnowledgeType.database:
+        return Icons.storage;
+      case KnowledgeType.api:
+        return Icons.api;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      return 'Today';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inDays < 30) {
+      return '${(difference.inDays / 7).floor()} weeks ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 }
