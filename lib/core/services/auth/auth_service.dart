@@ -1,5 +1,6 @@
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../features/chat/services/chat_service.dart';
 import '../../constants/api_constants.dart';
 import '../api/jarvis_api_service.dart';
 
@@ -51,6 +52,10 @@ class AuthService {
       if (response.containsKey('access_token') &&
           response.containsKey('refresh_token')) {
         await _saveAuthToken(response['access_token'], response['refresh_token']);
+        
+        // Clear any existing chat cache for the new user
+        ChatService().clearCache();
+        
         return true;
       }
 
@@ -72,6 +77,10 @@ class AuthService {
       if (response.containsKey('access_token') &&
           response.containsKey('refresh_token')) {
         await _saveAuthToken(response['access_token'], response['refresh_token']);
+        
+        // Clear any existing chat cache to prevent showing previous user's chats
+        ChatService().clearCache();
+        
         return true;
       }
 
@@ -89,11 +98,23 @@ class AuthService {
         await _apiService.signOut(_accessToken!, _refreshToken);
       }
       await _clearAuthToken();
+      
+      // Clear chat service cache to ensure previous user's chat history is not accessible
+      ChatService().clearCache();
+      
       return true;
     } catch (e) {
       _logger.e('Error during sign out: $e');
       // Still clear tokens locally even if API call fails
       await _clearAuthToken();
+      
+      // Clear chat service cache even if sign out API call fails
+      try {
+        ChatService().clearCache();
+      } catch (cacheError) {
+        _logger.e('Error clearing chat cache during sign out: $cacheError');
+      }
+      
       return true;
     }
   }

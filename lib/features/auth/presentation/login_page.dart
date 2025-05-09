@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
+import 'dart:async';
+
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/utils/validators/input_validator.dart';
 import 'widgets/auth_widgets.dart';
 import 'signup_page.dart';
-import 'dart:async';
 import '../../../widgets/text_field.dart';
 
 class LoginPage extends StatefulWidget {
@@ -15,11 +16,15 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  // ===== CONTROLLERS =====
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  // ===== SERVICES =====
   final AuthService _authService = AuthService();
   final Logger _logger = Logger();
 
+  // ===== STATE VARIABLES =====
   bool _isLoading = false;
   String? _emailErrorMessage;
   String? _passwordErrorMessage;

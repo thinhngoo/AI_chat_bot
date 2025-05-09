@@ -65,9 +65,9 @@ class DarkColors implements AppColors {
   @override
   final Color secondaryForeground = const Color(0xFFFFFFFF);
   @override
-  final Color accent = const Color(0xFFFFFFFF);
+  final Color accent = const Color(0xFF1B1C20);
   @override
-  final Color accentForeground = const Color(0xFF0A0A0A);
+  final Color accentForeground = const Color(0xFFFFFFFF);
   @override
   final Color muted = const Color(0xFF7F868C);
 
@@ -119,7 +119,7 @@ class LightColors implements AppColors {
 
   // Main colors
   @override
-  final Color background = const Color(0xFFF2F4F7);
+  final Color background = const Color(0xFFF7F7F5);
   @override
   final Color foreground = const Color(0xFF0F1419);
 
@@ -133,9 +133,9 @@ class LightColors implements AppColors {
   @override
   final Color secondaryForeground = const Color(0xFF1B1C20);
   @override
-  final Color accent = const Color(0xFF000000);
+  final Color accent = const Color(0xFFFFFFFF);
   @override
-  final Color accentForeground = const Color(0xFFFFFFFF);
+  final Color accentForeground = const Color(0xFF0F1419);
   @override
   final Color muted = const Color(0xFF9CA3AF);
 
