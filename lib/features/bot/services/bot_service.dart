@@ -691,9 +691,11 @@ class BotService {
         'Content-Type': 'application/json'
       };
       
-      // Build request body
+      // Build request body with correct field names according to API spec
       final Map<String, dynamic> body = {
-        'query': message,
+        'message': message,
+        'openAiThreadId': '',
+        'additionalInstruction': '',
       };
       
       // Build URL - using kbCoreApiUrl instead of jarvisApiUrl

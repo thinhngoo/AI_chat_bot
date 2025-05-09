@@ -26,10 +26,10 @@ class AIBot {
   factory AIBot.fromJson(Map<String, dynamic> json) {
     return AIBot(
       id: json['id'] ?? '',
-      name: json['name'] ?? '',
+      name: json['assistantName'] ?? json['name'] ?? '', // First try assistantName, fallback to name
       description: json['description'] ?? '',
       model: json['model'] ?? 'gpt-4o-mini',
-      prompt: json['prompt'] ?? json['instructions'] ?? '',
+      prompt: json['instructions'] ?? json['prompt'] ?? '',
       knowledgeBaseIds: List<String>.from(json['knowledgeBaseIds'] ?? []),
       connectedPlatforms: List<String>.from(json['connectedPlatforms'] ?? []),
       createdAt: json['createdAt'] != null 
