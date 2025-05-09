@@ -716,10 +716,137 @@ class BotService {
       _logger.i('Ask bot response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final answer = data['answer'] ?? 'No response received';
-        _logger.i('Bot responded successfully');
-        return answer;
+        // The response might be in SSE format rather than JSON
+        final responseBody = response.body;
+        
+        // Log raw response for debugging
+        _logger.d('Raw bot response: $responseBody');
+        
+        // Handle SSE format (event: message\ndata: {...})
+        if (responseBody.contains('event:')) {
+          _logger.i('Detected SSE format response');
+          
+          // Accumulator for the complete response
+          String fullResponse = '';
+          
+          // Parse SSE format properly line by line
+          final lines = responseBody.split('\n');
+          
+          for (final line in lines) {
+            final trimmedLine = line.trim();
+            
+            // Look for data lines
+            if (trimmedLine.startsWith('data:')) {
+              // Extract the data content after "data:"
+              final content = trimmedLine.substring(5).trim();
+              
+              if (content.isNotEmpty && content != '[DONE]') {
+                try {
+                  final data = jsonDecode(content);
+                  
+                  // Try to extract content from choices[0].delta.content (OpenAI format)
+                  if (data['choices'] != null && 
+                      data['choices'].isNotEmpty && 
+                      data['choices'][0]['delta'] != null && 
+                      data['choices'][0]['delta']['content'] != null) {
+                    
+                    fullResponse += data['choices'][0]['delta']['content'];
+                    continue;
+                  }
+                  
+                  // Try to extract from content key (direct format)
+                  if (data['content'] != null) {
+                    fullResponse += data['content'].toString();
+                    continue;
+                  }
+                  
+                  // Try to extract from answer key (another possible format)
+                  if (data['answer'] != null) {
+                    fullResponse += data['answer'].toString();
+                    continue;
+                  }
+                  
+                  // Try to extract from message key
+                  if (data['message'] != null) {
+                    fullResponse += data['message'].toString();
+                    continue;
+                  }
+                  
+                  // Log if we couldn't extract content from a data chunk
+                  _logger.w('Unrecognized SSE data format: $data');
+                  
+                } catch (e) {
+                  // If JSON parsing fails for this chunk, just log and continue
+                  _logger.w('Could not parse SSE data line as JSON: $e');
+                }
+              }
+            }
+          }
+          
+          // If we've accumulated response content, return it
+          if (fullResponse.isNotEmpty) {
+            _logger.i('Successfully accumulated SSE response');
+            return fullResponse;
+          }
+          
+          // If we failed to extract content from chunks, try other approaches
+          _logger.w('Failed to extract content from SSE chunks, trying fallback methods');
+          
+          // Fallback 1: Try to extract content using regex
+          final contentRegex = RegExp(r'"content"\s*:\s*"([^"]+)"');
+          final contentMatches = contentRegex.allMatches(responseBody);
+          
+          if (contentMatches.isNotEmpty) {
+            fullResponse = '';
+            for (final match in contentMatches) {
+              final content = match.group(1);
+              if (content != null && content.isNotEmpty) {
+                fullResponse += content;
+              }
+            }
+            
+            if (fullResponse.isNotEmpty) {
+              _logger.i('Extracted content using regex');
+              return fullResponse;
+            }
+          }
+          
+          // Fallback 2: Try parsing the whole response directly (non-streaming format)
+          try {
+            final data = jsonDecode(responseBody);
+            final answer = data['answer'] ?? data['content'] ?? data['message'] ?? '';
+            if (answer.toString().isNotEmpty) {
+              _logger.i('Parsed whole response as JSON');
+              return answer.toString();
+            }
+          } catch (e) {
+            _logger.w('Could not parse whole response as JSON: $e');
+          }
+          
+          // If all else fails, return a message indicating the issue
+          _logger.e('All parsing methods failed for SSE response');
+          return "I received a response but couldn't process it correctly. Please try again.";
+        }
+        
+        // Regular JSON response (non-SSE)
+        try {
+          final data = jsonDecode(responseBody);
+          
+          // Try multiple possible response formats
+          final answer = data['answer'] ?? 
+                        data['content'] ?? 
+                        data['message'] ?? 
+                        data['response'] ?? 
+                        data['text'] ?? 
+                        'No response received';
+          
+          _logger.i('Bot responded successfully with JSON data');
+          return answer.toString();
+        } catch (e) {
+          _logger.w('Could not parse response as JSON, returning raw response: $e');
+          // Return the raw response if JSON parsing fails
+          return responseBody;
+        }
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');

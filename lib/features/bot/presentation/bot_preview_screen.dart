@@ -52,27 +52,30 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
   }
   
   void _addWelcomeMessage() {
-    _messages.add(
-      ChatMessage(
-        message: 'Xin chào! Tôi là ${widget.botName}. Bạn có thể hỏi tôi bất cứ điều gì.',
-        isUserMessage: false,
-        timestamp: DateTime.now(),
-      ),
-    );
+    setState(() {
+      _messages.add(
+        ChatMessage(
+          message: 'Xin chào! Tôi là ${widget.botName}. Bạn có thể hỏi tôi bất cứ điều gì.',
+          isUserMessage: false,
+          timestamp: DateTime.now(),
+        ),
+      );
+    });
   }
   
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
     
+    // Start loading animation
     _sendButtonController.forward();
     
     setState(() {
       _isLoading = true;
       _isTyping = true;
       
-      // Add user message
-      _messages.add(
+      // Insert the user message at the beginning of the list (for reverse ListView)
+      _messages.insert(0, 
         ChatMessage(
           message: message,
           isUserMessage: true,
@@ -84,16 +87,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
       _messageController.clear();
     });
     
-    // Scroll to bottom
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    // No need to scroll to bottom since we're using a reversed list that starts from the bottom
     
     try {
       // Simulate network delay
@@ -109,12 +103,12 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
       
       // Update message delivery status
       setState(() {
-        final lastUserMessageIndex = _messages.lastIndexWhere((msg) => msg.isUserMessage);
-        if (lastUserMessageIndex != -1) {
-          _messages[lastUserMessageIndex] = ChatMessage(
-            message: _messages[lastUserMessageIndex].message,
+        final firstUserMessageIndex = _messages.indexWhere((msg) => msg.isUserMessage);
+        if (firstUserMessageIndex != -1) {
+          _messages[firstUserMessageIndex] = ChatMessage(
+            message: _messages[firstUserMessageIndex].message,
             isUserMessage: true,
-            timestamp: _messages[lastUserMessageIndex].timestamp,
+            timestamp: _messages[firstUserMessageIndex].timestamp,
             deliveryStatus: 'read',
           );
         }
@@ -126,7 +120,8 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
       if (!mounted) return;
       
       setState(() {
-        _messages.add(
+        // Insert the bot response at the beginning of the list (for reverse ListView)
+        _messages.insert(0,
           ChatMessage(
             message: response, // Direct use of response as String
             isUserMessage: false,
@@ -138,23 +133,15 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
         _sendButtonController.reverse();
       });
       
-      // Scroll to show new message
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            0,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
+      // No need to scroll to bottom since we're using a reversed list that starts from the bottom
     } catch (e) {
       _logger.e('Error sending message: $e');
       
       if (!mounted) return;
       
       setState(() {
-        _messages.add(
+        // Insert error message at the beginning of the list (for reverse ListView)
+        _messages.insert(0,
           ChatMessage(
             message: 'Xin lỗi, đã xảy ra lỗi: ${e.toString()}',
             isUserMessage: false,
@@ -165,17 +152,6 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
         _isLoading = false;
         _isTyping = false;
         _sendButtonController.reverse();
-      });
-      
-      // Scroll to bottom on error
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            0,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
       });
     }
   }
@@ -264,7 +240,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
               Navigator.pop(context);
               
               setState(() {
-                _messages.add(
+                _messages.insert(0,
                   ChatMessage(
                     message: urlController.text,
                     isUserMessage: true,
@@ -290,7 +266,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
                 Navigator.pop(context);
                 
                 setState(() {
-                  _messages.add(
+                  _messages.insert(0,
                     ChatMessage(
                       message: urlController.text,
                       isUserMessage: true,
@@ -336,7 +312,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
     if (!mounted) return;
     
     setState(() {
-      _messages.add(
+      _messages.insert(0,
         ChatMessage(
           message: message,
           isUserMessage: false,
