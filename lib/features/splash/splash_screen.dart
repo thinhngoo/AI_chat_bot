@@ -5,6 +5,7 @@ import '../../core/services/auth/auth_service.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/main_screen.dart';
 import '../../core/constants/app_colors.dart';
+import '../auth/presentation/widgets/auth_background.dart';
 
 class SplashScreen extends StatefulWidget {
   final Function toggleTheme;
@@ -29,7 +30,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late AnimationController _animationController;
   late Animation<double> _animation;
   
-  bool _isCheckingAuth = true;
+  // bool _isCheckingAuth = true;
   
   @override
   void initState() {
@@ -65,11 +66,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     }
   }
   
-  // Chuyển màn hình sau 1.5 giây hoặc khi kiểm tra xác thực xong
+  // Chuyển màn hình sau 2 giây hoặc khi kiểm tra xác thực xong và animation logo đã hoàn thành
   Future<void> _checkAuthAndNavigate() async {
     try {
-      // Đảm bảo hiển thị Splash ít nhất 1.5 giây
-      await Future.delayed(const Duration(milliseconds: 1500));
+      // Đảm bảo hiển thị Splash ít nhất 2 giây
+      await Future.delayed(const Duration(milliseconds: 2000));
       
       if (!mounted) return;
       
@@ -78,9 +79,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       
       if (!mounted) return;
       
-      setState(() {
-        _isCheckingAuth = false;
-      });
+      // setState(() {
+      //   _isCheckingAuth = false;
+      // });
       
       // Chuyển hướng đến màn hình thích hợp dựa trên trạng thái đăng nhập
       if (isLoggedIn) {
@@ -124,75 +125,57 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final AppColors colors = AppColors.dark;
     
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              colors.background,
-              Color.fromARGB(255, 20, 20, 22),
-            ],
-          ),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Logo animation
-              FadeTransition(
-                opacity: _animation,
-                child: ScaleTransition(
-                  scale: _animation,
-                  child: Icon(
-                    Icons.smart_toy_outlined,
-                    size: 100,
-                    color: colors.primary,
-                  ),
+    return AuthBackground(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Logo animation
+            FadeTransition(
+              opacity: _animation,
+              child: ScaleTransition(
+                scale: _animation,
+                child: Icon(
+                  Icons.auto_awesome,
+                  size: 200,
+                  color: colors.foreground,
                 ),
               ),
-              const SizedBox(height: 32),
-              
-              // App title
-              FadeTransition(
-                opacity: _animation,
-                child: Text(
-                  'AI Chat Bot',
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.bold,
-                    color: colors.foreground,
-                  ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // App title
+            FadeTransition(
+              opacity: _animation,
+              child: Text(
+                'AI Chat Bot',
+                style: TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.bold,
+                  color: colors.foreground,
+                  fontFamily: 'Geist',
                 ),
               ),
-              
-              const SizedBox(height: 16),
-              
-              // Tagline
-              FadeTransition(
-                opacity: _animation,
-                child: Text(
-                  'Your intelligent companion',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w300,
-                    color: colors.muted,
-                  ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            FadeTransition(
+              opacity: _animation,
+              child: Text(
+                'Your intelligent companion',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w300,
+                  color: colors.muted,
+                  fontFamily: 'monospace',
                 ),
               ),
-              
-              const SizedBox(height: 48),
-              
-              // Loading indicator
-              if (_isCheckingAuth)
-                CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
-                  strokeWidth: 3,
-                ),
-            ],
-          ),
+            ),
+            
+            const SizedBox(height: 48),
+          ],
         ),
       ),
     );
