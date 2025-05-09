@@ -12,11 +12,8 @@ import '../../../widgets/typing_indicator.dart';
 import 'email_compose_screen.dart';
 
 class EmailScreen extends StatefulWidget {
-  final Function toggleTheme;
-
   const EmailScreen({
     super.key,
-    required this.toggleTheme,
   });
 
   @override
@@ -205,21 +202,6 @@ class _EmailScreenState extends State<EmailScreen> {
                 color: colors.primary,
               ),
             ),
-
-          // Light/dark mode toggle
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: IconButton(
-              icon: Icon(
-                isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                color: isDarkMode
-                    ? Colors.white.withAlpha(240)
-                    : Colors.amberAccent,
-              ),
-              tooltip: 'Toggle theme',
-              onPressed: () => widget.toggleTheme(),
-            ),
-          ),
         ],
       ),
       body: GestureDetector(
@@ -328,7 +310,7 @@ class _EmailScreenState extends State<EmailScreen> {
                         _isLoading || _originalEmailController.text.isEmpty
                             ? null
                             : _getSuggestions,
-                    isPrimary: true,
+                    variant: ButtonVariant.primary,
                     isDarkMode: isDarkMode,
                   ),
                   const SizedBox(height: 24),

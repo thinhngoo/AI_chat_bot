@@ -66,11 +66,11 @@ class PricingPlan {
         yearlyPrice: 99.99, // ~$8.33/month, ~17% discount
         features: [
           'Unlimited tokens',
-          'Access to all AI models (GPT-4o, Claude, etc.)',
-          'Unlimited custom bots',
           'Priority response time',
           'Advanced model settings',
           'No ads',
+          'Unlimited custom bots',
+          'Access to all AI models (GPT-4o, Claude, etc.)',
           'Email and priority support',
         ],
       ),

@@ -6,11 +6,8 @@ import 'create_knowledge_base_dialog.dart';
 import 'knowledge_base_detail_screen.dart';
 
 class KnowledgeBaseScreen extends StatefulWidget {
-  final Function toggleTheme;
-
   const KnowledgeBaseScreen({
     super.key,
-    required this.toggleTheme,
   });
 
   @override
@@ -156,12 +153,6 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Knowledge Base'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.dark_mode),
-            onPressed: () => widget.toggleTheme(),
-          ),
-        ],
       ),
       body: Column(
         children: [

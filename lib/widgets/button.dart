@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 
+enum ButtonVariant {
+  primary,
+  secondary,
+  delete,
+}
+
 class LargeButton extends StatelessWidget {
   final String label;
   final IconData? icon;
   final VoidCallback? onPressed;
-  final bool isPrimary;
-  final bool isDelete;
+  final ButtonVariant variant;
   final bool isDarkMode;
   final bool fullWidth;
   final double height;
@@ -20,8 +25,7 @@ class LargeButton extends StatelessWidget {
     required this.label,
     this.icon,
     this.onPressed,
-    this.isPrimary = true,
-    this.isDelete = false,
+    this.variant = ButtonVariant.primary,
     this.isDarkMode = false,
     this.fullWidth = true,
     this.height = 60.0,
@@ -54,12 +58,8 @@ class LargeButton extends StatelessWidget {
     );
 
     final buttonStyle = ElevatedButton.styleFrom(
-      foregroundColor: isDelete 
-          ? colors.deleteForeground 
-          : isPrimary ? colors.primaryForeground : null,
-      backgroundColor: isDelete 
-          ? colors.delete 
-          : isPrimary ? colors.primary : null,
+      foregroundColor: _getForegroundColor(colors),
+      backgroundColor: _getBackgroundColor(colors),
       padding: const EdgeInsets.symmetric(vertical: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(borderRadius),
@@ -89,6 +89,28 @@ class LargeButton extends StatelessWidget {
               child: buttonChild,
             ),
     );
+  }
+
+  Color? _getForegroundColor(AppColors colors) {
+    switch (variant) {
+      case ButtonVariant.delete:
+        return colors.deleteForeground;
+      case ButtonVariant.primary:
+        return colors.primaryForeground;
+      case ButtonVariant.secondary:
+        return null;
+    }
+  }
+
+  Color? _getBackgroundColor(AppColors colors) {
+    switch (variant) {
+      case ButtonVariant.delete:
+        return colors.delete;
+      case ButtonVariant.primary:
+        return colors.primary;
+      case ButtonVariant.secondary:
+        return null;
+    }
   }
 }
 

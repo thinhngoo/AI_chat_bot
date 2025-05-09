@@ -105,7 +105,7 @@ class DarkColors implements AppColors {
   @override
   final Color warningForeground = const Color(0xFFFFFFFF);
   @override
-  final Color delete = const Color(0xFFE57373);
+  final Color delete = Colors.redAccent;
   @override
   final Color deleteForeground = const Color(0xFFFFFFFF);
 }

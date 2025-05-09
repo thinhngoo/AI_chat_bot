@@ -7,8 +7,15 @@ import '../../main_screen.dart';
 
 class AuthCheckScreen extends StatefulWidget {
   final Function toggleTheme;
+  final Function setThemeMode;
+  final String currentThemeMode;
 
-  const AuthCheckScreen({super.key, required this.toggleTheme});
+  const AuthCheckScreen({
+    super.key,
+    required this.toggleTheme,
+    required this.setThemeMode,
+    required this.currentThemeMode,
+  });
 
   @override
   State<AuthCheckScreen> createState() => _AuthCheckScreenState();
@@ -35,6 +42,8 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
           MaterialPageRoute(
               builder: (context) => MainScreen(
                     toggleTheme: widget.toggleTheme,
+                    setThemeMode: widget.setThemeMode,
+                    currentThemeMode: widget.currentThemeMode,
                   )),
         );
       } else {

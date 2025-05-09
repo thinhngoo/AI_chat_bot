@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import '../../../core/services/auth/auth_service.dart';
@@ -9,11 +10,9 @@ import '../models/conversation_message.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../features/bot/services/bot_service.dart';
 import '../../../features/prompt/presentation/prompt_selector.dart';
-import '../../../features/prompt/presentation/simple_prompt_dialog.dart';
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../features/subscription/services/ad_manager.dart';
 import '../../../features/subscription/services/subscription_service.dart';
-import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../widgets/typing_indicator.dart';
 import '../../../widgets/information.dart'
     show
@@ -21,17 +20,12 @@ import '../../../widgets/information.dart'
         GlobalSnackBar,
         InformationVariant,
         InformationIndicator;
-import '../services/chat_service.dart';
-import '../models/conversation_message.dart';
 import 'assistant_selector.dart';
 import 'chat_history_drawer.dart';
 
 class ChatScreen extends StatefulWidget {
-  final Function toggleTheme;
-
   const ChatScreen({
     super.key,
-    required this.toggleTheme,
   });
 
   @override
@@ -53,17 +47,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   // Conversation state
   bool _isLoading = true;
   bool _isPro = false;
+  bool _isSending = false;
+  bool _isTyping = false;
+  bool _showPromptSelector = false;
   String _errorMessage = '';
   List<ConversationMessage> _messages = [];
   String? _currentConversationId;
   String _selectedAssistantId = 'gpt-4o';
-
-  final TextEditingController _messageController = TextEditingController();
-  final FocusNode _messageFocusNode = FocusNode();
-  final ScrollController _scrollController = ScrollController();  bool _isSending = false;
-  // _isTyping field is referenced in the code but commented out in the UI rendering section
-  // ignore: unused_field
-  bool _isTyping = false; // intentionally kept to avoid refactoring multiple setState calls
 
   // ===== CONTROLLERS =====
   final TextEditingController _messageController = TextEditingController();
@@ -371,6 +361,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     setState(() {
       _isSending = true;
+      _isTyping = true;
       _sendButtonController.forward();
     });
 
@@ -423,6 +414,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   Future<void> _sendMessageToCustomBot(String message) async {
     try {
+      // Set typing indicator to true
+      setState(() {
+        _isTyping = true;
+      });
+      
       final botResponse = await _botService.askBot(
         botId: _selectedAssistantId,
         message: message,
@@ -481,6 +477,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   Future<void> _sendMessageToAIModel(String message) async {
     _logger.i('Sending message with conversation ID: $_currentConversationId');
+
+    // Set typing indicator to true
+    setState(() {
+      _isTyping = true;
+    });
 
     // Always send message - conversation ID will be null for new conversations
     // which will automatically create a new conversation on the server
@@ -941,9 +942,83 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                       children: [
                         // Only hide the answer if this is the last message and we're currently typing
                         if (!(_isTyping && index == _messages.length - 1)) ...[
-                          SelectableText(
-                            message.answer,
-                            style: theme.textTheme.bodyMedium,
+                          MarkdownBody(
+                            data: message.answer,
+                            selectable: true,
+                            styleSheet: MarkdownStyleSheet(
+                              p: theme.textTheme.bodyMedium?.copyWith(
+                                height: 1.5,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                              h1: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                              h2: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                              h3: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                              listBullet: theme.textTheme.bodyMedium?.copyWith(
+                                color: colors.muted,
+                                height: 1.5,
+                              ),
+                              blockquote: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurface.withAlpha(204),
+                                fontStyle: FontStyle.italic,
+                                height: 1.5,
+                              ),
+                              blockquoteDecoration: BoxDecoration(
+                                border: Border(
+                                  left: BorderSide(
+                                    color: theme.colorScheme.primary.withAlpha(128),
+                                    width: 4.0,
+                                  ),
+                                ),
+                              ),
+                              blockquotePadding: const EdgeInsets.only(left: 16.0),
+                              code: theme.textTheme.bodyMedium?.copyWith(
+                                fontFamily: 'monospace',
+                                color: theme.colorScheme.onSurface,
+                                backgroundColor: colors.input,
+                              ),
+                              codeblockDecoration: BoxDecoration(
+                                color: colors.input,
+                                borderRadius: BorderRadius.circular(4.0),
+                              ),
+                              codeblockPadding: const EdgeInsets.all(8.0),
+                              tableHead: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                              tableBody: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurface,
+                              ),
+                              tableBorder: TableBorder.all(
+                                color: theme.colorScheme.outline.withAlpha(128),
+                                width: 1.0,
+                              ),
+                              tableCellsPadding: const EdgeInsets.symmetric(
+                                horizontal: 8.0,
+                                vertical: 4.0,
+                              ),
+                              a: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                                decoration: TextDecoration.underline,
+                              ),
+                              listIndent: 24.0,
+                              orderedListAlign: WrapAlignment.start,
+                              unorderedListAlign: WrapAlignment.start,
+                            ),
+                            onTapLink: (text, href, title) {
+                              if (href != null) {
+                                launchUrl(Uri.parse(href), 
+                                  mode: LaunchMode.externalApplication);
+                              }
+                            },
                           ),
                           if (message.answer.isNotEmpty)
                             Align(
@@ -989,12 +1064,68 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           } else {
             return Padding(
               padding: const EdgeInsets.only(bottom: 32.0, left: 8, right: 16),
-              child: SelectableText(
-                messageText,
-                style: TextStyle(
-                  color: theme.colorScheme.onSurface,
-                  height: 1.4,
+              child: MarkdownBody(
+                data: messageText,
+                selectable: true,
+                styleSheet: MarkdownStyleSheet(
+                  p: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                    height: 1.5,
+                  ),
+                  h1: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  h2: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  h3: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  listBullet: TextStyle(
+                    color: colors.muted,
+                    height: 1.5,
+                  ),
+                  blockquote: TextStyle(
+                    color: theme.colorScheme.onSurface.withAlpha(204),
+                    fontStyle: FontStyle.italic,
+                    height: 1.5,
+                  ),
+                  blockquoteDecoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(
+                        color: theme.colorScheme.primary.withAlpha(128),
+                        width: 4.0,
+                      ),
+                    ),
+                  ),
+                  blockquotePadding: const EdgeInsets.only(left: 16.0),
+                  code: TextStyle(
+                    fontFamily: 'monospace',
+                    color: theme.colorScheme.onSurface,
+                    backgroundColor: colors.input,
+                  ),
+                  codeblockDecoration: BoxDecoration(
+                    color: colors.input,
+                    borderRadius: BorderRadius.circular(4.0),
+                  ),
+                  codeblockPadding: const EdgeInsets.all(8.0),
+                  a: TextStyle(
+                    color: theme.colorScheme.primary,
+                    decoration: TextDecoration.underline,
+                  ),
+                  listIndent: 24.0,
+                  orderedListAlign: WrapAlignment.start,
+                  unorderedListAlign: WrapAlignment.start,
                 ),
+                onTapLink: (text, href, title) {
+                  if (href != null) {
+                    launchUrl(Uri.parse(href), 
+                      mode: LaunchMode.externalApplication);
+                  }
+                },
               ),
             );
           }
