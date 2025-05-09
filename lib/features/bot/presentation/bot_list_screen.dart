@@ -38,6 +38,7 @@ class _BotListScreenState extends State<BotListScreen>
       duration: const Duration(milliseconds: 1000),
     );
     
+    // Immediately fetch bots when the screen loads
     _fetchBots();
   }
 
