@@ -23,7 +23,7 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 2;
 
   // Bottom navigation labels - sử dụng labels ngắn hơn để hiển thị tốt hơn
-  final List<String> _shortLabels = ['Email', 'Prompt', 'Chat', 'Bot', 'KB', 'User'];
+  final List<String> _shortLabels = ['Email', 'Prompt', 'Chat', 'Bot', 'Knowledge', 'User'];
   final List<String> _fullLabels = ['Email', 'Prompt', 'Chat', 'Bot', 'Knowledge', 'User'];
 
   late final List<Widget> _screens;
