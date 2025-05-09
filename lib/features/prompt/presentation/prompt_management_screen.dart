@@ -7,7 +7,7 @@ import 'create_edit_prompt_screen.dart';
 import 'simple_prompt_dialog.dart';
 
 class PromptManagementScreen extends StatefulWidget {
-  const PromptManagementScreen({Key? key}) : super(key: key);
+  const PromptManagementScreen({super.key});
 
   @override
   State<PromptManagementScreen> createState() => _PromptManagementScreenState();
@@ -517,7 +517,8 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
     }
   }
 
-  Future<void> _deletePrompt(String promptId) async {
+  // ignore: unused_element
+  Future<void> _deletePrompt(String promptId) async { // Kept for future implementation
     try {
       setState(() {
         _isLoading = true;

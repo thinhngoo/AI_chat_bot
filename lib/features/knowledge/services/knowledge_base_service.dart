@@ -6,15 +6,24 @@ import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../models/knowledge_base_model.dart';
-import '../../../core/constants/app_config.dart';
 import 'package:path/path.dart' as path;
+import 'package:logger/logger.dart';
 
-class KnowledgeBaseService {
-  // Using just the base domain without the path
-  final String baseUrl = "https://knowledge-api.dev.jarvis.cx";
-  final String apiPath = "/kb-core/v1/knowledge";
+class KnowledgeBaseService {  // Using just the base domain without the path
+  final String baseUrl = 'https://knowledge-api.dev.jarvis.cx';
+  final String apiPath = '/kb-core/v1/knowledge';
   final Dio _dio = Dio();
   final AuthService _authService = AuthService();
+  final Logger _logger = Logger();
+  
+  // Helper method to replace print statements with logger
+  void _log(String message, {bool isError = false}) {
+    if (isError) {
+      _logger.e(message);
+    } else {
+      _logger.d(message);
+    }
+  }
 
   // Get authentication token from auth service
   Future<String> _getToken() async {
@@ -28,7 +37,7 @@ class KnowledgeBaseService {
       }
       return token;
     } catch (e) {
-      print('Error getting authentication token: $e');
+      _log('Error getting authentication token: $e', isError: true);
       throw Exception('Authentication failed: $e');
     }
   }
@@ -41,8 +50,8 @@ class KnowledgeBaseService {
     try {
       final token = await _getToken();
       
-      // Print debugging info
-      print('Creating knowledge base with URL: $baseUrl$apiPath');
+      // Log debugging info
+      _log('Creating knowledge base with URL: $baseUrl$apiPath');
       
       final response = await http.post(
         Uri.parse('$baseUrl$apiPath'),
@@ -56,20 +65,20 @@ class KnowledgeBaseService {
         }),
       );
 
-      // Print response status for debugging
-      print('Create knowledge base response status: ${response.statusCode}');
+      // Log response status for debugging
+      _log('Create knowledge base response status: ${response.statusCode}');
       
       if (response.statusCode == 201 || response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
-        print('Response data: $responseData');
+        _log('Response data: $responseData');
         
         return KnowledgeBase.fromJson(responseData);
       } else {
-        print('Error response body: ${response.body}');
+        _log('Error response body: ${response.body}', isError: true);
         throw Exception('Failed to create knowledge base: ${response.body}');
       }
     } catch (e) {
-      print('Error creating knowledge base: $e');
+      _log('Error creating knowledge base: $e', isError: true);
       throw Exception('Error creating knowledge base: $e');
     }
   }
@@ -88,9 +97,9 @@ class KnowledgeBaseService {
         if (search != null && search.isNotEmpty) 'search': search,
       };
 
-      // Debug output
+      // Log output
       final requestUrl = Uri.parse('$baseUrl$apiPath').replace(queryParameters: queryParams);
-      print('Fetching knowledge bases from: $requestUrl');
+      _log('Fetching knowledge bases from: $requestUrl');
       
       final response = await http.get(
         requestUrl,
@@ -99,24 +108,24 @@ class KnowledgeBaseService {
         },
       );
 
-      // Debug output
-      print('Knowledge bases response status: ${response.statusCode}');
+      // Log output
+      _log('Knowledge bases response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['data'] == null) {
-          print('API returned null data: $data');
+          _log('API returned null data: $data', isError: true);
           return [];
         }
         return (data['data'] as List)
             .map((item) => KnowledgeBase.fromJson(item))
             .toList();
       } else {
-        print('Error response body: ${response.body}');
+        _log('Error response body: ${response.body}', isError: true);
         throw Exception('Failed to get knowledge bases: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Exception in getKnowledgeBases: $e');
+      _log('Exception in getKnowledgeBases: $e', isError: true);
       rethrow;
     }
   }
@@ -132,7 +141,7 @@ class KnowledgeBaseService {
         },
       );
 
-      print('Get knowledge base response status: ${response.statusCode}');
+      _log('Get knowledge base response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final kb = KnowledgeBase.fromJson(jsonDecode(response.body));
@@ -140,11 +149,11 @@ class KnowledgeBaseService {
         // Get data sources for this knowledge base
         return await _getKnowledgeBaseWithSources(kb);
       } else {
-        print('Error response body: ${response.body}');
+        _log('Error response body: ${response.body}', isError: true);
         throw Exception('Failed to get knowledge base: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Error fetching knowledge base: $e');
+      _log('Error fetching knowledge base: $e', isError: true);
       rethrow;
     }
   }
@@ -160,7 +169,7 @@ class KnowledgeBaseService {
         },
       );
       
-      print('Get knowledge sources response status: ${sourcesResponse.statusCode}');
+      _log('Get knowledge sources response status: ${sourcesResponse.statusCode}');
       
       if (sourcesResponse.statusCode == 200) {
         final sourcesData = jsonDecode(sourcesResponse.body);
@@ -184,7 +193,7 @@ class KnowledgeBaseService {
       
       return kb;
     } catch (e) {
-      print('Error fetching knowledge sources: $e');
+      _log('Error fetching knowledge sources: $e', isError: true);
       return kb;  // Return original knowledge base without sources
     }
   }
@@ -202,7 +211,7 @@ class KnowledgeBaseService {
       if (name != null) body['knowledgeName'] = name;
       if (description != null) body['description'] = description;
       
-      print('Updating knowledge base: $baseUrl$apiPath/$id');
+      _log('Updating knowledge base: $baseUrl$apiPath/$id');
       
       final response = await http.patch(
         Uri.parse('$baseUrl$apiPath/$id'),
@@ -213,17 +222,17 @@ class KnowledgeBaseService {
         body: jsonEncode(body),
       );
       
-      print('Update knowledge base response status: ${response.statusCode}');
+      _log('Update knowledge base response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         return KnowledgeBase.fromJson(responseData);
       } else {
-        print('Error response body: ${response.body}');
+        _log('Error response body: ${response.body}', isError: true);
         throw Exception('Failed to update knowledge base: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Error updating knowledge base: $e');
+      _log('Error updating knowledge base: $e', isError: true);
       rethrow;
     }
   }
@@ -239,16 +248,16 @@ class KnowledgeBaseService {
         },
       );
 
-      print('Delete knowledge base response status: ${response.statusCode}');
+      _log('Delete knowledge base response status: ${response.statusCode}');
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         return true;
       } else {
-        print('Error response body: ${response.body}');
+        _log('Error response body: ${response.body}', isError: true);
         throw Exception('Failed to delete knowledge base: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Error deleting knowledge base: $e');
+      _log('Error deleting knowledge base: $e', isError: true);
       rethrow;
     }
   }
@@ -265,7 +274,7 @@ class KnowledgeBaseService {
         },
       );
       
-      print('Get knowledge units response status: ${response.statusCode}');
+      _log('Get knowledge units response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -276,11 +285,11 @@ class KnowledgeBaseService {
             .map((item) => KnowledgeSource.fromJson(item))
             .toList();
       } else {
-        print('Error response body: ${response.body}');
+        _log('Error response body: ${response.body}', isError: true);
         throw Exception('Failed to get knowledge units: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Error fetching knowledge units: $e');
+      _log('Error fetching knowledge units: $e', isError: true);
       rethrow;
     }
   }
@@ -295,7 +304,7 @@ class KnowledgeBaseService {
       final fileName = path.basename(file.path);
       final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
       
-      print('Uploading file to knowledge base: $baseUrl$apiPath/$knowledgeBaseId/upload');
+      _log('Uploading file to knowledge base: $baseUrl$apiPath/$knowledgeBaseId/upload');
       
       final formData = FormData.fromMap({
         'file': await MultipartFile.fromFile(
@@ -315,16 +324,16 @@ class KnowledgeBaseService {
         ),
       );
 
-      print('Upload file response status: ${response.statusCode}');
+      _log('Upload file response status: ${response.statusCode}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return KnowledgeSource.fromJson(response.data);
       } else {
-        print('Error response: ${response.data}');
+        _log('Error response: ${response.data}', isError: true);
         throw Exception('Failed to upload file: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error uploading file: $e');
+      _log('Error uploading file: $e', isError: true);
       rethrow;
     }
   }
@@ -349,16 +358,16 @@ class KnowledgeBaseService {
         }),
       );
 
-      print('Upload website response status: ${response.statusCode}');
+      _log('Upload website response status: ${response.statusCode}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return KnowledgeSource.fromJson(jsonDecode(response.body));
       } else {
-        print('Error response body: ${response.body}');
+        _log('Error response body: ${response.body}', isError: true);
         throw Exception('Failed to upload website: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Error uploading website: $e');
+      _log('Error uploading website: $e', isError: true);
       rethrow;
     }
   }
@@ -381,16 +390,16 @@ class KnowledgeBaseService {
         }),
       );
 
-      print('Connect Google Drive response status: ${response.statusCode}');
+      _log('Connect Google Drive response status: ${response.statusCode}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return KnowledgeSource.fromJson(jsonDecode(response.body));
       } else {
-        print('Error response body: ${response.body}');
+        _log('Error response body: ${response.body}', isError: true);
         throw Exception('Failed to connect Google Drive: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Error connecting Google Drive: $e');
+      _log('Error connecting Google Drive: $e', isError: true);
       rethrow;
     }
   }
@@ -413,16 +422,16 @@ class KnowledgeBaseService {
         }),
       );
 
-      print('Connect Slack response status: ${response.statusCode}');
+      _log('Connect Slack response status: ${response.statusCode}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return KnowledgeSource.fromJson(jsonDecode(response.body));
       } else {
-        print('Error response body: ${response.body}');
+        _log('Error response body: ${response.body}', isError: true);
         throw Exception('Failed to connect Slack: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Error connecting Slack: $e');
+      _log('Error connecting Slack: $e', isError: true);
       rethrow;
     }
   }
@@ -445,16 +454,16 @@ class KnowledgeBaseService {
         }),
       );
 
-      print('Connect Confluence response status: ${response.statusCode}');
+      _log('Connect Confluence response status: ${response.statusCode}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return KnowledgeSource.fromJson(jsonDecode(response.body));
       } else {
-        print('Error response body: ${response.body}');
+        _log('Error response body: ${response.body}', isError: true);
         throw Exception('Failed to connect Confluence: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Error connecting Confluence: $e');
+      _log('Error connecting Confluence: $e', isError: true);
       rethrow;
     }
   }
@@ -473,16 +482,16 @@ class KnowledgeBaseService {
         },
       );
 
-      print('Delete knowledge source response status: ${response.statusCode}');
+      _log('Delete knowledge source response status: ${response.statusCode}');
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         return true;
       } else {
-        print('Error response body: ${response.body}');
+        _log('Error response body: ${response.body}', isError: true);
         throw Exception('Failed to delete source: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Error deleting source: $e');
+      _log('Error deleting source: $e', isError: true);
       rethrow;
     }
   }

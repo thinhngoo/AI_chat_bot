@@ -32,8 +32,8 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     super.initState();
     _loadKnowledgeBase();
   }
-
   Future<void> _loadKnowledgeBase() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -43,18 +43,19 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       final knowledgeBase =
           await _knowledgeBaseService.getKnowledgeBase(widget.knowledgeBaseId);
 
+      if (!mounted) return;
       setState(() {
         _knowledgeBase = knowledgeBase;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = 'Failed to load knowledge base: $e';
         _isLoading = false;
       });
     }
   }
-
   Future<void> _deleteSource(KnowledgeSource source) async {
     try {
       await _knowledgeBaseService.deleteSource(
@@ -62,6 +63,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
         source.id,
       );
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Source "${source.name}" deleted successfully'),
@@ -71,6 +73,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
 
       _loadKnowledgeBase();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to delete source: $e'),
@@ -80,7 +83,6 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       );
     }
   }
-
   Future<void> _uploadFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -90,6 +92,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
 
       if (result != null && result.files.single.path != null) {
         final file = File(result.files.single.path!);
+        if (!mounted) return;
         setState(() => _isLoading = true);
 
         await _knowledgeBaseService.uploadLocalFile(
@@ -97,6 +100,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
           file,
         );
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('File uploaded successfully'),
@@ -107,6 +111,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
         _loadKnowledgeBase();
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -410,9 +415,8 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 18),
-      label: Text(label),
-      style: ButtonStyle(
-        padding: MaterialStateProperty.all(
+      label: Text(label),      style: ButtonStyle(
+        padding: WidgetStateProperty.all(
           const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         ),
       ),

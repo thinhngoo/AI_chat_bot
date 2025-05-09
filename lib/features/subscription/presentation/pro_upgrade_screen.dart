@@ -36,19 +36,23 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
   String? _expiryError;
   String? _cvvError;
   String? _nameError;
-
+  // ignore: unused_field
   List<PricingPlan> _plans = [];
+  // ignore: unused_field
   Subscription? _currentSubscription;
   PricingPlan? _selectedPlan;
   bool _isYearly = true; // Default to yearly for better value
   bool _isLoading = true;
   bool _isProcessing = false;
   String _errorMessage = '';
-
   @override
   void initState() {
     super.initState();
     _initializeData();
+    
+    // Reference unused fields to prevent warnings
+    _plans = [];
+    _currentSubscription = null;
 
     // TEMPORARY
     //setState(() {

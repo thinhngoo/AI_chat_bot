@@ -71,10 +71,9 @@ class JarvisApiService {
             if (errorJson.containsKey('error')) {
               throw errorJson['error'];
             }
-          }
-        } catch (e) {
+          }        } catch (e) {
           if (e is String) {
-            throw e;
+            rethrow;
           }
         }
         
@@ -127,10 +126,9 @@ class JarvisApiService {
             if (errorJson.containsKey('error')) {
               throw errorJson['error'];
             }
-          }
-        } catch (e) {
+          }        } catch (e) {
           if (e is String) {
-            throw e;
+            rethrow;
           }
         }
         
