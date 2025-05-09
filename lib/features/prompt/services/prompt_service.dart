@@ -117,7 +117,7 @@ class PromptService {
     required String description,
     required String category,
     required bool isPublic,
-    String language = "English", // Add default language parameter
+    String language = 'English', // Add default language parameter
   }) async {
     try {
       // Ensure auth service is initialized
@@ -129,9 +129,8 @@ class PromptService {
       }
       
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}');
-      
-      // Instead of trying to map category, just use "other" which we know works from the API doc
-      String validCategory = "other";
+        // Instead of trying to map category, just use 'other' which we know works from the API doc
+      String validCategory = 'other';
       
       final body = jsonEncode({
         'title': title,
@@ -169,7 +168,8 @@ class PromptService {
     }
   }
   
-  // Helper method to map UI categories to valid API enum values
+  // Helper method to map UI categories to valid API enum values - will be used in future API integration
+  // ignore: unused_element
   String _mapCategoryToAPIValue(String category) {
     // Based on API documentation, expected values might be like:
     // GENERAL, PROGRAMMING, WRITING, etc. (all uppercase with no spaces)
@@ -194,7 +194,7 @@ class PromptService {
     required String description,
     required String category,
     required bool isPublic,
-    String language = "English", // Add default language parameter
+    String language = 'English', // Add default language parameter
   }) async {
     try {
       // Ensure auth service is initialized
@@ -214,8 +214,8 @@ class PromptService {
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$promptId');
       
       // Use a simple fixed category to avoid potential issues
-      final String validCategory = "other";
-      
+      final String validCategory = 'other';
+
       final body = jsonEncode({
         'title': title,
         'content': content,

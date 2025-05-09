@@ -5,9 +5,9 @@ import 'package:logger/logger.dart';
 import '../services/subscription_service.dart';
 import '../../../core/services/auth/auth_service.dart';
 
-class AdService {
-  final Logger _logger = Logger();
-  final BuildContext _context;
+class AdService {  final Logger _logger = Logger();
+  // ignore: unused_field
+  final BuildContext _context; // Currently unused but will be needed when full ad integration is implemented
   final SubscriptionService _subscriptionService;
   
   // Placeholder properties since google_mobile_ads is disabled
@@ -75,8 +75,8 @@ class AdService {
       return false;
     }
   }
-
   // Load interstitial ad - UNUSED but need to keep as it's referenced
+  // ignore: unused_element
   Future<void> _loadInterstitialAd() async {
     try {
       _logger.i('Interstitial ad functionality disabled');
@@ -91,8 +91,8 @@ class AdService {
   void dispose() {
     _logger.i('Disposing ads (placeholder)');
   }
-  
-  // Helper method to get ad unit ID
+    // Helper method to get ad unit ID
+  // ignore: unused_element
   String _getAdUnitId(AdType type) {
     // In a real app, these would be your ad unit IDs from AdMob
     if (type == AdType.banner) {

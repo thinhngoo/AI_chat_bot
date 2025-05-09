@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 enum SubscriptionPlan {
   free,
   pro,
@@ -31,16 +29,14 @@ class Subscription {
   bool get isRenewing => autoRenew && isPro;
 
   // Format subscription plan name for display
-  String get planName {
-    switch (plan) {
+  String get planName {    switch (plan) {
       case SubscriptionPlan.free:
         return 'Free';
       case SubscriptionPlan.pro:
         return 'Pro';
       case SubscriptionPlan.enterprise:
         return 'Enterprise';
-      default:
-        return 'Unknown';
+      // No default needed as all cases are covered
     }
   }
 

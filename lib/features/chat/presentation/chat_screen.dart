@@ -4,9 +4,13 @@ import 'package:logger/logger.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import '../../../core/services/auth/auth_service.dart';
+import '../services/chat_service.dart';
+import '../models/conversation_message.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../features/bot/services/bot_service.dart';
 import '../../../features/prompt/presentation/prompt_selector.dart';
+import '../../../features/prompt/presentation/simple_prompt_dialog.dart';
+import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../features/subscription/services/ad_manager.dart';
 import '../../../features/subscription/services/subscription_service.dart';
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
@@ -54,10 +58,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   String? _currentConversationId;
   String _selectedAssistantId = 'gpt-4o';
 
-  // UI state
-  bool _isSending = false;
-  bool _isTyping = false;
-  bool _showPromptSelector = false;
+  final TextEditingController _messageController = TextEditingController();
+  final FocusNode _messageFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();  bool _isSending = false;
+  // _isTyping field is referenced in the code but commented out in the UI rendering section
+  // ignore: unused_field
+  bool _isTyping = false; // intentionally kept to avoid refactoring multiple setState calls
 
   // ===== CONTROLLERS =====
   final TextEditingController _messageController = TextEditingController();
@@ -365,7 +371,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     setState(() {
       _isSending = true;
-      _isTyping = true;
       _sendButtonController.forward();
     });
 

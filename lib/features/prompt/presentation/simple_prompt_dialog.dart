@@ -7,12 +7,11 @@ import '../models/prompt.dart';
 class SimplePromptDialog extends StatefulWidget {
   final Function(String content)? onPromptCreated;
   final Prompt? prompt;
-
   const SimplePromptDialog({
-    Key? key,
+    super.key,
     this.onPromptCreated,
     this.prompt,
-  }) : super(key: key);
+  });
 
   static Future<void> show(
     BuildContext context,
@@ -116,9 +115,8 @@ class _SimplePromptDialogState extends State<SimplePromptDialog> {
       } else {
         await _promptService.createPrompt(
           title: name,
-          content: content,
-          description: "Created from quick prompt dialog",
-          category: "other",
+          content: content,          description: 'Created from quick prompt dialog',
+          category: 'other',
           isPublic: false,
         );
 
