@@ -9,7 +9,7 @@ class ApiConstants {
   // API URLs
   static const String authApiUrl = 'https://auth-api.dev.jarvis.cx';
   static const String jarvisApiUrl = 'https://api.dev.jarvis.cx'; // Base API URL
-  static const String kbCoreApiUrl = 'https://api.dev.jarvis.cx'; // KB Core API URL (could be different in some environments)
+  static const String kbCoreApiUrl = 'https://knowledge-api.dev.jarvis.cx'; // KB Core API URL (could be different in some environments)
   
   // API endpoints
   static const String authPasswordSignUp = '/api/v1/auth/password/sign-up';

@@ -116,6 +116,7 @@ class _KnowledgeManagementScreenState extends State<KnowledgeManagementScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    // Automatically fetch knowledge bases when the screen initializes
     _fetchKnowledgeBases();
   }
 

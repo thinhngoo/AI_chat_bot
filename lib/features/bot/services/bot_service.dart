@@ -54,15 +54,14 @@ class BotService {
       
       // Build request body based on API documentation
       final Map<String, dynamic> body = {
-        'name': name,
+        'assistantName': name, // Changed from 'name' to 'assistantName' per API spec
         'description': description,
-        'model': model,
-        'instructions': prompt,
+        'instructions': prompt, // Changed from 'prompt' to 'instructions' per API spec
       };
       
       // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      const endpoint = ApiConstants.botsEndpoint;
+      const baseUrl = ApiConstants.kbCoreApiUrl; // Using kbCoreApiUrl instead of jarvisApiUrl
+      const endpoint = ApiConstants.assistantsEndpoint;
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -342,14 +341,14 @@ class BotService {
       // Build request body - only include fields that are provided
       final Map<String, dynamic> body = {};
       
-      if (name != null) body['name'] = name;
+      if (name != null) body['assistantName'] = name; // Changed to 'assistantName' to match API spec
       if (description != null) body['description'] = description;
       if (model != null) body['model'] = model;
       if (prompt != null) body['instructions'] = prompt; // API expects 'instructions'
       
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.botById.replaceAll('{botId}', botId);
+      // Build URL - Using kbCoreApiUrl and assistantById instead of jarvisApiUrl and botById
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = ApiConstants.assistantById.replaceAll('{assistantId}', botId);
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -366,6 +365,16 @@ class BotService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         _logger.i('Bot updated successfully');
+        
+        // Update cache if it exists
+        if (_cachedBots != null) {
+          final index = _cachedBots!.indexWhere((b) => b.id == botId);
+          if (index >= 0) {
+            final updatedBot = AIBot.fromJson(data);
+            _cachedBots![index] = updatedBot;
+          }
+        }
+        
         return AIBot.fromJson(data);
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
@@ -414,9 +423,9 @@ class BotService {
         'Authorization': 'Bearer $accessToken',
       };
       
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.botById.replaceAll('{botId}', botId);
+      // Build URL - Using kbCoreApiUrl and assistantById instead of jarvisApiUrl and botById
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = ApiConstants.assistantById.replaceAll('{assistantId}', botId);
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -428,6 +437,12 @@ class BotService {
       
       if (response.statusCode == 200 || response.statusCode == 204) {
         _logger.i('Bot deleted successfully');
+        
+        // Invalidate cache
+        if (_cachedBots != null) {
+          _cachedBots!.removeWhere((bot) => bot.id == botId);
+        }
+        
         return true;
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
@@ -454,76 +469,6 @@ class BotService {
     }
   }
   
-  // Import knowledge to an AI Bot
-  Future<bool> importKnowledge({
-    required String botId, 
-    required List<String> knowledgeBaseIds
-  }) async {
-    try {
-      _logger.i('Importing knowledge to bot $botId');
-      
-      // Get access token
-      final accessToken = _authService.accessToken;
-      if (accessToken == null) {
-        throw 'No access token available. Please log in again.';
-      }
-      
-      // Prepare headers - changed from const to final
-      final headers = {
-        'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json'
-      };
-      
-      // Build request body
-      final Map<String, dynamic> body = {
-        'knowledgeBaseIds': knowledgeBaseIds,
-      };
-      
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.botKnowledge.replaceAll('{botId}', botId);
-      final uri = Uri.parse(baseUrl + endpoint);
-      
-      _logger.i('Sending request to: $uri');
-      
-      // Send request
-      final response = await http.post(
-        uri,
-        headers: headers,
-        body: jsonEncode(body),
-      );
-      
-      _logger.i('Import knowledge response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        _logger.i('Knowledge imported successfully');
-        return true;
-      } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
-        _logger.w('Token expired, attempting to refresh...');
-        final refreshSuccess = await _authService.refreshToken();
-        
-        if (refreshSuccess) {
-          // Retry with new token
-          return importKnowledge(
-            botId: botId,
-            knowledgeBaseIds: knowledgeBaseIds,
-          );
-        } else {
-          throw 'Authentication expired. Please log in again.';
-        }
-      } else {
-        _logger.e('Failed to import knowledge: ${response.statusCode}');
-        _logger.e('Response body: ${response.body}');
-        
-        throw 'Failed to import knowledge: ${response.statusCode}';
-      }
-    } catch (e) {
-      _logger.e('Error importing knowledge: $e');
-      rethrow;
-    }
-  }
-  
   // Remove knowledge from an AI Bot
   Future<bool> removeKnowledge({
     required String botId, 
@@ -538,16 +483,14 @@ class BotService {
         throw 'No access token available. Please log in again.';
       }
       
-      // Prepare headers - changed from const to final
+      // Prepare headers
       final headers = {
         'Authorization': 'Bearer $accessToken',
       };
       
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.botKnowledgeById
-          .replaceAll('{botId}', botId)
-          .replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      // Build URL with correct path format: /kb-core/v1/ai-assistant/{assistantId}/knowledges/{knowledgeId}
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = '/kb-core/v1/ai-assistant/$botId/knowledges/$knowledgeBaseId';
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -692,14 +635,17 @@ class BotService {
         'Content-Type': 'application/json'
       };
       
-      // Build request body
+      // Build request body with correct field names according to API spec
       final Map<String, dynamic> body = {
-        'query': message,
+        'message': message,
+        'openAiThreadId': '',
+        'additionalInstruction': '',
       };
       
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.botAsk.replaceAll('{botId}', botId);
+      // Build URL - using kbCoreApiUrl instead of jarvisApiUrl
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      // Replace assistantId in the URL path
+      final endpoint = ApiConstants.assistantAsk.replaceAll('{assistantId}', botId);
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -714,10 +660,137 @@ class BotService {
       _logger.i('Ask bot response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final answer = data['answer'] ?? 'No response received';
-        _logger.i('Bot responded successfully');
-        return answer;
+        // The response might be in SSE format rather than JSON
+        final responseBody = response.body;
+        
+        // Log raw response for debugging
+        _logger.d('Raw bot response: $responseBody');
+        
+        // Handle SSE format (event: message\ndata: {...})
+        if (responseBody.contains('event:')) {
+          _logger.i('Detected SSE format response');
+          
+          // Accumulator for the complete response
+          String fullResponse = '';
+          
+          // Parse SSE format properly line by line
+          final lines = responseBody.split('\n');
+          
+          for (final line in lines) {
+            final trimmedLine = line.trim();
+            
+            // Look for data lines
+            if (trimmedLine.startsWith('data:')) {
+              // Extract the data content after "data:"
+              final content = trimmedLine.substring(5).trim();
+              
+              if (content.isNotEmpty && content != '[DONE]') {
+                try {
+                  final data = jsonDecode(content);
+                  
+                  // Try to extract content from choices[0].delta.content (OpenAI format)
+                  if (data['choices'] != null && 
+                      data['choices'].isNotEmpty && 
+                      data['choices'][0]['delta'] != null && 
+                      data['choices'][0]['delta']['content'] != null) {
+                    
+                    fullResponse += data['choices'][0]['delta']['content'];
+                    continue;
+                  }
+                  
+                  // Try to extract from content key (direct format)
+                  if (data['content'] != null) {
+                    fullResponse += data['content'].toString();
+                    continue;
+                  }
+                  
+                  // Try to extract from answer key (another possible format)
+                  if (data['answer'] != null) {
+                    fullResponse += data['answer'].toString();
+                    continue;
+                  }
+                  
+                  // Try to extract from message key
+                  if (data['message'] != null) {
+                    fullResponse += data['message'].toString();
+                    continue;
+                  }
+                  
+                  // Log if we couldn't extract content from a data chunk
+                  _logger.w('Unrecognized SSE data format: $data');
+                  
+                } catch (e) {
+                  // If JSON parsing fails for this chunk, just log and continue
+                  _logger.w('Could not parse SSE data line as JSON: $e');
+                }
+              }
+            }
+          }
+          
+          // If we've accumulated response content, return it
+          if (fullResponse.isNotEmpty) {
+            _logger.i('Successfully accumulated SSE response');
+            return fullResponse;
+          }
+          
+          // If we failed to extract content from chunks, try other approaches
+          _logger.w('Failed to extract content from SSE chunks, trying fallback methods');
+          
+          // Fallback 1: Try to extract content using regex
+          final contentRegex = RegExp(r'"content"\s*:\s*"([^"]+)"');
+          final contentMatches = contentRegex.allMatches(responseBody);
+          
+          if (contentMatches.isNotEmpty) {
+            fullResponse = '';
+            for (final match in contentMatches) {
+              final content = match.group(1);
+              if (content != null && content.isNotEmpty) {
+                fullResponse += content;
+              }
+            }
+            
+            if (fullResponse.isNotEmpty) {
+              _logger.i('Extracted content using regex');
+              return fullResponse;
+            }
+          }
+          
+          // Fallback 2: Try parsing the whole response directly (non-streaming format)
+          try {
+            final data = jsonDecode(responseBody);
+            final answer = data['answer'] ?? data['content'] ?? data['message'] ?? '';
+            if (answer.toString().isNotEmpty) {
+              _logger.i('Parsed whole response as JSON');
+              return answer.toString();
+            }
+          } catch (e) {
+            _logger.w('Could not parse whole response as JSON: $e');
+          }
+          
+          // If all else fails, return a message indicating the issue
+          _logger.e('All parsing methods failed for SSE response');
+          return "I received a response but couldn't process it correctly. Please try again.";
+        }
+        
+        // Regular JSON response (non-SSE)
+        try {
+          final data = jsonDecode(responseBody);
+          
+          // Try multiple possible response formats
+          final answer = data['answer'] ?? 
+                        data['content'] ?? 
+                        data['message'] ?? 
+                        data['response'] ?? 
+                        data['text'] ?? 
+                        'No response received';
+          
+          _logger.i('Bot responded successfully with JSON data');
+          return answer.toString();
+        } catch (e) {
+          _logger.w('Could not parse response as JSON, returning raw response: $e');
+          // Return the raw response if JSON parsing fails
+          return responseBody;
+        }
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');
@@ -755,18 +828,18 @@ class BotService {
         throw 'No access token available. Please log in again.';
       }
       
-      // Prepare headers - changed from const to final
+      // Prepare headers
       final headers = {
         'Authorization': 'Bearer $accessToken',
       };
       
-      // Build URL with query parameters
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      const endpoint = ApiConstants.knowledgeBase;
+      // Build URL with query parameters - using kbCoreApiUrl instead of jarvisApiUrl
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      const endpoint = "/kb-core/v1/knowledge"; // Using the correct endpoint path
       
       var queryParams = <String, String>{};
       if (query != null && query.isNotEmpty) {
-        queryParams['query'] = query;
+        queryParams['search'] = query; // 'search' parameter instead of 'query' to match KnowledgeBaseService
       }
       
       final uri = Uri.parse(baseUrl + endpoint).replace(queryParameters: queryParams);
@@ -780,9 +853,16 @@ class BotService {
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final knowledgeBases = data['items'] as List<dynamic>;
         
-        return knowledgeBases.map((item) => KnowledgeData.fromJson(item)).toList();
+        // API returns data in a structure with 'data' array - match KnowledgeBaseService
+        if (data['data'] != null) {
+          final knowledgeBases = data['data'] as List<dynamic>;
+          return knowledgeBases.map((item) => KnowledgeData.fromJson(item)).toList();
+        } else {
+          // Log unexpected format
+          _logger.w('Unknown response format: $data');
+          return [];
+        }
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');
@@ -805,11 +885,18 @@ class BotService {
       rethrow;
     }
   }
-  
-  // Get publishing configuration for a bot
-  Future<Map<String, dynamic>> getPublishingConfigurations(String botId) async {
+
+  // Get all knowledge bases imported to an AI Bot
+  Future<List<KnowledgeData>> getImportedKnowledge({
+    required String botId,
+    String? query,
+    int offset = 0,
+    int limit = 20,
+    String orderField = 'createdAt',
+    String order = 'DESC',
+  }) async {
     try {
-      _logger.i('Fetching publishing configurations for bot $botId');
+      _logger.i('Fetching imported knowledge for bot $botId');
       
       // Get access token
       final accessToken = _authService.accessToken;
@@ -822,96 +909,45 @@ class BotService {
         'Authorization': 'Bearer $accessToken',
       };
       
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.botConfigurations.replaceAll('{botId}', botId);
-      final uri = Uri.parse(baseUrl + endpoint);
+      // Build URL with query parameters
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = '/kb-core/v1/ai-assistant/$botId/knowledges';
+      
+      var queryParams = <String, String>{
+        'offset': offset.toString(),
+        'limit': limit.toString(),
+        'order': order,
+        'order_field': orderField
+      };
+      
+      if (query != null && query.isNotEmpty) {
+        queryParams['q'] = query;
+      }
+      
+      final uri = Uri.parse(baseUrl + endpoint).replace(queryParameters: queryParams);
       
       _logger.i('Request URI: $uri');
       
-      // Send request
-      final response = await http.get(uri, headers: headers);
+      // Send request with timeout
+      final response = await http.get(
+        uri, 
+        headers: headers
+      ).timeout(const Duration(seconds: 15));
       
-      _logger.i('Get publishing configurations response status: ${response.statusCode}');
+      _logger.i('Get imported knowledge response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        _logger.i('Publishing configurations fetched successfully');
-        return data;
-      } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
-        _logger.w('Token expired, attempting to refresh...');
-        final refreshSuccess = await _authService.refreshToken();
         
-        if (refreshSuccess) {
-          // Retry with new token
-          return getPublishingConfigurations(botId);
+        // Check if response format matches the API documentation
+        if (data['data'] != null) {
+          final knowledges = data['data'] as List<dynamic>;
+          return knowledges.map((item) => KnowledgeData.fromJson(item)).toList();
         } else {
-          throw 'Authentication expired. Please log in again.';
+          // Log unexpected format
+          _logger.w('Unknown response format: $data');
+          return [];
         }
-      } else {
-        _logger.e('Failed to fetch publishing configurations: ${response.statusCode}');
-        _logger.e('Response body: ${response.body}');
-        
-        throw 'Failed to fetch publishing configurations: ${response.statusCode}';
-      }
-    } catch (e) {
-      _logger.e('Error fetching publishing configurations: $e');
-      rethrow;
-    }
-  }
-
-  // Get bot publish configurations - alias for getPublishingConfigurations
-  Future<Map<String, dynamic>> getBotPublishConfigurations(String botId) async {
-    return getPublishingConfigurations(botId);
-  }
-  
-  // Publish bot to a platform (Slack, Telegram, Messenger)
-  Future<bool> publishBot({
-    required String botId,
-    required String platform, // 'slack', 'telegram', 'messenger'
-    required Map<String, dynamic> config,
-  }) async {
-    try {
-      _logger.i('Publishing bot $botId to $platform');
-      
-      // Get access token
-      final accessToken = _authService.accessToken;
-      if (accessToken == null) {
-        throw 'No access token available. Please log in again.';
-      }
-      
-      // Prepare headers - changed from const to final
-      final headers = {
-        'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json'
-      };
-      
-      // Build request body
-      final Map<String, dynamic> body = {
-        'platform': platform,
-        'configuration': config,
-      };
-      
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.botPublish.replaceAll('{botId}', botId);
-      final uri = Uri.parse(baseUrl + endpoint);
-      
-      _logger.i('Sending request to: $uri');
-      
-      // Send request
-      final response = await http.post(
-        uri,
-        headers: headers,
-        body: jsonEncode(body),
-      );
-      
-      _logger.i('Publish bot response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        _logger.i('Bot published successfully to $platform');
-        return true;
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');
@@ -919,104 +955,25 @@ class BotService {
         
         if (refreshSuccess) {
           // Retry with new token
-          return publishBot(
+          return getImportedKnowledge(
             botId: botId,
-            platform: platform,
-            config: config,
+            query: query,
+            offset: offset,
+            limit: limit,
+            orderField: orderField,
+            order: order,
           );
         } else {
           throw 'Authentication expired. Please log in again.';
         }
       } else {
-        _logger.e('Failed to publish bot: ${response.statusCode}');
+        _logger.e('Failed to fetch imported knowledge: ${response.statusCode}');
         _logger.e('Response body: ${response.body}');
         
-        throw 'Failed to publish bot: ${response.statusCode}';
+        throw 'Failed to fetch imported knowledge: ${response.statusCode}';
       }
     } catch (e) {
-      _logger.e('Error publishing bot: $e');
-      rethrow;
-    }
-  }
-  
-  // Unpublish bot from a platform
-  Future<bool> unpublishBot({
-    required String botId,
-    required String platform, // 'slack', 'telegram', 'messenger'
-  }) async {
-    try {
-      _logger.i('Unpublishing bot $botId from $platform');
-      
-      // Get access token
-      final accessToken = _authService.accessToken;
-      if (accessToken == null) {
-        throw 'No access token available. Please log in again.';
-      }
-      
-      // Prepare headers - changed from const to final
-      final headers = {
-        'Authorization': 'Bearer $accessToken',
-      };
-      
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.botPublishPlatform
-          .replaceAll('{botId}', botId)
-          .replaceAll('{platform}', platform);
-      final uri = Uri.parse(baseUrl + endpoint);
-      
-      _logger.i('Sending request to: $uri');
-      
-      // Send request
-      final response = await http.delete(uri, headers: headers);
-      
-      _logger.i('Unpublish bot response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        _logger.i('Bot unpublished successfully from $platform');
-        return true;
-      } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
-        _logger.w('Token expired, attempting to refresh...');
-        final refreshSuccess = await _authService.refreshToken();
-        
-        if (refreshSuccess) {
-          // Retry with new token
-          return unpublishBot(
-            botId: botId,
-            platform: platform,
-          );
-        } else {
-          throw 'Authentication expired. Please log in again.';
-        }
-      } else {
-        _logger.e('Failed to unpublish bot: ${response.statusCode}');
-        _logger.e('Response body: ${response.body}');
-        
-        throw 'Failed to unpublish bot: ${response.statusCode}';
-      }
-    } catch (e) {
-      _logger.e('Error unpublishing bot: $e');
-      rethrow;
-    }
-  }
-  
-  // Test connection to a platform
-  Future<Map<String, dynamic>> testBotConnection({
-    required String botId,
-    required String platform,
-  }) async {
-    try {
-      // In a real implementation, this would make an API call to test the connection
-      // For now, we'll simulate a successful response
-      await Future.delayed(const Duration(seconds: 1));
-      return {
-        'status': 'connected',
-        'message': 'Connection successful',
-        'timestamp': DateTime.now().toIso8601String(),
-      };
-    } catch (e) {
-      _logger.e('Error testing bot connection: $e');
+      _logger.e('Error fetching imported knowledge: $e');
       rethrow;
     }
   }
@@ -1041,15 +998,15 @@ class BotService {
         'Content-Type': 'application/json'
       };
       
-      // Build request body
+      // Build request body using "knowledgeName" instead of "name" to match API expectations
       final Map<String, dynamic> body = {
-        'name': name,
+        'knowledgeName': name,
         'description': description,
       };
       
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      const endpoint = ApiConstants.knowledgeBase;
+      // Build URL - Using kbCoreApiUrl with correct path
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      const endpoint = "/kb-core/v1/knowledge";
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1109,9 +1066,9 @@ class BotService {
         'Authorization': 'Bearer $accessToken',
       };
       
-      // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.knowledgeById.replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      // Build URL - Using kbCoreApiUrl with correct path
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = "/kb-core/v1/knowledge/$knowledgeBaseId";
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1196,8 +1153,8 @@ class BotService {
       }
       
       // Prepare request
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.knowledgeUploadFile.replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = "/kb-core/v1/knowledge/$knowledgeBaseId/upload/file";
       final uri = Uri.parse(baseUrl + endpoint);
       
       // Create multipart request
@@ -1281,8 +1238,8 @@ class BotService {
       };
       
       // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.knowledgeUploadWebsite.replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = "/kb-core/v1/knowledge/$knowledgeBaseId/upload/website";
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1353,8 +1310,8 @@ class BotService {
       };
       
       // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.knowledgeUploadGoogleDrive.replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = "/kb-core/v1/knowledge/$knowledgeBaseId/upload/google-drive";
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1423,8 +1380,8 @@ class BotService {
       };
       
       // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.knowledgeUploadSlack.replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = "/kb-core/v1/knowledge/$knowledgeBaseId/upload/slack";
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1497,8 +1454,8 @@ class BotService {
       };
       
       // Build URL
-      const baseUrl = ApiConstants.jarvisApiUrl;
-      final endpoint = ApiConstants.knowledgeUploadConfluence.replaceAll('{knowledgeBaseId}', knowledgeBaseId);
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = "/kb-core/v1/knowledge/$knowledgeBaseId/upload/confluence";
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1543,10 +1500,10 @@ class BotService {
     }
   }
 
-  // Favorite an assistant
-  Future<bool> favoriteAssistant(String assistantId) async {
+  // Get publishing configuration for a bot
+  Future<Map<String, dynamic>> getPublishingConfigurations(String botId) async {
     try {
-      _logger.i('Setting assistant $assistantId as favorite');
+      _logger.i('Fetching publishing configurations for bot $botId');
       
       // Get access token
       final accessToken = _authService.accessToken;
@@ -1557,87 +1514,23 @@ class BotService {
       // Prepare headers
       final headers = {
         'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json'
       };
       
       // Build URL
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = ApiConstants.favoriteAssistant.replaceAll('{assistantId}', assistantId);
+      final endpoint = ApiConstants.assistantConfigurations.replaceAll('{assistantId}', botId);
       final uri = Uri.parse(baseUrl + endpoint);
       
-      _logger.i('Sending request to: $uri');
-      
-      // Send request - POST request to toggle favorite status
-      final response = await http.post(
-        uri,
-        headers: headers,
-        body: jsonEncode({}),
-      );
-      
-      _logger.i('Favorite assistant response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200) {
-        _logger.i('Assistant marked as favorite successfully');
-        return true;
-      } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
-        _logger.w('Token expired, attempting to refresh...');
-        final refreshSuccess = await _authService.refreshToken();
-        
-        if (refreshSuccess) {
-          // Retry with new token
-          return favoriteAssistant(assistantId);
-        } else {
-          throw 'Authentication expired. Please log in again.';
-        }
-      } else {
-        _logger.e('Failed to mark assistant as favorite: ${response.statusCode}');
-        _logger.e('Response body: ${response.body}');
-        
-        throw 'Failed to mark assistant as favorite: ${response.statusCode}';
-      }
-    } catch (e) {
-      _logger.e('Error marking assistant as favorite: $e');
-      rethrow;
-    }
-  }
-
-  // Create a thread for an assistant
-  Future<Map<String, dynamic>> createThreadForAssistant(String assistantId) async {
-    try {
-      _logger.i('Creating thread for assistant $assistantId');
-      
-      // Get access token
-      final accessToken = _authService.accessToken;
-      if (accessToken == null) {
-        throw 'No access token available. Please log in again.';
-      }
-      
-      // Prepare headers
-      final headers = {
-        'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json'
-      };
-      
-      // Build URL
-      const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = ApiConstants.createThreadForAssistant.replaceAll('{assistantId}', assistantId);
-      final uri = Uri.parse(baseUrl + endpoint);
-      
-      _logger.i('Sending request to: $uri');
+      _logger.i('Request URI: $uri');
       
       // Send request
-      final response = await http.post(
-        uri,
-        headers: headers,
-        body: jsonEncode({}),  // Empty body as per API specification
-      );
+      final response = await http.get(uri, headers: headers);
       
-      _logger.i('Create thread response status: ${response.statusCode}');
+      _logger.i('Get publishing configurations response status: ${response.statusCode}');
       
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        _logger.i('Thread created successfully, ID: ${data['id']}');
+        _logger.i('Publishing configurations fetched successfully');
         return data;
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
@@ -1646,240 +1539,30 @@ class BotService {
         
         if (refreshSuccess) {
           // Retry with new token
-          return createThreadForAssistant(assistantId);
+          return getPublishingConfigurations(botId);
         } else {
           throw 'Authentication expired. Please log in again.';
         }
       } else {
-        _logger.e('Failed to create thread: ${response.statusCode}');
+        _logger.e('Failed to fetch publishing configurations: ${response.statusCode}');
         _logger.e('Response body: ${response.body}');
         
-        throw 'Failed to create thread: ${response.statusCode}';
+        throw 'Failed to fetch publishing configurations: ${response.statusCode}';
       }
     } catch (e) {
-      _logger.e('Error creating thread: $e');
+      _logger.e('Error fetching publishing configurations: $e');
       rethrow;
     }
   }
-  
-  // Update assistant with a thread playground
-  Future<AIBot> updateAssistantWithThreadPlayground({
-    required String assistantId,
-    required String threadId,
+
+  // Publish bot to a platform (Slack, Telegram, Messenger)
+  Future<bool> publishBot({
+    required String botId,
+    required String platform, // 'slack', 'telegram', 'messenger'
+    required Map<String, dynamic> config,
   }) async {
     try {
-      _logger.i('Updating assistant $assistantId with thread $threadId');
-      
-      // Get access token
-      final accessToken = _authService.accessToken;
-      if (accessToken == null) {
-        throw 'No access token available. Please log in again.';
-      }
-      
-      // Prepare headers
-      final headers = {
-        'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json'
-      };
-      
-      // Build URL
-      const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = ApiConstants.updateAssistantWithThread
-          .replaceAll('{assistantId}', assistantId)
-          .replaceAll('{threadId}', threadId);
-      final uri = Uri.parse(baseUrl + endpoint);
-      
-      _logger.i('Sending request to: $uri');
-      
-      // Send request - typically a PUT request for updates
-      final response = await http.put(
-        uri,
-        headers: headers,
-        body: jsonEncode({}),  // Empty body as per API specification
-      );
-      
-      _logger.i('Update assistant with thread response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _logger.i('Assistant updated successfully with thread');
-        return AIBot.fromJson(data);
-      } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
-        _logger.w('Token expired, attempting to refresh...');
-        final refreshSuccess = await _authService.refreshToken();
-        
-        if (refreshSuccess) {
-          // Retry with new token
-          return updateAssistantWithThreadPlayground(
-            assistantId: assistantId,
-            threadId: threadId,
-          );
-        } else {
-          throw 'Authentication expired. Please log in again.';
-        }
-      } else {
-        _logger.e('Failed to update assistant with thread: ${response.statusCode}');
-        _logger.e('Response body: ${response.body}');
-        
-        throw 'Failed to update assistant with thread: ${response.statusCode}';
-      }
-    } catch (e) {
-      _logger.e('Error updating assistant with thread: $e');
-      rethrow;
-    }
-  }
-  
-  // Retrieve messages of a thread
-  Future<List<Map<String, dynamic>>> retrieveThreadMessages(String threadId) async {
-    try {
-      _logger.i('Retrieving messages for thread $threadId');
-      
-      // Get access token
-      final accessToken = _authService.accessToken;
-      if (accessToken == null) {
-        throw 'No access token available. Please log in again.';
-      }
-      
-      // Prepare headers
-      final headers = {
-        'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json'
-      };
-      
-      // Build URL
-      const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = ApiConstants.threadMessages.replaceAll('{threadId}', threadId);
-      final uri = Uri.parse(baseUrl + endpoint);
-      
-      _logger.i('Sending request to: $uri');
-      
-      // Send request
-      final response = await http.get(uri, headers: headers);
-      
-      _logger.i('Retrieve thread messages response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        
-        if (data is List) {
-          _logger.i('Retrieved ${data.length} messages from thread');
-          return data.cast<Map<String, dynamic>>();
-        } else if (data is Map && data.containsKey('messages') && data['messages'] is List) {
-          final messages = data['messages'] as List;
-          _logger.i('Retrieved ${messages.length} messages from thread');
-          return messages.cast<Map<String, dynamic>>();
-        } else {
-          _logger.w('Unknown response format for thread messages');
-          return [];
-        }
-      } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
-        _logger.w('Token expired, attempting to refresh...');
-        final refreshSuccess = await _authService.refreshToken();
-        
-        if (refreshSuccess) {
-          // Retry with new token
-          return retrieveThreadMessages(threadId);
-        } else {
-          throw 'Authentication expired. Please log in again.';
-        }
-      } else {
-        _logger.e('Failed to retrieve thread messages: ${response.statusCode}');
-        _logger.e('Response body: ${response.body}');
-        
-        throw 'Failed to retrieve thread messages: ${response.statusCode}';
-      }
-    } catch (e) {
-      _logger.e('Error retrieving thread messages: $e');
-      rethrow;
-    }
-  }
-  
-  // Get all threads with pagination
-  Future<List<Map<String, dynamic>>> getThreads({
-    int offset = 0,
-    int limit = 20,
-  }) async {
-    try {
-      _logger.i('Fetching threads, offset: $offset, limit: $limit');
-      
-      // Get access token
-      final accessToken = _authService.accessToken;
-      if (accessToken == null) {
-        throw 'No access token available. Please log in again.';
-      }
-      
-      // Prepare headers
-      final headers = {
-        'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json'
-      };
-      
-      // Build URL with query parameters
-      const baseUrl = ApiConstants.kbCoreApiUrl;
-      const endpoint = ApiConstants.threadsEndpoint;
-      
-      final queryParams = <String, String>{
-        'offset': offset.toString(),
-        'limit': limit.toString(),
-        'order': 'DESC',
-        'order_field': 'createdAt'
-      };
-      
-      final uri = Uri.parse(baseUrl + endpoint).replace(queryParameters: queryParams);
-      
-      _logger.i('Request URI: $uri');
-      
-      // Send request
-      final response = await http.get(uri, headers: headers);
-      
-      _logger.i('Get threads response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        
-        if (data is List) {
-          _logger.i('Retrieved ${data.length} threads');
-          return data.cast<Map<String, dynamic>>();
-        } else if (data is Map && data.containsKey('data') && data['data'] is List) {
-          final threads = data['data'] as List;
-          _logger.i('Retrieved ${threads.length} threads');
-          return threads.cast<Map<String, dynamic>>();
-        } else {
-          _logger.w('Unknown response format for threads');
-          return [];
-        }
-      } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
-        _logger.w('Token expired, attempting to refresh...');
-        final refreshSuccess = await _authService.refreshToken();
-        
-        if (refreshSuccess) {
-          // Retry with new token
-          return getThreads(offset: offset, limit: limit);
-        } else {
-          throw 'Authentication expired. Please log in again.';
-        }
-      } else {
-        _logger.e('Failed to fetch threads: ${response.statusCode}');
-        _logger.e('Response body: ${response.body}');
-        
-        throw 'Failed to fetch threads: ${response.statusCode}';
-      }
-    } catch (e) {
-      _logger.e('Error fetching threads: $e');
-      rethrow;
-    }
-  }
-  
-  // Send a message to a thread
-  Future<Map<String, dynamic>> sendMessageToThread({
-    required String threadId,
-    required String message,
-  }) async {
-    try {
-      _logger.i('Sending message to thread $threadId');
+      _logger.i('Publishing bot $botId to $platform');
       
       // Get access token
       final accessToken = _authService.accessToken;
@@ -1895,12 +1578,13 @@ class BotService {
       
       // Build request body
       final Map<String, dynamic> body = {
-        'content': message,
+        'platform': platform,
+        'configuration': config,
       };
       
       // Build URL
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = ApiConstants.threadMessages.replaceAll('{threadId}', threadId);
+      final endpoint = ApiConstants.assistantPublish.replaceAll('{assistantId}', botId);
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1912,12 +1596,11 @@ class BotService {
         body: jsonEncode(body),
       );
       
-      _logger.i('Send message to thread response status: ${response.statusCode}');
+      _logger.i('Publish bot response status: ${response.statusCode}');
       
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        _logger.i('Message sent successfully to thread');
-        return data;
+        _logger.i('Bot published successfully to $platform');
+        return true;
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');
@@ -1925,29 +1608,95 @@ class BotService {
         
         if (refreshSuccess) {
           // Retry with new token
-          return sendMessageToThread(
-            threadId: threadId,
-            message: message,
+          return publishBot(
+            botId: botId,
+            platform: platform,
+            config: config,
           );
         } else {
           throw 'Authentication expired. Please log in again.';
         }
       } else {
-        _logger.e('Failed to send message to thread: ${response.statusCode}');
+        _logger.e('Failed to publish bot: ${response.statusCode}');
         _logger.e('Response body: ${response.body}');
         
-        throw 'Failed to send message to thread: ${response.statusCode}';
+        throw 'Failed to publish bot: ${response.statusCode}';
       }
     } catch (e) {
-      _logger.e('Error sending message to thread: $e');
+      _logger.e('Error publishing bot: $e');
       rethrow;
     }
   }
   
-  // Get imported knowledge in an assistant
-  Future<List<Map<String, dynamic>>> getImportedKnowledgeInAssistant(String assistantId) async {
+  // Unpublish bot from a platform
+  Future<bool> unpublishBot({
+    required String botId,
+    required String platform, // 'slack', 'telegram', 'messenger'
+  }) async {
     try {
-      _logger.i('Getting imported knowledge for assistant $assistantId');
+      _logger.i('Unpublishing bot $botId from $platform');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      final endpoint = ApiConstants.assistantPublishPlatform
+          .replaceAll('{assistantId}', botId)
+          .replaceAll('{platform}', platform);
+      final uri = Uri.parse(baseUrl + endpoint);
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request
+      final response = await http.delete(uri, headers: headers);
+      
+      _logger.i('Unpublish bot response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _logger.i('Bot unpublished successfully from $platform');
+        return true;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return unpublishBot(
+            botId: botId,
+            platform: platform,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else {
+        _logger.e('Failed to unpublish bot: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to unpublish bot: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error unpublishing bot: $e');
+      rethrow;
+    }
+  }
+  
+  // Test connection to a platform
+  Future<Map<String, dynamic>> testBotConnection({
+    required String botId,
+    required String platform,
+  }) async {
+    try {
+      _logger.i('Testing bot $botId connection to $platform');
       
       // Get access token
       final accessToken = _authService.accessToken;
@@ -1963,7 +1712,7 @@ class BotService {
       
       // Build URL
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = ApiConstants.assistantKnowledge.replaceAll('{assistantId}', assistantId);
+      final endpoint = '/kb-core/v1/ai-assistant/$botId/test-connection/$platform';
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1971,22 +1720,16 @@ class BotService {
       // Send request
       final response = await http.get(uri, headers: headers);
       
-      _logger.i('Get imported knowledge response status: ${response.statusCode}');
+      _logger.i('Test connection response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
-        if (data is List) {
-          _logger.i('Retrieved ${data.length} knowledge items');
-          return data.cast<Map<String, dynamic>>();
-        } else if (data is Map && data.containsKey('knowledgeBases') && data['knowledgeBases'] is List) {
-          final knowledgeBases = data['knowledgeBases'] as List;
-          _logger.i('Retrieved ${knowledgeBases.length} knowledge bases');
-          return knowledgeBases.cast<Map<String, dynamic>>();
-        } else {
-          _logger.w('Unknown response format for imported knowledge');
-          return [];
-        }
+        return {
+          'status': 'connected',
+          'message': 'Connection successful',
+          'data': data,
+          'timestamp': DateTime.now().toIso8601String(),
+        };
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh
         _logger.w('Token expired, attempting to refresh...');
@@ -1994,18 +1737,122 @@ class BotService {
         
         if (refreshSuccess) {
           // Retry with new token
-          return getImportedKnowledgeInAssistant(assistantId);
+          return testBotConnection(
+            botId: botId,
+            platform: platform,
+          );
         } else {
           throw 'Authentication expired. Please log in again.';
         }
       } else {
-        _logger.e('Failed to get imported knowledge: ${response.statusCode}');
-        _logger.e('Response body: ${response.body}');
-        
-        throw 'Failed to get imported knowledge: ${response.statusCode}';
+        return {
+          'status': 'error',
+          'message': 'Connection failed: ${response.statusCode}',
+          'timestamp': DateTime.now().toIso8601String(),
+        };
       }
     } catch (e) {
-      _logger.e('Error getting imported knowledge: $e');
+      _logger.e('Error testing bot connection: $e');
+      return {
+        'status': 'error',
+        'message': 'Connection error: $e',
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+    }
+  }
+
+  // Import knowledge bases to an AI Bot
+  Future<bool> importKnowledge({
+    required String botId, 
+    required List<String> knowledgeBaseIds
+  }) async {
+    try {
+      _logger.i('Importing knowledge to bot $botId');
+      
+      // Get access token
+      final accessToken = _authService.accessToken;
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Process each knowledge base ID individually as per API spec
+      bool allSuccess = true;
+      List<String> failedIds = [];
+      
+      for (final knowledgeId in knowledgeBaseIds) {
+        try {
+          _logger.i('Importing knowledge ID $knowledgeId to bot $botId');
+          
+          // Prepare headers
+          final headers = {
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json'
+          };
+          
+          // No request body needed according to the OpenAPI spec
+          // The endpoint URL includes both the assistant ID and knowledge ID
+          
+          // Build URL with the correct path format: /kb-core/v1/ai-assistant/{assistantId}/knowledges/{knowledgeId}
+          const baseUrl = ApiConstants.kbCoreApiUrl;
+          final endpoint = '/kb-core/v1/ai-assistant/$botId/knowledges/$knowledgeId';
+          final uri = Uri.parse(baseUrl + endpoint);
+          
+          _logger.i('Sending request to: $uri');
+          
+          // Send request - using POST method as specified in the API
+          final response = await http.post(
+            uri,
+            headers: headers,
+          );
+          
+          _logger.i('Import knowledge response status: ${response.statusCode}');
+          
+          // Accept 200, 201, and 204 as successful status codes
+          // 204 means "No Content" - request succeeded but no content is returned
+          if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 204) {
+            _logger.i('Knowledge $knowledgeId imported successfully');
+          } else if (response.statusCode == 401) {
+            // Token expired, try to refresh
+            _logger.w('Token expired, attempting to refresh...');
+            final refreshSuccess = await _authService.refreshToken();
+            
+            if (refreshSuccess) {
+              // Recursive call to retry with new token for this knowledge ID
+              return importKnowledge(
+                botId: botId,
+                knowledgeBaseIds: [knowledgeId],
+              );
+            } else {
+              throw 'Authentication expired. Please log in again.';
+            }
+          } else {
+            _logger.e('Failed to import knowledge $knowledgeId: ${response.statusCode}');
+            _logger.e('Response body: ${response.body}');
+            
+            allSuccess = false;
+            failedIds.add(knowledgeId);
+          }
+        } catch (e) {
+          _logger.e('Error importing knowledge $knowledgeId: $e');
+          allSuccess = false;
+          failedIds.add(knowledgeId);
+        }
+      }
+      
+      if (!allSuccess) {
+        if (failedIds.length == knowledgeBaseIds.length) {
+          // All imports failed
+          throw 'Failed to import all knowledge bases: ${failedIds.join(", ")}';
+        } else {
+          // Some imports failed, but not all
+          _logger.w('Some knowledge bases failed to import: ${failedIds.join(", ")}');
+          return true; // Return true since some succeeded
+        }
+      }
+      
+      return true;
+    } catch (e) {
+      _logger.e('Error importing knowledge: $e');
       rethrow;
     }
   }
