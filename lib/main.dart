@@ -198,8 +198,9 @@ class _MyAppState extends State<MyApp> {
         backgroundColor: colors.card,
         contentTextStyle: TextStyle(color: colors.cardForeground),
         behavior: SnackBarBehavior.floating,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: colors.border),
         ),
       ),
 

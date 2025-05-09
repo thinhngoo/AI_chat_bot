@@ -440,7 +440,7 @@ class ChatService {
           }
         } catch (e) {
           if (e is String) {
-            throw e;
+            rethrow;
           }
           throw 'Insufficient tokens or access denied. Please check your subscription.';
         }
@@ -577,7 +577,7 @@ class ChatService {
           throw errorMsg;
         } catch (e) {
           if (e is String) {
-            throw e;
+            rethrow;
           }
           throw 'Insufficient tokens. Please upgrade your subscription to continue chatting.';
         }
@@ -603,7 +603,7 @@ class ChatService {
         } catch (e) {
           // Ignore JSON parsing errors for error responses
           if (e is String && (e.contains('insufficient') || e.contains('upgrade'))) {
-            throw e;  // Re-throw token error messages
+            rethrow;  // Re-throw token error messages
           }
           _logger.d('Could not parse error response as JSON: $e');
         }

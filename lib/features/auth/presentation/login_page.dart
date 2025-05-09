@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/utils/validators/input_validator.dart';
 import 'widgets/auth_widgets.dart';
