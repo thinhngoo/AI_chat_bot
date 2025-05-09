@@ -4,7 +4,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../services/subscription_service.dart';
-import '../services/api_constants.dart';
 import '../models/usage_stats.dart';
 import 'package:logger/logger.dart';
 
@@ -178,9 +177,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                        boxShadow: [                          BoxShadow(
+                            color: Colors.black.withAlpha(25), // Changed from withOpacity(0.1) to withAlpha(25) - 0.1*255=25
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -234,7 +232,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               child: LinearProgressIndicator(
                                 value: (_usageStats!.totalTokensUsed / 
                                     (_usageStats!.totalTokensLimit > 0 ? _usageStats!.totalTokensLimit : 1)),
-                                backgroundColor: Colors.white.withOpacity(0.3),
+                                backgroundColor: Colors.white.withAlpha(77), // Changed from withOpacity(0.3) to withAlpha(77) - 0.3*255=77
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                   _usageStats!.totalTokensUsed / (_usageStats!.totalTokensLimit > 0 ? _usageStats!.totalTokensLimit : 1) > 0.8
                                     ? Colors.red
@@ -279,10 +277,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                 style: theme.textTheme.bodyMedium,
                               ),
                               const SizedBox(height: 12),
-                              OutlinedButton.icon(
-                                onPressed: () async {
+                              OutlinedButton.icon(                                onPressed: () async {
                                   final url = Uri.parse('https://admin.dev.jarvis.cx/pricing/overview');
                                   if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                                    if (!mounted) return;
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(content: Text('Không thể mở trang quản trị')),
                                     );
@@ -389,12 +387,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           ),
                         ),
                         child: const Text('Nâng cấp ngay'),
-                      ),
-                    ] else ...[
+                      ),                    ] else ...[
                       ElevatedButton(
                         onPressed: () async {
                           final url = Uri.parse('https://admin.dev.jarvis.cx/pricing/overview');
                           if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                            if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Không thể mở trang quản trị')),
                             );

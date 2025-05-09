@@ -15,9 +15,8 @@ class PromptListScreen extends StatefulWidget {
   final Function(Prompt prompt)? onPromptSelected;
   final String emptyMessage;
   final List<String> availableCategories;
-
   const PromptListScreen({
-    Key? key,
+    super.key,
     required this.prompts,
     this.isLoading = false,
     this.errorMessage = '',
@@ -29,7 +28,7 @@ class PromptListScreen extends StatefulWidget {
     this.onPromptSelected,
     this.emptyMessage = 'No prompts available',
     this.availableCategories = const [],
-  }) : super(key: key);
+  });
 
   @override
   State<PromptListScreen> createState() => _PromptListScreenState();
@@ -81,13 +80,7 @@ class _PromptListScreenState extends State<PromptListScreen> {
       return true;
     }).toList();
   }
-
-  void _promptTapped(Prompt prompt) {
-    if (widget.onPromptSelected != null) {
-      widget.onPromptSelected!(prompt);
-      Navigator.of(context).pop();
-    }
-  }
+  // Removed unused _promptTapped method
 
   @override
   Widget build(BuildContext context) {
@@ -145,13 +138,12 @@ class _PromptListScreenState extends State<PromptListScreen> {
                       const DropdownMenuItem<String?>(
                         value: null,
                         child: Text('All Categories'),
-                      ),
-                      ...widget.availableCategories.map((category) {
+                      ),                      ...widget.availableCategories.map((category) {
                         return DropdownMenuItem<String>(
                           value: category,
                           child: Text(category),
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ],
@@ -213,18 +205,16 @@ class _PromptListScreenState extends State<PromptListScreen> {
                               children: [
                                 Icon(
                                   Icons.note_alt_outlined,
-                                  size: 72,
-                                  color: theme.colorScheme.primary
-                                      .withOpacity(0.5),
+                                  size: 72,                                  color: theme.colorScheme.primary
+                                      .withAlpha(127), // Changed from withOpacity(0.5) to withAlpha(127) - 0.5*255=127
                                 ),
-                                const SizedBox(height: 16),
-                                Text(
+                                const SizedBox(height: 16),                                Text(
                                   widget.emptyMessage,
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: theme.colorScheme.onSurface
-                                        .withOpacity(0.7),
+                                        .withAlpha(178), // Changed from withOpacity(0.7) to withAlpha(178) - 0.7*255=178
                                   ),
                                 ),
                               ],
@@ -237,7 +227,7 @@ class _PromptListScreenState extends State<PromptListScreen> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: theme.colorScheme.onSurface
-                                        .withOpacity(0.7),
+                                        .withAlpha(178), // Changed from withOpacity(0.7) to withAlpha(178) - 0.7*255=178
                                   ),
                                 ),
                               )
@@ -371,21 +361,5 @@ class _PromptListScreenState extends State<PromptListScreen> {
       ),
     );
   }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Today';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
-    } else if (difference.inDays < 30) {
-      return '${(difference.inDays / 7).floor()} weeks ago';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
-    }
-  }
+  // Removed unused _formatDate method
 }

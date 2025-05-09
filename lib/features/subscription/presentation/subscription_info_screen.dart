@@ -408,9 +408,8 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                       const SizedBox(height: 16),
                       if (!isPro && _usageStats!.totalTokensLimit > 0) ...[
                         Text(
-                          'Current period: ${_usageStats!.formattedPeriod}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          'Current period: ${_usageStats!.formattedPeriod}',                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withAlpha(178), // Changed from withOpacity(0.7) to withAlpha(178) - 0.7*255=178
                           ),
                         ),
                       ],

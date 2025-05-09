@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:logger/logger.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/email_model.dart';
 import '../services/email_service.dart';
@@ -23,7 +22,7 @@ class EmailComposeScreen extends StatefulWidget {
 }
 
 class _EmailComposeScreenState extends State<EmailComposeScreen> {
-  final Logger _logger = Logger();
+  // Using EmailService but removed unused logger
   final EmailService _emailService = EmailService();
 
   final TextEditingController _toController = TextEditingController();
@@ -173,42 +172,6 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
       textToShare,
       subject: _emailDraft.subject,
     );
-  }
-
-  Future<bool> _onWillPop() async {
-    // Update the draft from controllers before checking if changed
-    _updateDraftFromControllers();
-
-    // Check if there are unsaved changes
-    if (_emailDraft.hasContent) {
-      // Show confirmation dialog
-      final result = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Save draft?'),
-          content: const Text(
-              'Do you want to save this email draft before leaving?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false), // Discard
-              child: const Text('Discard'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true), // Save
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      );
-
-      // If user wants to save, return true (which will lead back to the parent with a "true" result)
-      if (result == true && mounted) {
-        Navigator.of(context).pop(true);
-        return false;
-      }
-    }
-
-    return true;
   }
 
   @override

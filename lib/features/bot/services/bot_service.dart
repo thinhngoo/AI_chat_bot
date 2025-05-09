@@ -832,10 +832,9 @@ class BotService {
       final headers = {
         'Authorization': 'Bearer $accessToken',
       };
-      
-      // Build URL with query parameters - using kbCoreApiUrl instead of jarvisApiUrl
+        // Build URL with query parameters - using kbCoreApiUrl instead of jarvisApiUrl
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      const endpoint = "/kb-core/v1/knowledge"; // Using the correct endpoint path
+      const endpoint = '/kb-core/v1/knowledge'; // Using the correct endpoint path
       
       var queryParams = <String, String>{};
       if (query != null && query.isNotEmpty) {
@@ -1003,10 +1002,9 @@ class BotService {
         'knowledgeName': name,
         'description': description,
       };
-      
-      // Build URL - Using kbCoreApiUrl with correct path
+        // Build URL - Using kbCoreApiUrl with correct path
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      const endpoint = "/kb-core/v1/knowledge";
+      const endpoint = '/kb-core/v1/knowledge';
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1066,9 +1064,9 @@ class BotService {
         'Authorization': 'Bearer $accessToken',
       };
       
-      // Build URL - Using kbCoreApiUrl with correct path
+      // Build URL - Using kbCoreApiUrl with correct path      
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = "/kb-core/v1/knowledge/$knowledgeBaseId";
+      final endpoint = '/kb-core/v1/knowledge/$knowledgeBaseId';
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1151,10 +1149,9 @@ class BotService {
         default:
           contentType = 'application/octet-stream';
       }
-      
-      // Prepare request
+        // Prepare request
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = "/kb-core/v1/knowledge/$knowledgeBaseId/upload/file";
+      final endpoint = '/kb-core/v1/knowledge/$knowledgeBaseId/upload/file';
       final uri = Uri.parse(baseUrl + endpoint);
       
       // Create multipart request
@@ -1236,10 +1233,9 @@ class BotService {
         'recursive': recursive,
         'maxPages': maxPages,
       };
-      
-      // Build URL
+        // Build URL
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = "/kb-core/v1/knowledge/$knowledgeBaseId/upload/website";
+      final endpoint = '/kb-core/v1/knowledge/$knowledgeBaseId/upload/website';
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1308,10 +1304,9 @@ class BotService {
       final Map<String, dynamic> body = {
         'folderId': folderId,
       };
-      
-      // Build URL
+        // Build URL
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = "/kb-core/v1/knowledge/$knowledgeBaseId/upload/google-drive";
+      final endpoint = '/kb-core/v1/knowledge/$knowledgeBaseId/upload/google-drive';
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1378,10 +1373,9 @@ class BotService {
       final Map<String, dynamic> body = {
         'slackToken': slackToken,
       };
-      
-      // Build URL
+        // Build URL
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = "/kb-core/v1/knowledge/$knowledgeBaseId/upload/slack";
+      final endpoint = '/kb-core/v1/knowledge/$knowledgeBaseId/upload/slack';
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');
@@ -1452,10 +1446,9 @@ class BotService {
         'username': username,
         'apiToken': apiToken,
       };
-      
-      // Build URL
+        // Build URL
       const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = "/kb-core/v1/knowledge/$knowledgeBaseId/upload/confluence";
+      final endpoint = '/kb-core/v1/knowledge/$knowledgeBaseId/upload/confluence';
       final uri = Uri.parse(baseUrl + endpoint);
       
       _logger.i('Sending request to: $uri');

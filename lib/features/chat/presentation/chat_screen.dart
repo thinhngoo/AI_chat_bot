@@ -3,23 +3,16 @@ import 'package:logger/logger.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/auth/auth_service.dart';
-import '../../../widgets/typing_indicator.dart';
 import '../services/chat_service.dart';
 import '../models/conversation_message.dart';
 import '../../../features/prompt/presentation/prompt_selector.dart';
-import '../../../features/prompt/presentation/prompt_management_screen.dart';
 import '../../../features/prompt/presentation/simple_prompt_dialog.dart';
-import '../../../features/prompt/services/prompt_service.dart'
-    as prompt_service;
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../features/subscription/services/ad_manager.dart';
 import '../../../features/subscription/services/subscription_service.dart';
-import 'assistant_management_screen.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/information.dart';
-import '../../../features/subscription/presentation/subscription_screen.dart';
 import '../../../features/bot/services/bot_service.dart';
-import '../../../features/bot/models/ai_bot.dart';
 
 class ChatScreen extends StatefulWidget {
   final Function toggleTheme;
@@ -34,10 +27,7 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
-  final AuthService _authService = AuthService();
   final ChatService _chatService = ChatService();
-  final prompt_service.PromptService _promptService =
-      prompt_service.PromptService();
   final SubscriptionService _subscriptionService = SubscriptionService(
     AuthService(),
     Logger(),
@@ -54,18 +44,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
-  final ScrollController _scrollController = ScrollController();
-  bool _isSending = false;
-  bool _isTyping = false;
+  final ScrollController _scrollController = ScrollController();  bool _isSending = false;
+  // _isTyping field is referenced in the code but commented out in the UI rendering section
+  // ignore: unused_field
+  bool _isTyping = false; // intentionally kept to avoid refactoring multiple setState calls
 
   // Animation controllers
   late AnimationController _sendButtonController;
 
   String _selectedAssistantId = 'gpt-4o'; // Changed from 'gpt-4.1' to 'gpt-4o' which is definitely supported
-
   // Prompt selector state
   bool _showPromptSelector = false;
-  String _promptQuery = '';
 
   @override
   void initState() {
@@ -242,11 +231,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
-    if (message.isEmpty) return;
-
-    setState(() {
+    if (message.isEmpty) return;    setState(() {
       _isSending = true;
-      _isTyping = true;
       _sendButtonController.forward();
     });
 
@@ -737,42 +723,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       ),
     );
   }
-
-  String _getConversationTitle(dynamic conversation) {
-    // Extract first message as title or use default
-    final firstMessage = conversation['first_message'] as String? ?? '';
-    if (firstMessage.isNotEmpty) {
-      return firstMessage.length > 30
-          ? '${firstMessage.substring(0, 27)}...'
-          : firstMessage;
-    }
-
-    // Use created date as fallback
-    final createdAt = conversation['created_at'] ?? 0;
-    final date = DateTime.fromMillisecondsSinceEpoch(createdAt * 1000);
-    return 'Conversation on ${date.day}/${date.month}/${date.year}';
-  }
-
-  String _getConversationTimestamp(dynamic conversation) {
-    final createdAt = conversation['created_at'] ?? 0;
-    final date = DateTime.fromMillisecondsSinceEpoch(createdAt * 1000);
-    final now = DateTime.now();
-
-    // If today, show time
-    if (date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day) {
-      return '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    }
-
-    // If this year, show month and day
-    if (date.year == now.year) {
-      return '${date.day}/${date.month}';
-    }
-
-    // Show full date
-    return '${date.day}/${date.month}/${date.year}';
-  }
+  // Unused methods _getConversationTitle and _getConversationTimestamp have been removed
 
   void _showDeleteConfirmation(BuildContext context, String conversationId) {
     showDialog(
@@ -972,15 +923,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   itemCount: _messages.length,
-                  itemBuilder: (context, index) {
-                    final message = _messages[index];
-                    final isUserMessage =
-                        message.query != null && message.query.isNotEmpty;
+                  itemBuilder: (context, index) {                    final message = _messages[index];
+                    final isUserMessage = message.query.isNotEmpty;
                     final messageText =
                         isUserMessage ? message.query : message.answer;
-                    final messageDate = DateTime.fromMillisecondsSinceEpoch(
-                        message.createdAt * 1000);
-                    final isLastMessage = index == _messages.length - 1;
 
                     // Display both query and answer for each message
                     if (isUserMessage) {
@@ -1502,7 +1448,7 @@ class _AssistantSelectorState extends State<AssistantSelector> {
                                   child: Text(
                                     'No custom bots found',
                                     style: TextStyle(
-                                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                      color: theme.colorScheme.onSurface.withAlpha(153), // Changed from withOpacity(0.6) to withAlpha(153) - 0.6*255=153
                                       fontStyle: FontStyle.italic,
                                     ),
                                   ),
@@ -1621,7 +1567,7 @@ class _AssistantSelectorState extends State<AssistantSelector> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    String title = "AI Assistant";
+    String title = 'AI Assistant';
     bool isCustomBot = false;
     
     // Find the selected assistant to display its name correctly
@@ -1664,7 +1610,7 @@ class _AssistantSelectorState extends State<AssistantSelector> {
               ),
               const SizedBox(width: 2),
               if (isCustomBot)
-                Icon(Icons.smart_toy, size: 14, color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                Icon(Icons.smart_toy, size: 14, color: theme.colorScheme.onSurface.withAlpha(178)), // Changed from withOpacity(0.7) to withAlpha(178) - 0.7*255=178
             ],
           ),
         ),
@@ -1693,15 +1639,14 @@ class _ChatHistoryList extends StatefulWidget {
   final Function(String) onConversationSelected;
   final Function(String) onDeleteConversation;
   final bool isDarkMode;
-
   const _ChatHistoryList({
-    Key? key,
+    super.key,
     required this.selectedAssistantId,
     required this.currentConversationId,
     required this.onConversationSelected,
     required this.onDeleteConversation,
     required this.isDarkMode,
-  }) : super(key: key);
+  });
 
   @override
   State<_ChatHistoryList> createState() => _ChatHistoryListState();

@@ -129,9 +129,8 @@ class PromptService {
       }
       
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}');
-      
-      // Instead of trying to map category, just use "other" which we know works from the API doc
-      String validCategory = "other";
+        // Instead of trying to map category, just use 'other' which we know works from the API doc
+      String validCategory = 'other';
       
       final body = jsonEncode({
         'title': title,
@@ -169,7 +168,8 @@ class PromptService {
     }
   }
   
-  // Helper method to map UI categories to valid API enum values
+  // Helper method to map UI categories to valid API enum values - will be used in future API integration
+  // ignore: unused_element
   String _mapCategoryToAPIValue(String category) {
     // Based on API documentation, expected values might be like:
     // GENERAL, PROGRAMMING, WRITING, etc. (all uppercase with no spaces)

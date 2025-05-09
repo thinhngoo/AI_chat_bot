@@ -9,7 +9,7 @@ import '../../core/constants/app_colors.dart';
 class SplashScreen extends StatefulWidget {
   final Function toggleTheme;
 
-  const SplashScreen({Key? key, required this.toggleTheme}) : super(key: key);
+  const SplashScreen({super.key, required this.toggleTheme});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
