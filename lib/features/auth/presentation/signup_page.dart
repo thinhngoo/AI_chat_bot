@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
+import 'dart:async';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/utils/validators/input_validator.dart';
 import 'widgets/auth_widgets.dart';
 import 'login_page.dart';
 import '../../../widgets/text_field.dart';
-import 'dart:async';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -16,18 +16,21 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
+  // ===== CONTROLLERS =====
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+
+  // ===== SERVICES =====
   final AuthService _authService = AuthService();
   final Logger _logger = Logger();
 
+  // ===== STATE VARIABLES =====
   bool _isLoading = false;
   bool _isSuccess = false;
 
-  // Add separate error messages for each field
   String? _nameErrorMessage;
   String? _emailErrorMessage;
   String? _passwordErrorMessage;

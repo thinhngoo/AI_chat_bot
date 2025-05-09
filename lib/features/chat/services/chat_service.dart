@@ -368,7 +368,7 @@ class ChatService {
       if (conversationId != null && conversationId.isNotEmpty) {
         _logger.i('Using existing conversation ID: $conversationId');
       } else {
-        _logger.i('No conversation ID provided - starting new conversation');
+        _logger.i('No conversation ID provided - starting new conversation with assistant: $assistantId');
       }
       
       // Get access token
@@ -408,6 +408,8 @@ class ChatService {
           }
         };
         _logger.i('Including conversation ID in metadata: $conversationId');
+      } else {
+        _logger.i('Creating new conversation - no metadata included');
       }
       
       _logger.i('Sending message to: $uri');
@@ -470,9 +472,14 @@ class ChatService {
         }
         
         if (newConversationId != null) {
-          _logger.i('Message sent successfully, conversation ID: $newConversationId');
+          if (conversationId == null || conversationId.isEmpty) {
+            _logger.i('Created new conversation with ID: $newConversationId');
+          } else {
+            _logger.i('Message sent successfully to existing conversation ID: $newConversationId');
+          }
         } else {
-          _logger.w('Could not extract conversation ID from response');
+          _logger.w('Could not extract conversation ID from response. This might indicate an API issue.');
+          _logger.w('Full response content: $data');
         }
         
         if (messageText != null) {
