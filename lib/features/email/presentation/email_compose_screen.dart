@@ -487,7 +487,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                         // Return true to indicate the email was saved
                                         Navigator.pop(context, true);
                                       },
-                                isPrimary: false,
+                                variant: ButtonVariant.secondary,
                                 isDarkMode: Theme.of(context).brightness ==
                                     Brightness.dark,
                               ),
@@ -500,7 +500,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                 onPressed: _isLoading || _isSaving
                                     ? null
                                     : _shareEmail,
-                                isPrimary: true,
+                                variant: ButtonVariant.primary,
                                 isDarkMode: Theme.of(context).brightness ==
                                     Brightness.dark,
                               ),

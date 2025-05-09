@@ -9,10 +9,14 @@ import 'knowledge/presentation/knowledge_base_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final Function toggleTheme;
+  final Function setThemeMode;
+  final String currentThemeMode;
 
   const MainScreen({
     super.key,
     required this.toggleTheme,
+    required this.setThemeMode,
+    required this.currentThemeMode,
   });
 
   @override
@@ -22,9 +26,8 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 2;
 
-  // Bottom navigation labels - sử dụng labels ngắn hơn để hiển thị tốt hơn
-  final List<String> _shortLabels = ['Email', 'Prompt', 'Chat', 'Bot', 'Knowledge', 'User'];
-  final List<String> _fullLabels = ['Email', 'Prompt', 'Chat', 'Bot', 'Knowledge', 'User'];
+  // Navigation item labels and tooltips
+  final List<String> _labels = ['Email', 'Prompt', 'Chat', 'Bot', 'Knowledge', 'User'];
 
   late final List<Widget> _screens;
 
@@ -34,12 +37,16 @@ class _MainScreenState extends State<MainScreen> {
 
     // Initialize screens - pass parameters where needed
     _screens = [
-      EmailScreen(toggleTheme: widget.toggleTheme),
+      const EmailScreen(),
       const PromptManagementScreen(),
-      ChatScreen(toggleTheme: widget.toggleTheme),
+      const ChatScreen(),
       const BotListScreen(),
-      KnowledgeBaseScreen(toggleTheme: widget.toggleTheme),
-      const SubscriptionInfoScreen(),
+      const KnowledgeBaseScreen(),
+      SubscriptionInfoScreen(
+        toggleTheme: widget.toggleTheme,
+        setThemeMode: widget.setThemeMode,
+        currentThemeMode: widget.currentThemeMode,
+      ),
     ];
   }
 
@@ -53,12 +60,13 @@ class _MainScreenState extends State<MainScreen> {
         children: _screens,
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        height: 65, // Fixed height for the nav bar
+        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           border: Border(
             top: BorderSide(
-              color: theme.colorScheme.onSurface.withAlpha(160),
+              color: theme.colorScheme.onSurface.withAlpha(20),
               width: 0.5,
             ),
           ),
@@ -66,11 +74,10 @@ class _MainScreenState extends State<MainScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            for (int i = 0; i < _shortLabels.length; i++)
+            for (int i = 0; i < _labels.length; i++)
               _buildNavItem(
                 _getIconForIndex(i), 
-                _shortLabels[i],  // Sử dụng nhãn ngắn hơn
-                _fullLabels[i],   // Giữ full label để hiển thị trong AppBar
+                _labels[i],
                 i
               ),
           ],
@@ -91,7 +98,7 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  Widget _buildNavItem(IconData icon, String shortLabel, String fullLabel, int index) {
+  Widget _buildNavItem(IconData icon, String tooltip, int index) {
     final isSelected = _currentIndex == index;
     final theme = Theme.of(context);
     final colors = theme.brightness == Brightness.dark ? AppColors.dark : AppColors.light;
@@ -99,43 +106,37 @@ class _MainScreenState extends State<MainScreen> {
     Color iconColor = isSelected 
         ? theme.colorScheme.primary
         : colors.muted;
+    
+    // Fixed size for square items
+    const double itemSize = 42;
         
     return Expanded(
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-          decoration: isSelected
-              ? BoxDecoration(
-                  color: theme.colorScheme.primary.withAlpha(60),
-                  borderRadius: BorderRadius.circular(12),
-                )
-              : null,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                color: iconColor,
-                size: 24, // Tăng kích thước icon lên một chút khi không có nhãn
-              ),
-              // Chỉ hiển thị nhãn khi được chọn
-              if (isSelected)
-                const SizedBox(height: 2),
-              if (isSelected)
-                Text(
-                  shortLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: iconColor,
-                  ),
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          child: Center(
+            child: Container(
+              height: itemSize,
+              width: itemSize,
+              decoration: isSelected
+                  ? BoxDecoration(
+                      color: theme.colorScheme.primary.withAlpha(60),
+                      borderRadius: BorderRadius.circular(12),
+                    )
+                  : null,
+              child: Center(
+                child: Icon(
+                  icon,
+                  color: iconColor,
+                  size: 24,
                 ),
-            ],
+              ),
+            ),
           ),
         ),
       ),

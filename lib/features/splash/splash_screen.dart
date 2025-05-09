@@ -8,8 +8,15 @@ import '../../core/constants/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
   final Function toggleTheme;
+  final Function setThemeMode;
+  final String currentThemeMode;
 
-  const SplashScreen({super.key, required this.toggleTheme});
+  const SplashScreen({
+    super.key, 
+    required this.toggleTheme,
+    required this.setThemeMode,
+    required this.currentThemeMode,
+  });
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -81,6 +88,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           MaterialPageRoute(
             builder: (context) => MainScreen(
               toggleTheme: widget.toggleTheme,
+              setThemeMode: widget.setThemeMode,
+              currentThemeMode: widget.currentThemeMode,
             ),
           ),
         );

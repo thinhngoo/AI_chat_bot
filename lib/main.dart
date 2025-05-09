@@ -20,48 +20,80 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool _isDarkMode = false;
-  static const String _isDarkModeKey = 'is_dark_mode';
+  String _themeMode = 'system';
+  static const String _themePreferenceKey = 'theme_preference';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadThemePreference();
+  }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  
+  @override
+  void didChangePlatformBrightness() {
+    // Only update if we're using system theme
+    if (_themeMode == 'system') {
+      _updateThemeBasedOnSystem();
+    }
+    super.didChangePlatformBrightness();
   }
 
   Future<void> _loadThemePreference() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedDarkMode = prefs.getBool(_isDarkModeKey);
+      final savedThemeMode = prefs.getString(_themePreferenceKey);
 
       // If there's a saved preference, use it
-      if (savedDarkMode != null) {
+      if (savedThemeMode != null) {
         setState(() {
-          _isDarkMode = savedDarkMode;
+          _themeMode = savedThemeMode;
+          
+          // Set dark mode based on the theme mode
+          if (_themeMode == 'dark') {
+            _isDarkMode = true;
+          } else if (_themeMode == 'light') {
+            _isDarkMode = false;
+          } else {
+            // System mode - use platform brightness
+            _updateThemeBasedOnSystem();
+          }
         });
       } else {
-        // Otherwise, use the device preference
-        final brightness =
-            WidgetsBinding.instance.platformDispatcher.platformBrightness;
+        // Otherwise, use the device preference (system mode)
         setState(() {
-          _isDarkMode = brightness == Brightness.dark;
+          _themeMode = 'system';
+          _updateThemeBasedOnSystem();
         });
       }
     } catch (e) {
       // If there's an error, default to system preference
-      final brightness =
-          WidgetsBinding.instance.platformDispatcher.platformBrightness;
       setState(() {
-        _isDarkMode = brightness == Brightness.dark;
+        _themeMode = 'system';
+        _updateThemeBasedOnSystem();
       });
     }
   }
+  
+  void _updateThemeBasedOnSystem() {
+    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    setState(() {
+      _isDarkMode = brightness == Brightness.dark;
+    });
+  }
 
-  Future<void> _saveThemePreference(bool isDark) async {
+  Future<void> _saveThemePreference(String themeMode) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_isDarkModeKey, isDark);
+      await prefs.setString(_themePreferenceKey, themeMode);
     } catch (e) {
       // Silently handle error
     }
@@ -69,8 +101,42 @@ class _MyAppState extends State<MyApp> {
 
   void toggleTheme() {
     setState(() {
-      _isDarkMode = !_isDarkMode;
-      _saveThemePreference(_isDarkMode);
+      if (_themeMode == 'system') {
+        // If in system mode, switching will go to explicit dark/light mode
+        _themeMode = _isDarkMode ? 'light' : 'dark';
+        _isDarkMode = !_isDarkMode;
+      } else if (_themeMode == 'dark') {
+        // Toggle from dark to light
+        _themeMode = 'light';
+        _isDarkMode = false;
+      } else {
+        // Toggle from light to dark
+        _themeMode = 'dark';
+        _isDarkMode = true;
+      }
+      
+      _saveThemePreference(_themeMode);
+    });
+  }
+  
+  void setThemeMode(String themeMode) {
+    if (_themeMode == themeMode) {
+      return; // No change needed
+    }
+    
+    setState(() {
+      _themeMode = themeMode;
+      
+      if (_themeMode == 'dark') {
+        _isDarkMode = true;
+      } else if (_themeMode == 'light') {
+        _isDarkMode = false;
+      } else {
+        // System mode - use platform brightness
+        _updateThemeBasedOnSystem();
+      }
+      
+      _saveThemePreference(_themeMode);
     });
   }
 
@@ -80,7 +146,11 @@ class _MyAppState extends State<MyApp> {
       title: 'AI Chat Bot',
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(isDark: _isDarkMode),
-      home: SplashScreen(toggleTheme: toggleTheme),
+      home: SplashScreen(
+        toggleTheme: toggleTheme,
+        setThemeMode: setThemeMode,
+        currentThemeMode: _themeMode,
+      ),
     );
   }
 
