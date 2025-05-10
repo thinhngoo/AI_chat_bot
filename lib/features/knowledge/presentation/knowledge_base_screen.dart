@@ -155,18 +155,23 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
         title: const Text('Knowledge Base'),
       ),
       body: Column(
-        children: [
-          Padding(
+        children: [          Padding(
             padding: const EdgeInsets.all(16.0),
             child: Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Knowledge Bases',
-                      style: theme.textTheme.headlineMedium,
+                      'Knowledge Base',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -180,6 +185,7 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                             ),
                             onChanged: (value) {
                               setState(() {
@@ -192,7 +198,13 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
                         const SizedBox(width: 16),
                         ElevatedButton(
                           onPressed: _createKnowledgeBase,
-                          child: const Text('Create New'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Create Knowledge'),
                         ),
                       ],
                     ),
@@ -237,16 +249,23 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
                             ),
                           ],
                         ),
-                      )
-                    : Padding(
+                      )                    : Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.all(16.0),
                             child: DataTable2(
+                              headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
                               columnSpacing: 12,
                               horizontalMargin: 12,
                               minWidth: 600,
+                              dividerThickness: 1,
+                              dataRowHeight: 64,
+                              headingRowHeight: 56,
                               columns: const [
                                 DataColumn2(
                                   label: Text('Name'),
@@ -262,11 +281,11 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
                                 ),
                                 DataColumn2(
                                   label: Text('Created'),
-                                  size: ColumnSize.M,
+                                  size: ColumnSize.S,
                                 ),
                                 DataColumn2(
                                   label: Text('Actions'),
-                                  size: ColumnSize.S,
+                                  size: ColumnSize.M,
                                 ),
                               ],
                               rows: _knowledgeBases.map((kb) {
@@ -281,28 +300,45 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
                                     );
                                   },
                                   cells: [
-                                    DataCell(Text(kb.name)),
-                                    DataCell(Text(
-                                      kb.description.isEmpty ? 'No description' : kb.description,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    )),
+                                    DataCell(
+                                      Container(
+                                        constraints: const BoxConstraints(maxWidth: 200),
+                                        child: Text(
+                                          kb.name,
+                                          overflow: TextOverflow.ellipsis, 
+                                          maxLines: 1,
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                      )
+                                    ),
+                                    DataCell(
+                                      Container(
+                                        constraints: const BoxConstraints(maxWidth: 250),
+                                        child: Text(
+                                          kb.description.isEmpty ? 'No description' : kb.description,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      )
+                                    ),
                                     DataCell(_buildStatusBadge(kb.status)),
                                     DataCell(Text(
                                       _formatDate(kb.createdAt),
                                     )),
                                     DataCell(
                                       Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.edit),
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [                                          IconButton(
+                                            icon: const Icon(Icons.edit, color: Colors.blue),
                                             onPressed: () {
                                               // Handle edit
                                             },
                                             tooltip: 'Edit',
                                             iconSize: 20,
+                                            constraints: const BoxConstraints(),
+                                            padding: EdgeInsets.zero,
                                           ),
+                                          const SizedBox(width: 8),
                                           IconButton(
                                             icon: Icon(
                                               Icons.delete,
@@ -311,6 +347,28 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
                                             onPressed: () => _showDeleteConfirmation(kb),
                                             tooltip: 'Delete',
                                             iconSize: 20,
+                                            constraints: const BoxConstraints(),
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.arrow_forward,
+                                              color: Colors.green,
+                                            ),
+                                            onPressed: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (context) => KnowledgeBaseDetailScreen(
+                                                    knowledgeBaseId: kb.id,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            tooltip: 'Add Knowledge Unit',
+                                            iconSize: 20,
+                                            constraints: const BoxConstraints(),
+                                            padding: EdgeInsets.zero,
                                           ),
                                         ],
                                       ),
