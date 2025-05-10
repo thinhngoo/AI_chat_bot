@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:data_table_2/data_table_2.dart';
 import '../models/knowledge_base_model.dart';
 import '../services/knowledge_base_service.dart';
 import 'create_knowledge_base_dialog.dart';
 import 'knowledge_base_detail_screen.dart';
 
 class KnowledgeBaseScreen extends StatefulWidget {
-  const KnowledgeBaseScreen({
-    super.key,
-  });
+  const KnowledgeBaseScreen({super.key});
 
   @override
   State<KnowledgeBaseScreen> createState() => _KnowledgeBaseScreenState();
@@ -43,8 +40,7 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
   }
 
   void _scrollListener() {
-    if (_scrollController.position.pixels ==
-        _scrollController.position.maxScrollExtent) {
+    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
       if (_hasMoreData && !_isLoading) {
         _loadMoreKnowledgeBases();
       }
@@ -148,44 +144,48 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Knowledge Base'),
+        elevation: 0,
       ),
       body: Column(
-        children: [          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Knowledge Base',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+        children: [          // Search and create section
+          Card(
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            elevation: 1,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Knowledge Base',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      // Search field
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(25),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
                           child: TextField(
                             controller: _searchController,
                             decoration: InputDecoration(
-                              hintText: 'Search knowledge bases...',
+                              hintText: 'Search knowledge...',
                               prefixIcon: const Icon(Icons.search),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                             onChanged: (value) {
                               setState(() {
@@ -195,198 +195,264 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
                             },
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        ElevatedButton(
-                          onPressed: _createKnowledgeBase,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Create knowledge button
+                      ElevatedButton(
+                        onPressed: _createKnowledgeBase,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6366F1), // Indigo color
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text('Create Knowledge'),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                        child: const Text('Create Knowledge'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
+          
+          // Column headers
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: const [
+                SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Name/Description',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                SizedBox(width: 8),
+                SizedBox(
+                  width: 80,
+                  child: Text(
+                    'Status',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                SizedBox(width: 8),
+                SizedBox(
+                  width: 80,
+                  child: Text(
+                    'Created',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                SizedBox(width: 8),
+                SizedBox(
+                  width: 100,
+                  child: Text(
+                    'Actions',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          const Divider(height: 1),
+          
+          // List of knowledge bases
           Expanded(
             child: _error != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _error!,
-                          style: TextStyle(
-                            color: theme.colorScheme.error,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadKnowledgeBases,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
+                ? _buildErrorView()
                 : _knowledgeBases.isEmpty && !_isLoading
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'No knowledge bases found',
-                              style: theme.textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _createKnowledgeBase,
-                              child: const Text('Create New Knowledge Base'),
-                            ),
-                          ],
-                        ),
-                      )                    : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: DataTable2(
-                              headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
-                              columnSpacing: 12,
-                              horizontalMargin: 12,
-                              minWidth: 600,
-                              dividerThickness: 1,
-                              dataRowHeight: 64,
-                              headingRowHeight: 56,
-                              columns: const [
-                                DataColumn2(
-                                  label: Text('Name'),
-                                  size: ColumnSize.L,
-                                ),
-                                DataColumn2(
-                                  label: Text('Description'),
-                                  size: ColumnSize.L,
-                                ),
-                                DataColumn2(
-                                  label: Text('Status'),
-                                  size: ColumnSize.S,
-                                ),
-                                DataColumn2(
-                                  label: Text('Created'),
-                                  size: ColumnSize.S,
-                                ),
-                                DataColumn2(
-                                  label: Text('Actions'),
-                                  size: ColumnSize.M,
-                                ),
-                              ],
-                              rows: _knowledgeBases.map((kb) {
-                                return DataRow2(
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (context) => KnowledgeBaseDetailScreen(
-                                          knowledgeBaseId: kb.id,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  cells: [
-                                    DataCell(
-                                      Container(
-                                        constraints: const BoxConstraints(maxWidth: 200),
-                                        child: Text(
-                                          kb.name,
-                                          overflow: TextOverflow.ellipsis, 
-                                          maxLines: 1,
-                                          style: const TextStyle(fontWeight: FontWeight.bold),
-                                        ),
-                                      )
-                                    ),
-                                    DataCell(
-                                      Container(
-                                        constraints: const BoxConstraints(maxWidth: 250),
-                                        child: Text(
-                                          kb.description.isEmpty ? 'No description' : kb.description,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      )
-                                    ),
-                                    DataCell(_buildStatusBadge(kb.status)),
-                                    DataCell(Text(
-                                      _formatDate(kb.createdAt),
-                                    )),
-                                    DataCell(
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [                                          IconButton(
-                                            icon: const Icon(Icons.edit, color: Colors.blue),
-                                            onPressed: () {
-                                              // Handle edit
-                                            },
-                                            tooltip: 'Edit',
-                                            iconSize: 20,
-                                            constraints: const BoxConstraints(),
-                                            padding: EdgeInsets.zero,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          IconButton(
-                                            icon: Icon(
-                                              Icons.delete,
-                                              color: theme.colorScheme.error,
-                                            ),
-                                            onPressed: () => _showDeleteConfirmation(kb),
-                                            tooltip: 'Delete',
-                                            iconSize: 20,
-                                            constraints: const BoxConstraints(),
-                                            padding: EdgeInsets.zero,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.arrow_forward,
-                                              color: Colors.green,
-                                            ),
-                                            onPressed: () {
-                                              Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                  builder: (context) => KnowledgeBaseDetailScreen(
-                                                    knowledgeBaseId: kb.id,
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                            tooltip: 'Add Knowledge Unit',
-                                            iconSize: 20,
-                                            constraints: const BoxConstraints(),
-                                            padding: EdgeInsets.zero,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ),
-                      ),
+                    ? _buildEmptyView()
+                    : _buildKnowledgeBaseList(),
           ),
+          
+          // Loading indicator
           if (_isLoading)
             const Padding(
               padding: EdgeInsets.all(8.0),
               child: CircularProgressIndicator(),
             ),
         ],
+      ),
+    );
+  }
+  
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 48,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _error!,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.error,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadKnowledgeBases,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildEmptyView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.source_outlined,
+            size: 64,
+            color: Colors.grey,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No knowledge bases found',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _createKnowledgeBase,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Create New Knowledge Base'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildKnowledgeBaseList() {
+    return ListView.separated(
+      controller: _scrollController,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: _knowledgeBases.length,
+      separatorBuilder: (context, index) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final kb = _knowledgeBases[index];
+        return InkWell(
+          onTap: () => _navigateToDetail(kb.id),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                // Database icon
+                const Icon(Icons.storage, color: Colors.blue, size: 20),
+                const SizedBox(width: 8),
+                
+                // Name and description
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        kb.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (kb.description.isNotEmpty)
+                        Text(
+                          kb.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(width: 8),
+                
+                // Status
+                SizedBox(
+                  width: 80,
+                  child: _buildStatusBadge(kb.status),
+                ),
+                
+                const SizedBox(width: 8),
+                
+                // Created date
+                SizedBox(
+                  width: 80,
+                  child: Text(
+                    _formatDate(kb.createdAt),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                
+                const SizedBox(width: 8),
+                
+                // Action buttons
+                SizedBox(
+                  width: 100,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Edit button
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue, size: 18),
+                        onPressed: () {
+                          // Handle edit
+                        },
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      
+                      // Delete button
+                      IconButton(
+                        icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error, size: 18),
+                        onPressed: () => _showDeleteConfirmation(kb),
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      
+                      // Arrow button
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward, color: Colors.green, size: 18),
+                        onPressed: () => _navigateToDetail(kb.id),
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _navigateToDetail(String knowledgeBaseId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => KnowledgeBaseDetailScreen(
+          knowledgeBaseId: knowledgeBaseId,
+        ),
       ),
     );
   }
@@ -427,6 +493,7 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
           style: TextStyle(
             color: color,
             fontWeight: FontWeight.bold,
+            fontSize: 12,
           ),
         ),
       ],
