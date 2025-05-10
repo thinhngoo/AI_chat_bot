@@ -395,8 +395,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
   
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     // Group messages by sender with minimal time gap
     final groupedMessages = <List<ChatMessage>>[];
@@ -450,13 +449,13 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
           // Chat header info
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-            color: theme.colorScheme.surfaceContainerHighest,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: Row(
               children: [
                 Icon(
                   Icons.info_outline,
                   size: 18,
-                  color: theme.colorScheme.primary,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -464,7 +463,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
                     'Đây là chế độ xem trước của bot. Tin nhắn không được lưu trữ và đây chỉ là môi trường để kiểm tra.',
                     style: TextStyle(
                       fontSize: 12,
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -485,7 +484,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
                   fit: BoxFit.cover,
                   opacity: 0.05,
                   colorFilter: ColorFilter.mode(
-                    theme.colorScheme.primary.withAlpha(25),  // Approximately 0.1 opacity
+                    Theme.of(context).colorScheme.primary.withAlpha(25),  // Approximately 0.1 opacity
                     BlendMode.dstATop,
                   ),
                 ),*/
@@ -515,7 +514,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
+              color: Theme.of(context).colorScheme.surface,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withAlpha(13), // ~0.05 opacity
@@ -532,7 +531,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
                   IconButton(
                     icon: Icon(
                       Icons.attach_file,
-                      color: theme.colorScheme.primary,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                     onPressed: _showAttachmentOptions,
                     tooltip: 'Add attachment',
@@ -594,7 +593,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
                                             _sendButtonController.status == AnimationStatus.completed;
                       
                       return Material(
-                        color: theme.colorScheme.primary,
+                        color: Theme.of(context).colorScheme.primary,
                         borderRadius: BorderRadius.circular(24),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(24),
@@ -610,15 +609,15 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.5,
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                        theme.colorScheme.onPrimary,
+                                        Theme.of(context).colorScheme.onPrimary,
                                       ),
                                     ),
                                   )
                                 : Icon(
                                     Icons.send_rounded,
                                     color: _messageController.text.trim().isEmpty
-                                        ? theme.colorScheme.onPrimary.withAlpha(128)
-                                        : theme.colorScheme.onPrimary,
+                                        ? Theme.of(context).colorScheme.onPrimary.withAlpha(128)
+                                        : Theme.of(context).colorScheme.onPrimary,
                                     size: 24,
                                   ),
                           ),
@@ -637,8 +636,6 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
   
   // Build a message group from the same sender
   Widget _buildMessageGroup(BuildContext context, List<ChatMessage> messageGroup, bool isUser) {
-    final theme = Theme.of(context);
-    
     // Create avatar for user or bot
     final avatarWidget = isUser
       ? CircleAvatar(
@@ -651,12 +648,12 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
           ),
         )
       : CircleAvatar(
-          backgroundColor: theme.colorScheme.primary,
+          backgroundColor: Theme.of(context).colorScheme.primary,
           radius: 16,
           child: Text(
             widget.botName.isNotEmpty ? widget.botName[0].toUpperCase() : 'B',
             style: TextStyle(
-              color: theme.colorScheme.onPrimary,
+              color: Theme.of(context).colorScheme.onPrimary,
               fontWeight: FontWeight.bold,
               fontSize: 14,
             ),
@@ -689,7 +686,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
-                        color: theme.colorScheme.onSurface.withAlpha(179),
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(179),
                       ),
                     ),
                   ),
@@ -708,7 +705,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
                     _formatTime(messageGroup.last.timestamp),
                     style: TextStyle(
                       fontSize: 10,
-                      color: theme.colorScheme.onSurface.withAlpha(128),
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(128),
                     ),
                   ),
                 ),
@@ -740,19 +737,18 @@ class _BotPreviewScreenState extends State<BotPreviewScreen> with TickerProvider
 
   // Build a message bubble
   Widget _buildMessageBubble(BuildContext context, ChatMessage message) {
-    final theme = Theme.of(context);
     final isUserMessage = message.isUserMessage;
     final backgroundColor = isUserMessage
-        ? theme.colorScheme.primary
+        ? Theme.of(context).colorScheme.primary
         : message.isError
-            ? theme.colorScheme.errorContainer
-            : theme.colorScheme.surfaceContainerHighest;
+            ? Theme.of(context).colorScheme.errorContainer
+            : Theme.of(context).colorScheme.surfaceContainerHighest;
 
     final textColor = isUserMessage
-        ? theme.colorScheme.onPrimary
+        ? Theme.of(context).colorScheme.onPrimary
         : message.isError
-            ? theme.colorScheme.onErrorContainer
-            : theme.colorScheme.onSurfaceVariant;
+            ? Theme.of(context).colorScheme.onErrorContainer
+            : Theme.of(context).colorScheme.onSurfaceVariant;
 
     // Determine if message appears to be a URL
     final isUrl = message.isUrl || (Uri.tryParse(message.message)?.hasScheme ?? false);

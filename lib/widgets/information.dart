@@ -24,8 +24,7 @@ class InformationIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colors = isDarkMode ? AppColors.dark : AppColors.light;
     
     return Center(
@@ -44,7 +43,7 @@ class InformationIndicator extends StatelessWidget {
               Text(
                 message!,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: _getTextColor(colors),
                 ),
               ),
@@ -53,13 +52,15 @@ class InformationIndicator extends StatelessWidget {
             if (buttonText != null && onButtonPressed != null) ...[
               const SizedBox(height: 12),
               
-              MiniGhostButton(
+              Button(
                 label: buttonText!,
                 onPressed: onButtonPressed,
                 isDarkMode: isDarkMode,
                 color: colors.foreground.withAlpha(180),
                 icon: Icons.refresh,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                variant: ButtonVariant.ghost,
+                radius: ButtonRadius.small,
+                fullWidth: false,
               ),
             ],
           ],
@@ -125,8 +126,7 @@ class GlobalSnackBar {
     VoidCallback? onActionPressed,
     VoidCallback? onDismissed,
   }) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colors = isDarkMode ? AppColors.dark : AppColors.light;
     
     final Color backgroundColor;

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../widgets/information.dart'
     show
         SnackBarVariant,
@@ -8,6 +7,7 @@ import '../../../widgets/information.dart'
         InformationVariant,
         InformationIndicator;
 import '../../../widgets/text_field.dart';
+import '../../../widgets/dialog.dart';
 import '../services/chat_service.dart';
 import '../models/conversation_message.dart';
 
@@ -18,7 +18,6 @@ class ChatHistoryDrawer extends StatelessWidget {
   final Function() onNewChat;
   final Function(String) onConversationSelected;
   final Function(String) onDeleteConversation;
-  final bool isDarkMode;
 
   const ChatHistoryDrawer({
     super.key,
@@ -27,7 +26,6 @@ class ChatHistoryDrawer extends StatelessWidget {
     required this.onNewChat,
     required this.onConversationSelected,
     required this.onDeleteConversation,
-    required this.isDarkMode,
   });
 
   /// Fetches conversation history from the server
@@ -72,71 +70,60 @@ class ChatHistoryDrawer extends StatelessWidget {
     }
   }
 
-  void _showDeleteConfirmation(BuildContext context, String conversationId) {
-    showDialog(
+  void _showDeleteConfirmation(BuildContext context, String conversationId) async {
+    await GlobalDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Conversation'),
-        content:
-            const Text('Are you sure you want to delete this conversation?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                // Delete conversation API call would go here
-                // await ChatService().deleteConversation(conversationId);
+      title: 'Delete Conversation',
+      message: 'Are you sure you want to delete this conversation?',
+      variant: DialogVariant.warning,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      onConfirm: () async {
+        try {
+          // Delete conversation API call would go here
+          // await ChatService().deleteConversation(conversationId);
 
-                // For now, just refresh the UI
-                if (conversationId == currentConversationId) {
-                  onNewChat();
-                }
+          // For now, just refresh the UI
+          if (conversationId == currentConversationId) {
+            onNewChat();
+          }
 
-                // Store context in variable to capture when button was pressed
-                final BuildContext contextCaptured = context;
+          // Store context in variable to capture when button was pressed
+          final BuildContext contextCaptured = context;
 
-                GlobalSnackBar.show(
-                  context: context,
-                  message: 'Conversation deleted',
-                  variant: SnackBarVariant.success,
-                );
+          GlobalSnackBar.show(
+            context: context,
+            message: 'Conversation deleted',
+            variant: SnackBarVariant.success,
+          );
 
-                // Check if widget is still in tree before navigating
-                if (contextCaptured.mounted) {
-                  // Close and reopen drawer to refresh
-                  Navigator.pop(contextCaptured);
-                  Scaffold.of(contextCaptured).openDrawer();
-                }
-              } catch (e) {
-                GlobalSnackBar.show(
-                  context: context,
-                  message: 'Unable to delete: $e',
-                  variant: SnackBarVariant.error,
-                  duration: const Duration(seconds: 3),
-                );
-              }
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+          // Check if widget is still in tree before navigating
+          if (contextCaptured.mounted) {
+            // Close and reopen drawer to refresh
+            Navigator.pop(contextCaptured);
+            Scaffold.of(contextCaptured).openDrawer();
+          }
+        } catch (e) {
+          GlobalSnackBar.show(
+            context: context,
+            message: 'Unable to delete: $e',
+            variant: SnackBarVariant.error,
+            duration: const Duration(seconds: 3),
+          );
+        }
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final colors = isDarkMode ? AppColors.dark : AppColors.light;
     final double screenWidth = MediaQuery.of(context).size.width;
     final TextEditingController searchController = TextEditingController();
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     return Drawer(
       width: screenWidth, // Make drawer use the full screen width
-      backgroundColor: colors.background,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.zero), // Remove default rounded corners
       child: Column(
@@ -156,7 +143,7 @@ class ChatHistoryDrawer extends StatelessWidget {
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: colors.border,
+                  color: Theme.of(context).colorScheme.outline,
                   width: 1,
                 ),
               ),
@@ -166,11 +153,11 @@ class ChatHistoryDrawer extends StatelessWidget {
                 // Title
                 const SizedBox(width: 40),
                 const Spacer(),
-                Text('Chat History', style: theme.textTheme.titleMedium),
+                Text('Chat History', style: Theme.of(context).textTheme.titleMedium),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.keyboard_double_arrow_right, size: 32),
-                  color: colors.foreground.withAlpha(204),
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -429,10 +416,6 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-    final colors = isDarkMode ? AppColors.dark : AppColors.light;
-
     if (_isLoading) {
       return InformationIndicator(
         message: 'Loading conversations...',
@@ -480,44 +463,49 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
           final timestamp = _getConversationTimestamp(conversation);
           final isActive = conversationId == widget.currentConversationId;
 
-          return ListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.only(left: 16, right: 0),
-            tileColor: isActive ? colors.accent : null,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(isActive ? 8 : 0),
-              side: isActive
-                  ? BorderSide(
-                      color: colors.accentForeground.withAlpha(30),
-                      width: 1,
-                    )
-                  : BorderSide.none,
-            ),
-            title: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: isActive ? colors.accentForeground : colors.foreground,
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: ListTile(
+              dense: true,
+              contentPadding: const EdgeInsets.only(left: 16, right: 0),
+              tileColor: isActive 
+                  ? Theme.of(context).colorScheme.surface
+                  : null,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(isActive ? 8 : 0),
+                side: isActive
+                    ? BorderSide(
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(30),
+                        width: 1,
+                      )
+                    : BorderSide.none,
               ),
-            ),
-            subtitle: Text(
-              timestamp,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colors.muted,
+              title: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
+              subtitle: Text(
+                timestamp,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).hintColor,
+                ),
+              ),
+              trailing: IconButton(
+                icon: Icon(Icons.delete_outline, color: Theme.of(context).hintColor),
+                onPressed: () {
+                  widget.onDeleteConversation(conversationId);
+                },
+                padding: EdgeInsets.zero,
+              ),
+              onTap: () => widget.onConversationSelected(conversationId),
             ),
-            trailing: IconButton(
-              icon: Icon(Icons.delete_outline, color: colors.muted),
-              onPressed: () {
-                widget.onDeleteConversation(conversationId);
-              },
-              padding: EdgeInsets.zero,
-            ),
-            onTap: () => widget.onConversationSelected(conversationId),
           );
         },
       ),

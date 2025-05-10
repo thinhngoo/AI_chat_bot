@@ -5,7 +5,6 @@ import '../services/email_service.dart';
 import '../../../features/subscription/services/subscription_service.dart';
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../core/services/auth/auth_service.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../widgets/text_field.dart';
 import '../../../widgets/button.dart';
 import '../../../widgets/typing_indicator.dart';
@@ -184,9 +183,7 @@ class _EmailScreenState extends State<EmailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final AppColors colors = isDarkMode ? AppColors.dark : AppColors.light;
 
     return Scaffold(
       appBar: AppBar(
@@ -217,15 +214,15 @@ class _EmailScreenState extends State<EmailScreen> {
                 children: [
                   Text(
                     'AI Email Assistant',
-                    style: theme.textTheme.headlineMedium,
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
 
                   const SizedBox(height: 8),
                   
                   Text(
                     'Get AI help composing professional emails for any situation',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colors.muted,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).hintColor,
                     ),
                   ),
                   
@@ -233,7 +230,7 @@ class _EmailScreenState extends State<EmailScreen> {
 
                   Text(
                     'First, paste the email you received:',
-                    style: theme.textTheme.bodyMedium,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
 
                   const SizedBox(height: 8),
@@ -257,11 +254,16 @@ class _EmailScreenState extends State<EmailScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        MiniGhostButton(
-                          label: 'Clear email',
+                        Button(
+                          label: 'Clear',
                           icon: Icons.delete_outline,
                           onPressed: _clearEmail,
-                          color: colors.delete,
+                          color: Theme.of(context).colorScheme.error,
+                          size: ButtonSize.small,
+                          variant: ButtonVariant.ghost,
+                          ghostAlpha: 50,
+                          fullWidth: false,
+                          fontWeight: FontWeight.bold,
                           isDarkMode: isDarkMode,
                         ),
                       ],
@@ -279,7 +281,7 @@ class _EmailScreenState extends State<EmailScreen> {
                         padding: const EdgeInsets.only(right: 4),
                         child: Text(
                           'Try with sample:',
-                          style: theme.textTheme.bodyMedium,
+                          style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ),
                       ...List.generate(
@@ -290,12 +292,12 @@ class _EmailScreenState extends State<EmailScreen> {
                             label: Text(_sampleEmails[index]['title']!),
                             labelStyle: TextStyle(
                               fontSize: 12,
-                              color: colors.cardForeground,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
-                            backgroundColor: colors.card,
+                            backgroundColor: Theme.of(context).colorScheme.surface,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(color: colors.border),
+                              side: BorderSide(color: Theme.of(context).colorScheme.outline),
                             ),
                             padding: const EdgeInsets.all(0),
                           ),
@@ -305,7 +307,7 @@ class _EmailScreenState extends State<EmailScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  LargeButton(
+                  Button(
                     label: 'Get AI Suggestions',
                     icon: Icons.auto_awesome,
                     onPressed:
@@ -314,30 +316,36 @@ class _EmailScreenState extends State<EmailScreen> {
                             : _getSuggestions,
                     variant: ButtonVariant.primary,
                     isDarkMode: isDarkMode,
+                    fontWeight: FontWeight.bold,
+                    size: ButtonSize.large,
                   ),
-                  const SizedBox(height: 24),
 
-                  if (_errorMessage.isNotEmpty)
+                  const SizedBox(height: 8),
+                  
+
+                  if (_errorMessage.isNotEmpty) ...[
+                    const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(12.0),
                       decoration: BoxDecoration(
-                        color: colors.error.withAlpha(26),
+                        color: Theme.of(context).colorScheme.error.withAlpha(26),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: colors.error.withAlpha(128)),
+                        border: Border.all(color: Theme.of(context).colorScheme.error.withAlpha(128)),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.error_outline, color: colors.error),
+                          Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _errorMessage,
-                              style: TextStyle(color: colors.error),
+                              style: TextStyle(color: Theme.of(context).colorScheme.error),
                             ),
                           ),
                         ],
                       ),
                     ),
+                  ],
 
                   // Loading indicator
                   if (_isLoading) ...[
@@ -352,8 +360,8 @@ class _EmailScreenState extends State<EmailScreen> {
                     Text(
                       'Getting email suggestions...',
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colors.foreground.withAlpha(128),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(128),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -362,11 +370,13 @@ class _EmailScreenState extends State<EmailScreen> {
 
                   // Suggestions
                   if (_suggestions.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 20),
+
                     Text(
                       'Suggested responses:',
-                      style: theme.textTheme.headlineSmall,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
+
                     const SizedBox(height: 16),
 
                     // Grid of suggestion cards
@@ -388,17 +398,18 @@ class _EmailScreenState extends State<EmailScreen> {
                     ),
                   ],
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 20),
 
                   // All email actions
                   Text(
                     'Choose your response type:',
-                    style: theme.textTheme.headlineSmall?.copyWith(
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: _originalEmailController.text.isEmpty
-                          ? colors.muted
+                          ? Theme.of(context).hintColor
                           : null,
                     ),
                   ),
+                  
                   const SizedBox(height: 16),
 
                   // Email action types
@@ -423,9 +434,9 @@ class _EmailScreenState extends State<EmailScreen> {
                   // Email formatting options
                   Text(
                     'Select tone and style:',
-                    style: theme.textTheme.headlineSmall?.copyWith(
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: _originalEmailController.text.isEmpty
-                          ? colors.muted
+                          ? Theme.of(context).hintColor
                           : null,
                     ),
                   ),
@@ -456,9 +467,6 @@ class _EmailScreenState extends State<EmailScreen> {
   }
 
   Widget _buildSuggestionCard(EmailSuggestion suggestion) {
-    final theme = Theme.of(context);
-    final colors =
-        theme.brightness == Brightness.dark ? AppColors.dark : AppColors.light;
     final bool isDisabled = _originalEmailController.text.isEmpty;
 
     return Card(
@@ -481,19 +489,19 @@ class _EmailScreenState extends State<EmailScreen> {
                   children: [
                     Icon(
                       suggestion.actionType.icon,
-                      color: colors.primary,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
 
                     const SizedBox(width: 8),
                     
                     Text(
                       suggestion.actionType.label,
-                      style: theme.textTheme.headlineSmall,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
                   ],
                 ),
                 Divider(
-                  color: colors.border,
+                  color: Theme.of(context).colorScheme.outline,
                 ),
                 // Preview content
                 Expanded(
@@ -501,8 +509,8 @@ class _EmailScreenState extends State<EmailScreen> {
                     suggestion.content,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withAlpha(204),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
                     ),
                   ),
                 ),
@@ -516,9 +524,6 @@ class _EmailScreenState extends State<EmailScreen> {
   }
 
   Widget _buildActionCard(EmailActionType actionType) {
-    final theme = Theme.of(context);
-    final colors =
-        theme.brightness == Brightness.dark ? AppColors.dark : AppColors.light;
     final bool isDisabled = _originalEmailController.text.isEmpty;
 
     return Card(
@@ -539,7 +544,7 @@ class _EmailScreenState extends State<EmailScreen> {
                 Icon(
                   actionType.icon,
                   size: 32,
-                  color: colors.primary,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
 
                 const SizedBox(height: 8),
@@ -547,8 +552,8 @@ class _EmailScreenState extends State<EmailScreen> {
                 Text(
                   actionType.label,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colors.cardForeground,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

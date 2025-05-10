@@ -7,7 +7,7 @@ import '../../features/main_screen.dart';
 import '../../core/constants/app_colors.dart';
 import '../auth/presentation/widgets/auth_background.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends StatelessWidget {
   final Function toggleTheme;
   final Function setThemeMode;
   final String currentThemeMode;
@@ -19,164 +19,71 @@ class SplashScreen extends StatefulWidget {
     required this.currentThemeMode,
   });
 
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  final AuthService _authService = AuthService();
-  final Logger _logger = Logger();
-
-  late AnimationController _animationController;
-  late Animation<double> _animation;
-  
-  // bool _isCheckingAuth = true;
-  
-  @override
-  void initState() {
-    super.initState();
+  Future<bool> _checkAuth() async {
+    final AuthService authService = AuthService();
+    final Logger logger = Logger();
     
-    // Thiết lập animation logo
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
-    
-    _animation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    );
-    
-    _animationController.forward();
-    
-    // Khởi tạo dịch vụ xác thực trong nền
-    _initializeAuthService();
-    
-    // Chuyển màn hình sau khi hoàn thành kiểm tra xác thực
-    _checkAuthAndNavigate();
-  }
-  
-  // Khởi tạo AuthService trong nền không chặn UI
-  Future<void> _initializeAuthService() async {
     try {
-      await _authService.initializeService();
-      _logger.i('Auth service initialized successfully');
+      await authService.initializeService();
+      logger.i('Auth service initialized successfully');
+      return await authService.isLoggedIn();
     } catch (e) {
-      _logger.e('Error initializing auth service: $e');
+      logger.e('Error during auth check: $e');
+      return false;
     }
   }
-  
-  // Chuyển màn hình sau 2 giây hoặc khi kiểm tra xác thực xong và animation logo đã hoàn thành
-  Future<void> _checkAuthAndNavigate() async {
-    try {
-      // Đảm bảo hiển thị Splash ít nhất 2 giây
-      await Future.delayed(const Duration(milliseconds: 2000));
-      
-      if (!mounted) return;
-      
-      // Đây là phần chính - kiểm tra xác thực
-      bool isLoggedIn = await _authService.isLoggedIn();
-      
-      if (!mounted) return;
-      
-      // setState(() {
-      //   _isCheckingAuth = false;
-      // });
-      
-      // Chuyển hướng đến màn hình thích hợp dựa trên trạng thái đăng nhập
-      if (isLoggedIn) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => MainScreen(
-              toggleTheme: widget.toggleTheme,
-              setThemeMode: widget.setThemeMode,
-              currentThemeMode: widget.currentThemeMode,
-            ),
-          ),
-        );
-      } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const LoginPage(),
-          ),
-        );
-      }
-    } catch (e) {
-      _logger.e('Error during auth check: $e');
-      
-      if (!mounted) return;
-      
-      // Nếu có lỗi, chuyển đến màn hình đăng nhập
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const LoginPage(),
-        ),
-      );
-    }
-  }
-  
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-  
+
   @override
   Widget build(BuildContext context) {
     final AppColors colors = AppColors.dark;
-    
+
     return AuthBackground(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo animation
-            FadeTransition(
-              opacity: _animation,
-              child: ScaleTransition(
-                scale: _animation,
-                child: Icon(
-                  Icons.auto_awesome,
-                  size: 200,
-                  color: colors.foreground,
-                ),
+      child: FutureBuilder<bool>(
+        future: _checkAuth(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'AI Chat Bot',
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                      color: colors.foreground,
+                      fontFamily: 'Geist',
+                    ),
+                  ),
+                ],
               ),
-            ),
-            
-            const SizedBox(height: 8),
-            
-            // App title
-            FadeTransition(
-              opacity: _animation,
-              child: Text(
-                'AI Chat Bot',
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.bold,
-                  color: colors.foreground,
-                  fontFamily: 'Geist',
+            );
+          }
+
+          if (snapshot.hasData && snapshot.data == true) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => MainScreen(
+                    toggleTheme: toggleTheme,
+                    setThemeMode: setThemeMode,
+                    currentThemeMode: currentThemeMode,
+                  ),
                 ),
-              ),
-            ),
-            
-            const SizedBox(height: 8),
-            
-            FadeTransition(
-              opacity: _animation,
-              child: Text(
-                'Your intelligent companion',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w300,
-                  color: colors.muted,
-                  fontFamily: 'monospace',
+              );
+            });
+          } else {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => const LoginPage(),
                 ),
-              ),
-            ),
-            
-            const SizedBox(height: 48),
-          ],
-        ),
+              );
+            });
+          }
+
+          return const SizedBox.shrink();
+        },
       ),
     );
   }

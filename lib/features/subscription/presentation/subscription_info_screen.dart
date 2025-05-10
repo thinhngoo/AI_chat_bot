@@ -348,24 +348,29 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
               isDarkMode: isDarkMode,
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
 
-            if (!isPro)
-              LargeButton(
+            if (!isPro) ...[
+              Button(
                 label: 'Upgrade for Unlimited',
                 icon: Icons.diamond,
                 onPressed: _navigateToUpgradeScreen,
                 isDarkMode: isDarkMode,
+                size: ButtonSize.large,
+                fontWeight: FontWeight.bold,
               ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 12),
+            ],
 
-            LargeButton(
+            Button(
               label: 'Logout',
               icon: Icons.logout,
               onPressed: _handleLogout,
               isDarkMode: isDarkMode,
               variant: ButtonVariant.delete,
+              size: ButtonSize.large,
+              fontWeight: FontWeight.bold,
             ),
 
             const SizedBox(height: 40),
@@ -382,9 +387,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
     required VoidCallback onCancelSubscription,
   }) {
     final isPro = subscription.isPro;
-    final theme = Theme.of(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final AppColors colors = isDarkMode ? AppColors.dark : AppColors.light;
 
     return Card(
       child: Padding(
@@ -397,7 +400,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                 Icon(
                   isPro ? Icons.diamond : Icons.account_circle,
                   size: 40,
-                  color: isPro ? isDarkMode ? Colors.amberAccent : Colors.amber : theme.colorScheme.primary,
+                  color: isPro ? isDarkMode ? Colors.amberAccent : Colors.amber : Theme.of(context).colorScheme.primary,
                 ),
                 
                 const SizedBox(width: 12),
@@ -407,13 +410,13 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                   children: [
                     Text(
                       isPro ? 'Pro Plan' : 'Free Plan',
-                      style: theme.textTheme.headlineMedium,
+                      style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     if (subscription.endDate != null)
                       Text(
                         'Expires ${_formatDate(subscription.endDate!)}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colors.muted,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).hintColor,
                         )
                       ),
                   ],
@@ -422,25 +425,27 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                 const Spacer(),
                 
                 if (!isPro)
-                  MiniGhostButton(
+                  Button(
                     label: 'Upgrade',
                     icon: Icons.diamond,
                     onPressed: onUpgrade,
-                    color: colors.cardForeground,
+                    color: Theme.of(context).colorScheme.onSurface,
                     isDarkMode: isDarkMode,
+                    variant: ButtonVariant.ghost,
+                    fullWidth: false,
                   ),
               ],
             ),
             
             if (isPro) ...[
               const SizedBox(height: 8),
-              Divider(color: colors.border),
+              Divider(color: Theme.of(context).colorScheme.outline),
               const SizedBox(height: 12),
               SwitchListTile(
                 title: Text(
                   'Auto-renew subscription',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colors.cardForeground,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.bold
                   ),
                 ),
@@ -448,7 +453,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                   subscription.autoRenew
                     ? 'Your subscription will renew automatically'
                     : 'Your subscription will expire on ${_formatDate(subscription.endDate!)}',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: colors.muted),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).hintColor),
                 ),
                 value: subscription.autoRenew,
                 onChanged: (_) => onToggleAutoRenew(),
@@ -457,12 +462,17 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
               const SizedBox(height: 24),
 
               Center(
-                child: MiniGhostButton(
+                child: Button(
                   label: 'Cancel Subscription',
                   icon: Icons.cancel,
                   onPressed: onCancelSubscription,
-                  color: colors.delete,
+                  color: Theme.of(context).colorScheme.error,
                   isDarkMode: isDarkMode,
+                  variant: ButtonVariant.ghost,
+                  ghostAlpha: 50,
+                  size: ButtonSize.medium,
+                  fullWidth: false,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
@@ -477,8 +487,6 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
     required ValueChanged<String> onThemeChanged,
     required bool isDarkMode,
   }) {
-    final theme = Theme.of(context);
-    final colors = isDarkMode ? AppColors.dark : AppColors.light;
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
@@ -487,7 +495,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
           children: [
             Text(
               'Appearance',
-              style: theme.textTheme.headlineMedium,
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 16),
             Row(
@@ -499,7 +507,6 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                   label: 'System',
                   isSelected: themePreference == 'system',
                   onTap: () => onThemeChanged('system'),
-                  colors: colors,
                 ),
                 _buildThemeOption(
                   context: context,
@@ -507,7 +514,6 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                   label: 'Dark',
                   isSelected: themePreference == 'dark',
                   onTap: () => onThemeChanged('dark'),
-                  colors: colors,
                 ),
                 _buildThemeOption(
                   context: context,
@@ -515,7 +521,6 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                   label: 'Light',
                   isSelected: themePreference == 'light',
                   onTap: () => onThemeChanged('light'),
-                  colors: colors,
                 ),
               ],
             ),
@@ -531,10 +536,9 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
-    required AppColors colors,
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDarkMode ? colors.cardForeground : Colors.amber;
+    final primaryColor = isDarkMode ? Theme.of(context).colorScheme.onSurface : Colors.amber;
 
     return Expanded(
       child: GestureDetector(
@@ -549,7 +553,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
             border: Border.all(
               color: isSelected
                   ? primaryColor
-                  : colors.border,
+                  : Theme.of(context).colorScheme.outline,
               width: isSelected ? 2 : 1,
             ),
           ),
@@ -561,7 +565,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                 icon,
                 color: isSelected
                     ? primaryColor
-                    : colors.muted,
+                    : Theme.of(context).hintColor,
                 size: 28,
               ),
               const SizedBox(height: 8),
@@ -570,7 +574,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                 style: TextStyle(
                   color: isSelected
                       ? primaryColor
-                      : colors.muted,
+                      : Theme.of(context).hintColor,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -587,8 +591,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
     required bool isDarkMode,
   }) {
     if (usageStats == null) return const SizedBox.shrink();
-    final theme = Theme.of(context);
-    final colors = isDarkMode ? AppColors.dark : AppColors.light;
+    final colors = Theme.of(context).colorScheme.brightness == Brightness.dark ? AppColors.dark : AppColors.light;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -601,7 +604,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
               children: [
                 Text(
                   'Token Usage',
-                  style: theme.textTheme.headlineMedium,
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 
                 const SizedBox(height: 16),
@@ -610,8 +613,8 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                   children: [
                     Text(
                       'Total tokens used',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colors.muted,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).hintColor,
                       ),
                     ),
                     
@@ -622,7 +625,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                     else
                       Text(
                         '${usageStats.totalTokensUsed} / ${usageStats.totalTokensLimit}',
-                        style: theme.textTheme.bodyMedium,
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                   ],
                 ),
@@ -633,9 +636,9 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                   minHeight: 8,
                   borderRadius: BorderRadius.circular(16),
                   value: isPro ? 1 : usageStats.usagePercentage,
-                  backgroundColor: theme.colorScheme.onSurface.withAlpha(30),
+                  backgroundColor: Theme.of(context).colorScheme.onSurface.withAlpha(30),
                   valueColor: isPro ? AlwaysStoppedAnimation<Color>(colors.success) : AlwaysStoppedAnimation<Color>(
-                    Color.lerp(Colors.green, Colors.red, usageStats.usagePercentage) ?? Colors.red,
+                    Color.lerp(colors.success, Theme.of(context).colorScheme.error, usageStats.usagePercentage) ?? Theme.of(context).colorScheme.error,
                   ),
                 ),
                 
@@ -644,8 +647,8 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                 if (!isPro && usageStats.totalTokensLimit > 0) ...[
                   Text(
                     'Current period: ${usageStats.formattedPeriod}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withAlpha(178),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
                     ),
                   ),
                 ],
@@ -683,7 +686,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
               children: [
                 Text(
                   'Usage by Model',
-                  style: theme.textTheme.headlineMedium,
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 
                 const SizedBox(height: 20),
@@ -699,19 +702,19 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                             Expanded(
                               child: Text(
                                 model.modelName,
-                                style: theme.textTheme.bodyMedium,
+                                style: Theme.of(context).textTheme.bodyMedium,
                               ),
                             ),
                             if (!isPro && model.tokenLimit > 0)
                               Text(
                                 '${model.remainingTokensFormatted} tokens left',
-                                style: theme.textTheme.bodyMedium,
+                                style: Theme.of(context).textTheme.bodyMedium,
                               )
                             else if (isPro)
-                              const Text(
+                              Text(
                                 'Unlimited',
                                 style: TextStyle(
-                                  color: Colors.green,
+                                  color: colors.success,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -723,9 +726,9 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                             minHeight: 8,
                             borderRadius: BorderRadius.circular(16),
                             value: model.usagePercentage,
-                            backgroundColor: theme.colorScheme.onSurface.withAlpha(30),
+                            backgroundColor: Theme.of(context).colorScheme.onSurface.withAlpha(30),
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Color.lerp(Colors.green, Colors.red, model.usagePercentage) ?? Colors.red,
+                              Color.lerp(colors.success, Theme.of(context).colorScheme.error, model.usagePercentage) ?? Theme.of(context).colorScheme.error,
                             ),
                           ),
                         ],
