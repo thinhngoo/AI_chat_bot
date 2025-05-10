@@ -266,17 +266,40 @@ class KnowledgeBaseService {  // Using just the base domain without the path
             _log('Source: id=$id, name=$name, fileSize=$fileSize, type=${fileSize?.runtimeType}');
           }
         }
-        
-        // Process the list
+          // Process the list
         final sources = sourcesList
             .map((source) => KnowledgeSource.fromJson(source))
             .toList();
         
         _log('Successfully parsed ${sources.length} datasources');
-        _log('Total size calculated: ${sources.fold<int>(0, (sum, source) => sum + (source.fileSize ?? 0))} bytes');
+        
+        // Calculate and log total size with more detail
+        int totalCalculatedSize = 0;
+        Set<String> processedIds = {};
+        
+        for (var source in sources) {
+          // Skip duplicate sources with the same ID
+          if (processedIds.contains(source.id)) {
+            _log('Skipping duplicate source ID=${source.id} when calculating total size');
+            continue;
+          }
+          
+          processedIds.add(source.id);
+          
+          if (source.fileSize != null && source.fileSize! > 0) {
+            totalCalculatedSize += source.fileSize!;
+            _log('  - Source ${source.name} adds ${source.fileSize} bytes to total');
+          } else if (source.status == 'active' || source.status == 'indexed') {
+            // For active sources without size, assume a minimal size
+            _log('  - Source ${source.name} has no size but is active. Assuming 1 byte.');
+            totalCalculatedSize += 1;
+          }
+        }
+        
+        _log('Total size calculated: $totalCalculatedSize bytes');
             
-        // Return updated knowledge base with sources
-        return KnowledgeBase(
+        // Create and return updated knowledge base with sources
+        final updatedKnowledgeBase = KnowledgeBase(
           id: kb.id,
           knowledgeName: kb.knowledgeName,
           description: kb.description,
@@ -288,6 +311,11 @@ class KnowledgeBaseService {  // Using just the base domain without the path
           updatedAt: kb.updatedAt,
           sources: sources,
         );
+        
+        // Log the total size from the getter to verify calculation
+        _log('Total size from knowledge base getter: ${updatedKnowledgeBase.totalSize} bytes');
+        
+        return updatedKnowledgeBase;
       } else {
         _log('Error response body: ${sourcesResponse.body}', isError: true);
         // Return the original knowledge base if the API call fails
@@ -482,9 +510,7 @@ class KnowledgeBaseService {  // Using just the base domain without the path
       _log('Error fetching datasources: $e', isError: true);
       rethrow;
     }
-  }
-
-  // Upload a local file to a knowledge base
+  }  // Upload a local file to a knowledge base
   Future<KnowledgeSource> uploadLocalFile(
     String knowledgeBaseId,
     File file,
@@ -494,19 +520,25 @@ class KnowledgeBaseService {  // Using just the base domain without the path
       final fileName = path.basename(file.path);
       final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
       
-      _log('Uploading file to knowledge base: $baseUrl$apiPath/$knowledgeBaseId/upload');
+      // Use the correct endpoint path format: /kb-core/v1/knowledge/files
+      final endpoint = '$baseUrl/kb-core/v1/knowledge/files';
+      _log('Uploading file to knowledge base using endpoint: $endpoint');
       
+      // Create multipart form data for the file upload
       final formData = FormData.fromMap({
         'file': await MultipartFile.fromFile(
           file.path,
           filename: fileName,
           contentType: MediaType.parse(mimeType),
         ),
+        // Include knowledge base ID in the form data instead of the URL path
+        'knowledgeBaseId': knowledgeBaseId,
       });
-
+      
+      // Upload the file using the correct endpoint
       final response = await _dio.post(
-        '$baseUrl$apiPath/$knowledgeBaseId/upload',
-        data: formData,
+        endpoint,
+        data: formData,  // Using formData with the file
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
@@ -514,17 +546,49 @@ class KnowledgeBaseService {  // Using just the base domain without the path
         ),
       );
 
-      _log('Upload file response status: ${response.statusCode}');
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
+      _log('Upload file response status: ${response.statusCode}');      if (response.statusCode == 201 || response.statusCode == 200) {
+        _log('File uploaded successfully', isError: false);
         return KnowledgeSource.fromJson(response.data);
+      } else if (response.statusCode == 401) {
+        _log('Authentication error (401): Token might be expired', isError: true);
+        // Try to refresh token or prompt for re-authentication
+        throw Exception('Authentication error: Please log in again');      } else if (response.statusCode == 404) {
+        _log('Endpoint not found (404): API endpoint for file upload is incorrect', isError: true);
+        throw Exception('API endpoint not found: The files upload endpoint does not exist');
       } else {
-        _log('Error response: ${response.data}', isError: true);
-        throw Exception('Failed to upload file: ${response.statusCode}');
+        _log('Error response (${response.statusCode}): ${response.data}', isError: true);
+        throw Exception('Failed to upload file (Status ${response.statusCode}): ${response.data}');
       }
-    } catch (e) {
-      _log('Error uploading file: $e', isError: true);
-      rethrow;
+    } catch (e) {      if (e is DioException) {
+        _log('DioException uploading file: ${e.message}', isError: true);
+        if (e.response != null) {
+          _log('Response status: ${e.response?.statusCode}', isError: true);
+          _log('Response data: ${e.response?.data}', isError: true);
+            // Handle specific status codes with more informative messages
+          if (e.response?.statusCode == 404) {
+            throw Exception('API endpoint not found (404): The files upload endpoint does not exist');
+          } else if (e.response?.statusCode == 401) {
+            throw Exception('Authentication error (401): Your session has expired. Please log in again');
+          } else if (e.response?.statusCode == 403) {
+            throw Exception('Access denied (403): You do not have permission to upload files to this knowledge base');
+          } else if (e.response?.statusCode == 413) {
+            throw Exception('File too large (413): The selected file exceeds the maximum allowed size');
+          } else if (e.response?.statusCode == 400) {
+            throw Exception('Bad request (400): The knowledge base ID may be invalid or missing');
+          }
+        }
+        
+        if (e.type == DioExceptionType.connectionTimeout) {
+          throw Exception('Connection timeout: The server took too long to respond');
+        } else if (e.type == DioExceptionType.badResponse) {
+          throw Exception('Error uploading file (${e.response?.statusCode}): ${e.response?.data}');
+        } else {
+          throw Exception('Network error: ${e.message}');
+        }
+      } else {
+        _log('Error uploading file: $e', isError: true);
+        rethrow;
+      }
     }
   }
 
@@ -732,6 +796,46 @@ class KnowledgeBaseService {  // Using just the base domain without the path
       }
     } catch (e) {
       _log('Error updating datasource: $e', isError: true);
+      rethrow;
+    }
+  }
+
+  // Import datasources into a knowledge base
+  // Based on the API documentation: https://www.apidog.com/apidoc/shared/f30d2953-f010-4ef7-a360-69f9eaf457f7/import-datasource-into-knowledge-16714610e0
+  Future<bool> importDatasources({
+    required String knowledgeBaseId,
+    required List<Map<String, dynamic>> datasources,
+  }) async {
+    try {
+      final token = await _getToken();
+      
+      _log('Importing datasources to knowledge base: $knowledgeBaseId, count: ${datasources.length}');
+        // Use the correct endpoint path format: /kb-core/v1/knowledge/{knowledgeBaseId}/datasources
+      final endpoint = '$baseUrl/kb-core/v1/knowledge/$knowledgeBaseId/datasources';
+      _log('Importing datasources using endpoint: $endpoint');
+      
+      final response = await http.post(
+        Uri.parse(endpoint),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'datasources': datasources,
+        }),
+      );
+
+      _log('Import datasources response status: ${response.statusCode}');
+      
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        _log('Successfully imported datasources');
+        return true;
+      } else {
+        _log('Error response body: ${response.body}', isError: true);
+        throw Exception('Failed to import datasources: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      _log('Error importing datasources: $e', isError: true);
       rethrow;
     }
   }
