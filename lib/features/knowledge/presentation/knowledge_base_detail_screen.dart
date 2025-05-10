@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:data_table_2/data_table_2.dart';
 import '../models/knowledge_base_model.dart';
 import '../services/knowledge_base_service.dart';
 import 'add_website_dialog.dart';
 import 'connect_google_drive_dialog.dart';
 import 'connect_slack_dialog.dart';
 import 'connect_confluence_dialog.dart';
+import 'select_knowledge_source_dialog.dart';
 
 class KnowledgeBaseDetailScreen extends StatefulWidget {
   final String knowledgeBaseId;
@@ -32,6 +32,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     super.initState();
     _loadKnowledgeBase();
   }
+
   Future<void> _loadKnowledgeBase() async {
     if (!mounted) return;
     setState(() {
@@ -40,8 +41,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     });
 
     try {
-      final knowledgeBase =
-          await _knowledgeBaseService.getKnowledgeBase(widget.knowledgeBaseId);
+      final knowledgeBase = await _knowledgeBaseService.getKnowledgeBase(widget.knowledgeBaseId);
 
       if (!mounted) return;
       setState(() {
@@ -56,6 +56,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       });
     }
   }
+
   Future<void> _deleteSource(KnowledgeSource source) async {
     try {
       await _knowledgeBaseService.deleteSource(
@@ -83,6 +84,37 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       );
     }
   }
+  
+  Future<void> _addKnowledgeUnit() async {
+    // Show the select knowledge source dialog
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => const SelectKnowledgeSourceDialog(),
+    );
+    
+    if (result == null) return;
+    
+    // Handle the selected source type
+    switch (result) {
+      case 'file':
+        _uploadFile();
+        break;
+      case 'website':
+        _addWebsiteSource();
+        break;
+      case 'google_drive':
+        _connectGoogleDrive();
+        break;
+      case 'slack':
+        _connectSlack();
+        break;
+      case 'confluence':
+        _connectConfluence();
+        break;
+      // Add more cases as needed
+    }
+  }
+
   Future<void> _uploadFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -175,10 +207,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
+  @override  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_knowledgeBase?.name ?? 'Knowledge Base'),
@@ -189,318 +218,261 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
             tooltip: 'Refresh',
           ),
         ],
+      ),      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addKnowledgeUnit,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Knowledge Unit'),
+        backgroundColor: const Color(0xFF6366F1), // Indigo color to match the button in the screenshot
+        foregroundColor: Colors.white,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _error!,
-                        style: TextStyle(
-                          color: theme.colorScheme.error,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadKnowledgeBase,
-                        child: const Text('Retry'),
-                      ),
-                    ],
+              ? _buildErrorView()
+              : _buildKnowledgeBaseDetail(),
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 48,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _error!,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.error,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadKnowledgeBase,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKnowledgeBaseDetail() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Knowledge base header card
+        Card(
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 1,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title and ID
+                Text(
+                  _knowledgeBase!.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,                    children: [
-                      Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _knowledgeBase!.name,
-                                          style: theme.textTheme.headlineMedium,
-                                        ),
-                                        if (_knowledgeBase!.description.isNotEmpty) ...[
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            _knowledgeBase!.description,
-                                            style: theme.textTheme.bodyMedium,
-                                          ),
-                                        ],
-                                        const SizedBox(height: 16),
-                                        Row(
-                                          children: [
-                                            _buildStatusBadge(_knowledgeBase!.status),
-                                            const SizedBox(width: 16),
-                                            Text(
-                                              'Created: ${_formatDate(_knowledgeBase!.createdAt)}',
-                                              style: theme.textTheme.bodyMedium,
-                                            ),
-                                            const SizedBox(width: 16),
-                                            Text(
-                                              'Updated: ${_formatDate(_knowledgeBase!.updatedAt)}',
-                                              style: theme.textTheme.bodyMedium,
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 24),
-                              Row(
-                                children: [
-                                  _buildAddSourceButton(
-                                    'Upload File',
-                                    Icons.upload_file,
-                                    _uploadFile,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _buildAddSourceButton(
-                                    'Website URL',
-                                    Icons.web,
-                                    _addWebsiteSource,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _buildAddSourceButton(
-                                    'Google Drive',
-                                    Icons.folder_shared,
-                                    _connectGoogleDrive,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _buildAddSourceButton(
-                                    'Slack',
-                                    Icons.message,
-                                    _connectSlack,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _buildAddSourceButton(
-                                    'Confluence',
-                                    Icons.article,
-                                    _connectConfluence,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
+                ),
+                
+                // Description
+                if (_knowledgeBase!.description.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      _knowledgeBase!.description,
+                      style: TextStyle(
+                        color: Colors.grey[600],
                       ),
-                      const SizedBox(height: 24),                      Text(
-                        'Data Sources',
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    ),
+                  ),
+                
+                const SizedBox(height: 16),
+                
+                // Status badge and dates
+                Row(
+                  children: [
+                    _buildStatusBadge(_knowledgeBase!.status),
+                    const SizedBox(width: 16),
+                    Text(
+                      'Created: ${_formatDate(_knowledgeBase!.createdAt)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      'Updated: ${_formatDate(_knowledgeBase!.updatedAt)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Action buttons
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildActionButton(
+                        'Upload File',
+                        Icons.upload_file,
+                        _uploadFile,
                       ),
-                      const SizedBox(height: 16),                      _knowledgeBase!.sources.isEmpty
-                          ? _buildEmptySourcesMessage()
-                          : Card(
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: SizedBox(
-                                  width: double.infinity,                                child: DataTable2(
-                                    headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
-                                    columnSpacing: 12,
-                                    horizontalMargin: 12,
-                                    minWidth: 600,
-                                    dividerThickness: 1,
-                                    dataRowHeight: 64,
-                                    headingRowHeight: 56,
-                                    columns: const [
-                                      DataColumn2(
-                                        label: Text('Name'),
-                                        size: ColumnSize.L,
-                                      ),
-                                      DataColumn2(
-                                        label: Text('Type'),
-                                        size: ColumnSize.S,
-                                      ),
-                                      DataColumn2(
-                                        label: Text('Status'),
-                                        size: ColumnSize.S,
-                                      ),
-                                      DataColumn2(
-                                        label: Text('Created'),
-                                        size: ColumnSize.M,
-                                      ),
-                                      DataColumn2(
-                                        label: Text('Actions'),
-                                        size: ColumnSize.S,
-                                      ),
-                                    ],
-                                    rows: _knowledgeBase!.sources.map((source) {                                      return DataRow2(
-                                        cells: [
-                                          DataCell(
-                                            Container(
-                                              constraints: const BoxConstraints(maxWidth: 200),
-                                              child: Text(
-                                                source.name,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(fontWeight: FontWeight.bold),
-                                              ),
-                                            ),
-                                          ),
-                                          DataCell(_buildSourceTypeLabel(source.type)),
-                                          DataCell(_buildStatusBadge(source.status)),
-                                          DataCell(Text(
-                                            _formatDate(source.createdAt),
-                                          )),                                          DataCell(
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                IconButton(
-                                                  icon: const Icon(Icons.edit, color: Colors.blue),
-                                                  onPressed: () {
-                                                    // Handle edit source
-                                                  },
-                                                  tooltip: 'Edit',
-                                                  iconSize: 20,
-                                                  constraints: const BoxConstraints(),
-                                                  padding: EdgeInsets.zero,
-                                                ),
-                                                const SizedBox(width: 8),
-                                                IconButton(
-                                                  icon: Icon(
-                                                    Icons.delete,
-                                                    color: theme.colorScheme.error,
-                                                  ),
-                                                  onPressed: () =>
-                                                      _showDeleteConfirmation(source),
-                                                  tooltip: 'Delete',
-                                                  iconSize: 20,
-                                                  constraints: const BoxConstraints(),
-                                                  padding: EdgeInsets.zero,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                              ),
-                            ),
+                      const SizedBox(width: 8),
+                      _buildActionButton(
+                        'Website URL',
+                        Icons.language,
+                        _addWebsiteSource,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildActionButton(
+                        'Google Drive',
+                        Icons.folder_shared,
+                        _connectGoogleDrive,
+                      ),
+                      // Add more buttons as needed
                     ],
                   ),
                 ),
+              ],
+            ),
+          ),
+        ),
+
+        // Data Sources Header
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Data Sources',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+
+        // Sources list or empty state
+        Expanded(
+          child: _knowledgeBase!.sources.isEmpty
+              ? _buildEmptySourcesView()
+              : _buildSourcesList(),
+        ),
+      ],
     );
   }
-  Widget _buildEmptySourcesMessage() {
+
+  Widget _buildEmptySourcesView() {
     return Card(
-      elevation: 2,
+      margin: const EdgeInsets.all(16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
+      elevation: 1,
+      child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
-              Icons.source,
+              Icons.folder_outlined,
               size: 64,
               color: Colors.grey,
             ),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               'No data sources added yet',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Add your first data source using the buttons above',
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: TextStyle(
+                color: Colors.grey[600],
+              ),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _uploadFile,
               icon: const Icon(Icons.upload_file),
               label: const Text('Upload a File'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
       ),
     );
   }
-  Widget _buildAddSourceButton(String label, IconData icon, VoidCallback onPressed) {
-    return ElevatedButton.icon(
+
+  Widget _buildSourcesList() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: _knowledgeBase!.sources.length,
+      itemBuilder: (context, index) {
+        final source = _knowledgeBase!.sources[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          elevation: 1,
+          child: ListTile(
+            leading: _getSourceIcon(source.type),
+            title: Text(
+              source.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Row(
+              children: [
+                _buildStatusBadge(source.status),
+                const SizedBox(width: 8),
+                Text(
+                  'Created: ${_formatDate(source.createdAt)}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+            trailing: IconButton(
+              icon: Icon(
+                Icons.delete,
+                color: Theme.of(context).colorScheme.error,
+                size: 20,
+              ),
+              onPressed: () => _showDeleteConfirmation(source),
+            ),
+          ),
+        );
+      },
+    );
+  }
+  Widget _buildActionButton(String label, IconData icon, VoidCallback onPressed) {
+    return OutlinedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 18),
       label: Text(label),
-      style: ButtonStyle(
-        padding: WidgetStateProperty.all(
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        ),
-        shape: WidgetStateProperty.all(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        foregroundColor: Colors.black87,
+        side: BorderSide(color: Colors.grey[300]!),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
-    );
-  }
-
-  Widget _buildSourceTypeLabel(String type) {
-    IconData icon;
-    String label = type;
-    
-    switch (type) {
-      case 'file':
-        icon = Icons.insert_drive_file;
-        label = 'File';
-        break;
-      case 'website':
-        icon = Icons.web;
-        label = 'Website';
-        break;
-      case 'google_drive':
-        icon = Icons.folder_shared;
-        label = 'Google Drive';
-        break;
-      case 'slack':
-        icon = Icons.message;
-        label = 'Slack';
-        break;
-      case 'confluence':
-        icon = Icons.article;
-        label = 'Confluence';
-        break;
-      default:
-        icon = Icons.source;
-    }
-    
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: 16,
-        ),
-        const SizedBox(width: 4),
-        Text(label),
-      ],
     );
   }
 
@@ -540,10 +512,28 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
           style: TextStyle(
             color: color,
             fontWeight: FontWeight.bold,
+            fontSize: 12,
           ),
         ),
       ],
     );
+  }
+
+  Icon _getSourceIcon(String sourceType) {
+    switch (sourceType) {
+      case 'file':
+        return const Icon(Icons.insert_drive_file, color: Colors.blue);
+      case 'website':
+        return const Icon(Icons.language, color: Colors.purple);
+      case 'google_drive':
+        return const Icon(Icons.folder_shared, color: Colors.green);
+      case 'slack':
+        return const Icon(Icons.message, color: Colors.orange);
+      case 'confluence':
+        return const Icon(Icons.article, color: Colors.blue);
+      default:
+        return const Icon(Icons.source, color: Colors.grey);
+    }
   }
 
   String _formatDate(DateTime date) {
