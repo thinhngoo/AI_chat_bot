@@ -10,6 +10,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../models/ai_bot.dart';
 import '../models/knowledge_data.dart';
+import 'bot_integration_service.dart';
 
 class BotService {
   static final BotService _instance = BotService._internal();
@@ -1491,60 +1492,69 @@ class BotService {
       _logger.e('Error uploading from Confluence: $e');
       rethrow;
     }
-  }
-
-  // Get publishing configuration for a bot
+  }  // Get publishing configuration for a bot
   Future<Map<String, dynamic>> getPublishingConfigurations(String botId) async {
+    _logger.i('Fetching publishing configurations for bot $botId');
+    
+    // First try the new API endpoint through BotIntegrationService
     try {
-      _logger.i('Fetching publishing configurations for bot $botId');
-      
-      // Get access token
-      final accessToken = _authService.accessToken;
-      if (accessToken == null) {
-        throw 'No access token available. Please log in again.';
-      }
-      
-      // Prepare headers
-      final headers = {
-        'Authorization': 'Bearer $accessToken',
-      };
-      
-      // Build URL
-      const baseUrl = ApiConstants.kbCoreApiUrl;
-      final endpoint = ApiConstants.assistantConfigurations.replaceAll('{assistantId}', botId);
-      final uri = Uri.parse(baseUrl + endpoint);
-      
-      _logger.i('Request URI: $uri');
-      
-      // Send request
-      final response = await http.get(uri, headers: headers);
-      
-      _logger.i('Get publishing configurations response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _logger.i('Publishing configurations fetched successfully');
-        return data;
-      } else if (response.statusCode == 401) {
-        // Token expired, try to refresh
-        _logger.w('Token expired, attempting to refresh...');
-        final refreshSuccess = await _authService.refreshToken();
-        
-        if (refreshSuccess) {
-          // Retry with new token
-          return getPublishingConfigurations(botId);
-        } else {
-          throw 'Authentication expired. Please log in again.';
-        }
-      } else {
-        _logger.e('Failed to fetch publishing configurations: ${response.statusCode}');
-        _logger.e('Response body: ${response.body}');
-        
-        throw 'Failed to fetch publishing configurations: ${response.statusCode}';
-      }
+      final botIntegrationService = BotIntegrationService();
+      final configs = await botIntegrationService.getConfigurations(botId);
+      _logger.i('Publishing configurations fetched successfully from v1 API');
+      return configs;
     } catch (e) {
-      _logger.e('Error fetching publishing configurations: $e');
-      rethrow;
+      _logger.w('Failed to fetch from v1 API, falling back to legacy endpoint: $e');
+      
+      try {
+        // Fall back to the legacy API if the new one fails
+        // Get access token
+        final accessToken = _authService.accessToken;
+        if (accessToken == null) {
+          throw 'No access token available. Please log in again.';
+        }
+        
+        // Prepare headers
+        final headers = {
+          'Authorization': 'Bearer $accessToken',
+        };
+        
+        // Build URL
+        const baseUrl = ApiConstants.kbCoreApiUrl;
+        final endpoint = ApiConstants.assistantConfigurations.replaceAll('{assistantId}', botId);
+        final uri = Uri.parse(baseUrl + endpoint);
+        
+        _logger.i('Request URI: $uri');
+        
+        // Send request
+        final response = await http.get(uri, headers: headers);
+        
+        _logger.i('Get publishing configurations response status: ${response.statusCode}');
+        
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          _logger.i('Publishing configurations fetched successfully from legacy API');
+          return data;
+        } else if (response.statusCode == 401) {
+          // Token expired, try to refresh
+          _logger.w('Token expired, attempting to refresh...');
+          final refreshSuccess = await _authService.refreshToken();
+          
+          if (refreshSuccess) {
+            // Retry with new token
+            return getPublishingConfigurations(botId);
+          } else {
+            throw 'Authentication expired. Please log in again.';
+          }
+        } else {
+          _logger.e('Failed to fetch publishing configurations: ${response.statusCode}');
+          _logger.e('Response body: ${response.body}');
+          
+          throw 'Failed to fetch publishing configurations: ${response.statusCode}';
+        }
+      } catch (fallbackError) {
+        _logger.e('Error in legacy fallback: $fallbackError');
+        rethrow;
+      }
     }
   }
 
