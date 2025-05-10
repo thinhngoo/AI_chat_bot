@@ -509,8 +509,9 @@ class KnowledgeBaseService {  // Using just the base domain without the path
     } catch (e) {
       _log('Error fetching datasources: $e', isError: true);
       rethrow;
-    }
-  }  // Upload a local file to a knowledge base
+    }  }
+  
+  // Upload a local file to a knowledge base
   Future<KnowledgeSource> uploadLocalFile(
     String knowledgeBaseId,
     File file,
@@ -520,28 +521,41 @@ class KnowledgeBaseService {  // Using just the base domain without the path
       final fileName = path.basename(file.path);
       final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
       
-      // Use the correct endpoint path format: /kb-core/v1/knowledge/files
-      final endpoint = '$baseUrl/kb-core/v1/knowledge/files';
-      _log('Uploading file to knowledge base using endpoint: $endpoint');
+      // Use the correct endpoint path format that matches other API calls
+      final endpoint = '$baseUrl$apiPath/$knowledgeBaseId/datasources';
+      _log('Uploading file to knowledge base using endpoint: $endpoint');      // Create multipart form data for the file upload with proper metadata
+      final fileSize = await file.length();
+      _log('Preparing to upload file: $fileName, size: $fileSize bytes, type: $mimeType');      // Create a FormData object manually to ensure proper array formatting
+      final formData = FormData();
       
-      // Create multipart form data for the file upload
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(
+      // Add the file part
+      formData.files.add(MapEntry(
+        'file',
+        await MultipartFile.fromFile(
           file.path,
           filename: fileName,
           contentType: MediaType.parse(mimeType),
-        ),
-        // Include knowledge base ID in the form data instead of the URL path
-        'knowledgeBaseId': knowledgeBaseId,
-      });
+        )
+      ));      // The datasources field needs to be properly formatted as individual fields
+      // Use 'datasources[]' notation to ensure it's recognized as an array
+      
+      formData.fields.add(MapEntry('datasources[0][name]', fileName));
+      formData.fields.add(MapEntry('datasources[0][type]', 'file'));
+      formData.fields.add(MapEntry('datasources[0][fileType]', mimeType));
+      formData.fields.add(MapEntry('datasources[0][fileSize]', fileSize.toString()));
+      formData.fields.add(MapEntry('datasources[0][status]', 'active'));// Log the full request details for debugging      _log('Making upload request to: $endpoint');
+      _log('File name: $fileName, MIME type: $mimeType, size: $fileSize bytes');
+      _log('FormData structure: Using datasources[0][field] notation for array elements');
+      _log('Datasources fields: ${formData.fields.toString()}');
       
       // Upload the file using the correct endpoint
       final response = await _dio.post(
         endpoint,
         data: formData,  // Using formData with the file
-        options: Options(
-          headers: {
+        options: Options(          headers: {
             'Authorization': 'Bearer $token',
+            // Don't explicitly set Content-Type for multipart/form-data
+            // Let Dio handle this automatically with the proper boundary
           },
         ),
       );
@@ -558,13 +572,33 @@ class KnowledgeBaseService {  // Using just the base domain without the path
       } else {
         _log('Error response (${response.statusCode}): ${response.data}', isError: true);
         throw Exception('Failed to upload file (Status ${response.statusCode}): ${response.data}');
-      }
-    } catch (e) {      if (e is DioException) {
+      }    } catch (e) {
+      if (e is DioException) {
         _log('DioException uploading file: ${e.message}', isError: true);
         if (e.response != null) {
           _log('Response status: ${e.response?.statusCode}', isError: true);
           _log('Response data: ${e.response?.data}', isError: true);
-            // Handle specific status codes with more informative messages
+          
+          // Enhanced debugging for the "Unexpected field" error
+          if (e.response?.statusCode == 400) {
+            final data = e.response?.data;
+            if (data is Map && data.containsKey('message')) {
+              final message = data['message'].toString();
+              final details = data['details'];
+              
+              _log('Bad request (400) details: $details', isError: true);
+              
+              if (message.contains('Unexpected field')) {
+                _log('Received "Unexpected field" error. This usually means the API expects a different form field structure.', isError: true);
+                _log('Current form data structure: file field and datasources array with metadata', isError: true);
+              } else if (details != null && details.toString().contains('datasources')) {
+                _log('Issue with datasources field format. API expects specific structure for datasources array.', isError: true);
+                _log('Check if datasources needs to be properly formatted or contains required fields.', isError: true);
+              }
+            }
+          }
+          
+          // Handle specific status codes with more informative messages
           if (e.response?.statusCode == 404) {
             throw Exception('API endpoint not found (404): The files upload endpoint does not exist');
           } else if (e.response?.statusCode == 401) {
@@ -574,18 +608,28 @@ class KnowledgeBaseService {  // Using just the base domain without the path
           } else if (e.response?.statusCode == 413) {
             throw Exception('File too large (413): The selected file exceeds the maximum allowed size');
           } else if (e.response?.statusCode == 400) {
-            throw Exception('Bad request (400): The knowledge base ID may be invalid or missing');
+            // Parse error response for more helpful messages
+            final data = e.response?.data;
+            if (data is Map && data.containsKey('message')) {
+              final message = data['message'];
+              if (message.toString().contains('Unexpected field')) {
+                throw Exception('Bad request (400): API format has changed - check API documentation for correct file upload format');
+              } else {
+                throw Exception('Bad request (400): ${data['message']}');
+              }
+            } else {
+              throw Exception('Bad request (400): The knowledge base ID may be invalid or missing');
+            }
           }
         }
-        
-        if (e.type == DioExceptionType.connectionTimeout) {
+          // Check DioException type for specific error handling
+        if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.sendTimeout || e.type == DioExceptionType.receiveTimeout) {
           throw Exception('Connection timeout: The server took too long to respond');
         } else if (e.type == DioExceptionType.badResponse) {
           throw Exception('Error uploading file (${e.response?.statusCode}): ${e.response?.data}');
         } else {
           throw Exception('Network error: ${e.message}');
-        }
-      } else {
+        }} else {
         _log('Error uploading file: $e', isError: true);
         rethrow;
       }
@@ -809,9 +853,8 @@ class KnowledgeBaseService {  // Using just the base domain without the path
     try {
       final token = await _getToken();
       
-      _log('Importing datasources to knowledge base: $knowledgeBaseId, count: ${datasources.length}');
-        // Use the correct endpoint path format: /kb-core/v1/knowledge/{knowledgeBaseId}/datasources
-      final endpoint = '$baseUrl/kb-core/v1/knowledge/$knowledgeBaseId/datasources';
+      _log('Importing datasources to knowledge base: $knowledgeBaseId, count: ${datasources.length}');      // Use the correct endpoint path format that matches other API calls
+      final endpoint = '$baseUrl$apiPath/$knowledgeBaseId/datasources';
       _log('Importing datasources using endpoint: $endpoint');
       
       final response = await http.post(
