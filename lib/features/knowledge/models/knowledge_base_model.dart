@@ -22,14 +22,30 @@ class KnowledgeBase {
     required this.updatedAt,
     this.sources = const [],
   });
-
   factory KnowledgeBase.fromJson(Map<String, dynamic> json) {
     // The API may return data in a nested 'data' field or directly
     final data = json['data'] ?? json;
+    print('KnowledgeBase.fromJson - data: $data');
+    
+    // Extract sources from various possible fields
+    List<dynamic> sourcesList = [];
+    if (data['sources'] != null && data['sources'] is List) {
+      sourcesList = data['sources'] as List;
+      print('Found sources in sources field, count: ${sourcesList.length}');
+    } else if (data['datasources'] != null && data['datasources'] is List) {
+      sourcesList = data['datasources'] as List;
+      print('Found sources in datasources field, count: ${sourcesList.length}');
+    } else if (data['units'] != null && data['units'] is List) {
+      sourcesList = data['units'] as List;
+      print('Found sources in units field, count: ${sourcesList.length}');
+    } else if (data['items'] != null && data['items'] is List) {
+      sourcesList = data['items'] as List;
+      print('Found sources in items field, count: ${sourcesList.length}');
+    }
     
     return KnowledgeBase(
       id: data['id'] ?? '',
-      knowledgeName: data['knowledgeName'] ?? '',
+      knowledgeName: data['knowledgeName'] ?? data['name'] ?? '',
       description: data['description'] ?? '',
       status: data['status'] ?? 'pending',
       userId: data['userId'],
@@ -41,10 +57,8 @@ class KnowledgeBase {
       updatedAt: data['updatedAt'] != null 
           ? DateTime.parse(data['updatedAt']) 
           : DateTime.now(),
-      sources: data['sources'] != null
-          ? (data['sources'] as List)
-              .map((source) => KnowledgeSource.fromJson(source))
-              .toList()
+      sources: sourcesList.isNotEmpty
+          ? sourcesList.map((source) => KnowledgeSource.fromJson(source)).toList()
           : [],
     );
   }
@@ -62,6 +76,33 @@ class KnowledgeBase {
       'updatedAt': updatedAt.toIso8601String(),
       'sources': sources.map((source) => source.toJson()).toList(),
     };
+  }
+
+  // Getter để lấy số lượng units
+  int get unitCount => sources.length;
+  // Calculate total size of all sources, with improved logging
+  int get totalSize {
+    int size = 0;
+    print('Calculating total size for ${sources.length} sources in knowledge base $knowledgeName');
+    
+    if (sources.isEmpty) {
+      print('No sources found in knowledge base');
+      return 0;
+    }
+    
+    for (var source in sources) {
+      print('Source ID=${source.id}, name=${source.name}: fileSize=${source.fileSize}, type=${source.fileSize?.runtimeType}');
+      
+      if (source.fileSize != null && source.fileSize! > 0) {
+        size += source.fileSize!;
+        print('Added ${source.fileSize} bytes, running total: $size bytes');
+      } else {
+        print('Source ${source.name} has no size or 0 size');
+      }
+    }
+    
+    print('Final total size for knowledge base $knowledgeName: $size bytes');
+    return size;
   }
 
   // Add getter for name for backward compatibility
@@ -90,20 +131,152 @@ class KnowledgeSource {
     this.processedAt,
     required this.createdAt,
   });
-
+  
   factory KnowledgeSource.fromJson(Map<String, dynamic> json) {
+    // Debug the raw input for all datasource data
+    print('KnowledgeSource.fromJson - Raw JSON: $json');
+    
+    // Handle different field names from various API responses
+    final String id = json['id'] ?? 
+                json['sourceId'] ?? 
+                json['datasourceId'] ?? 
+                json['documentId'] ?? '';
+    
+    final String type = json['type'] ?? 
+                 json['sourceType'] ?? 
+                 json['datasourceType'] ?? 
+                 json['documentType'] ?? 'file';
+      final String name = json['name'] ?? 
+                 json['fileName'] ?? 
+                 json['title'] ?? 
+                 json['displayName'] ?? 
+                 'Unnamed Source';    // Handle status field that could be a boolean or string
+    final dynamic statusValue = json['status'] ?? 
+                      json['processingStatus'] ?? 
+                      json['state'];
+    
+    // Convert status to string regardless of type
+    final String status;
+    if (statusValue == null) {
+      status = 'pending';
+    } else if (statusValue is bool) {
+      status = statusValue ? 'active' : 'inactive';
+      print('KnowledgeSource.fromJson - Converted boolean status ($statusValue) to: $status');
+    } else if (statusValue is String) {
+      status = statusValue;
+    } else {
+      status = statusValue.toString();
+      print('KnowledgeSource.fromJson - Converted ${statusValue.runtimeType} to string: $status');
+    }    print('KnowledgeSource.fromJson - Status value type: ${statusValue?.runtimeType}, converted to: $status');
+    final String? fileType = json['fileType'] ?? 
+                      json['mimeType'] ?? 
+                      json['contentType'];
+    
+    final String? url = json['url'] ?? 
+                 json['fileUrl'] ?? 
+                 json['downloadUrl'] ?? 
+                 json['link'];
+    
+    // Process file size with support for different field names and types
+    print('KnowledgeSource.fromJson - Looking for file size in fields for source $name');
+    int? fileSize;
+    
+    // Look for fileSize in various fields
+    final List<String> sizeFieldNames = [
+      'fileSize', 'size', 'file_size', 'filesize', 'byte_size', 
+      'bytes', 'content_length', 'contentLength', 'length'
+    ];
+    
+    // Try each possible field name
+    for (final fieldName in sizeFieldNames) {
+      if (json.containsKey(fieldName) && json[fieldName] != null) {
+        final dynamic sizeValue = json[fieldName];
+        print('KnowledgeSource.fromJson - Found potential size in field "$fieldName": $sizeValue (${sizeValue.runtimeType})');
+        
+        try {
+          if (sizeValue is int) {
+            fileSize = sizeValue;
+            print('KnowledgeSource.fromJson - Size is int: $fileSize');
+            break;
+          } else if (sizeValue is double) {
+            fileSize = sizeValue.toInt();
+            print('KnowledgeSource.fromJson - Size converted from double: $fileSize');
+            break;
+          } else if (sizeValue is String) {
+            // Try to parse as int first
+            try {
+              fileSize = int.parse(sizeValue);
+              print('KnowledgeSource.fromJson - Size parsed from string as int: $fileSize');
+              break;
+            } catch (_) {
+              // Try as double if int parsing failed
+              try {
+                fileSize = double.parse(sizeValue).toInt();
+                print('KnowledgeSource.fromJson - Size parsed from string as double then to int: $fileSize');
+                break;
+              } catch (e2) {
+                print('KnowledgeSource.fromJson - Could not parse size string: $sizeValue, error: $e2');
+              }
+            }
+          } else {
+            // For any other type, try to convert to string first then parse
+            try {
+              fileSize = int.parse(sizeValue.toString());
+              print('KnowledgeSource.fromJson - Size converted from other type to int: $fileSize');
+              break;
+            } catch (e) {
+              print('KnowledgeSource.fromJson - Could not convert unknown type to int: $sizeValue');
+            }
+          }
+        } catch (e) {
+          print('KnowledgeSource.fromJson - Error processing $fieldName: $e');
+        }
+      }
+    }
+    
+    if (fileSize == null) {
+      print('KnowledgeSource.fromJson - Could not find valid fileSize for source $name');
+    }
+    
+    // Try to parse dates with error handling
+    DateTime? processedAt;
+    try {
+      if (json['processedAt'] != null) {
+        processedAt = DateTime.parse(json['processedAt']);
+      } else if (json['processed_at'] != null) {
+        processedAt = DateTime.parse(json['processed_at']);
+      } else if (json['updatedAt'] != null) {
+        processedAt = DateTime.parse(json['updatedAt']);
+      }
+    } catch (e) {
+      print('KnowledgeSource.fromJson - Error parsing processedAt: $e');
+    }
+    
+    DateTime createdAt;
+    try {
+      if (json['createdAt'] != null) {
+        createdAt = DateTime.parse(json['createdAt']);
+      } else if (json['created_at'] != null) {
+        createdAt = DateTime.parse(json['created_at']);
+      } else {
+        // Default to now if no date is available
+        createdAt = DateTime.now();
+      }
+    } catch (e) {
+      print('KnowledgeSource.fromJson - Error parsing createdAt: $e, using current time');
+      createdAt = DateTime.now();
+    }
+    
     return KnowledgeSource(
-      id: json['id'],
-      type: json['type'],
-      name: json['name'],
-      status: json['status'],
-      fileType: json['fileType'],
-      fileSize: json['fileSize'],
-      url: json['url'],
-      processedAt: json['processedAt'] != null 
-          ? DateTime.parse(json['processedAt']) 
-          : null,
-      createdAt: DateTime.parse(json['createdAt']),
+      id: id,
+      type: type,
+      name: name,
+      status: status,
+      fileType: fileType,
+      fileSize: fileSize,
+      url: url,
+      processedAt: processedAt,
+      createdAt: createdAt,
     );
   }
 
