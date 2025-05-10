@@ -6,6 +6,7 @@ import '../services/bot_service.dart';
 import 'bot_knowledge_screen.dart';
 import 'bot_preview_screen.dart';
 import 'bot_publish_screen.dart';
+import 'bot_integration_screen.dart';
 
 class BotDetailScreen extends StatefulWidget {
   final String botId;
@@ -265,9 +266,25 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(      appBar: AppBar(
         title: Text(_bot?.name ?? 'Bot Details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.integration_instructions),
+            tooltip: 'Integrations',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BotIntegrationScreen(
+                    botId: widget.botId,
+                    botName: _bot?.name ?? 'Bot',
+                  ),
+                ),
+              ).then((_) => _fetchBotDetails());
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -619,8 +636,7 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
                             label: const Text('Start Preview'),
                           ),
                         ],
-                      ),
-                    ),
+                      ),                    ),
 
                     // Publish Tab (Placeholder - will navigate to full screen)
                     Center(
@@ -653,7 +669,25 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
                               }
                             },
                             icon: const Icon(Icons.share),
-                            label: const Text('Manage Publishing'),
+                            label: const Text('Basic Publishing'),
+                          ),
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              if (_bot != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => BotIntegrationScreen(
+                                      botId: _bot!.id,
+                                      botName: _bot!.name,
+                                    ),
+                                  ),
+                                ).then((_) => _fetchBotDetails());
+                              }
+                            },
+                            icon: const Icon(Icons.integration_instructions),
+                            label: const Text('Advanced Integrations'),
                           ),
                         ],
                       ),
