@@ -1,26 +1,40 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 
-enum ButtonVariant {
-  primary,
-  secondary,
-  delete,
+enum ButtonSize {
+  small,
+  medium,
+  large,
 }
 
-class LargeButton extends StatelessWidget {
+enum ButtonRadius {
+  small,
+  medium,
+  large,
+}
+
+enum ButtonVariant {
+  primary,
+  normal,
+  delete,
+  ghost,
+}
+
+class Button extends StatelessWidget {
   final String label;
   final IconData? icon;
-  final VoidCallback? onPressed;
   final ButtonVariant variant;
+  final ButtonSize size;
   final bool isDarkMode;
   final bool fullWidth;
-  final double height;
-  final double fontSize;
   final FontWeight fontWeight;
-  final double borderRadius;
+  final ButtonRadius radius;
   final double elevation;
+  final VoidCallback? onPressed;
+  final Color? color;
+  final int ghostAlpha;
 
-  const LargeButton({
+  const Button({
     super.key,
     required this.label,
     this.icon,
@@ -28,145 +42,141 @@ class LargeButton extends StatelessWidget {
     this.variant = ButtonVariant.primary,
     this.isDarkMode = false,
     this.fullWidth = true,
-    this.height = 60.0,
-    this.fontSize = 18.0,
-    this.fontWeight = FontWeight.bold,
-    this.borderRadius = 27.0,
+    this.fontWeight = FontWeight.normal,
+    this.size = ButtonSize.medium,
+    this.radius = ButtonRadius.large,
     this.elevation = 2.0,
+    this.color,
+    this.ghostAlpha = 20,
   });
 
   @override
   Widget build(BuildContext context) {
     final AppColors colors = isDarkMode ? AppColors.dark : AppColors.light;
 
+    final EdgeInsetsGeometry buttonPadding;
+    final double iconSize;
+    final double fontSize;
+    final double spacing;
+    switch (size) {
+      case ButtonSize.small:
+        buttonPadding = const EdgeInsets.symmetric(vertical: 4, horizontal: 10);
+        iconSize = 20.0;
+        fontSize = 12.0;
+        spacing = 4.0;
+        break;
+      case ButtonSize.medium:
+        buttonPadding = const EdgeInsets.symmetric(vertical: 12, horizontal: 16);
+        iconSize = 24.0;
+        fontSize = 14.0;
+        spacing = 8.0;
+        break;
+      case ButtonSize.large:{
+        buttonPadding = const EdgeInsets.symmetric(vertical: 16);
+        iconSize = 24.0;
+        fontSize = 18.0;
+        spacing = 8.0;
+        break;
+        }
+    }
+
+    final double borderRadius;
+    switch (radius) {
+      case ButtonRadius.small:
+        borderRadius = 12.0;
+        break;
+      case ButtonRadius.medium:
+        borderRadius = 24.0;
+        break;
+      case ButtonRadius.large:
+        borderRadius = 27.0;
+        break;
+    }
+
+    final Color background;
+    final Color foreground;
+    switch (variant) {
+      case ButtonVariant.primary:
+        background = colors.primary;
+        foreground = colors.primaryForeground;
+        break;
+      case ButtonVariant.normal:
+        background = colors.card;
+        foreground = colors.cardForeground;
+        break;
+      case ButtonVariant.delete:
+        background = colors.delete;
+        foreground = colors.deleteForeground;
+        break;
+      case ButtonVariant.ghost:
+        final Color ghostColor = (color ?? colors.primary);
+        background = ghostColor.withAlpha(ghostAlpha);
+        foreground = ghostColor;
+        break;
+    }
+
     final Widget buttonChild = Row(
-      mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
         if (icon != null) ...[
-          Icon(icon, size: 24),
-          const SizedBox(width: 8),
+          Icon(icon, size: iconSize, color: variant == ButtonVariant.ghost ? foreground : null),
+          SizedBox(width: spacing),
         ],
         Text(
           label,
           style: TextStyle(
             fontSize: fontSize,
             fontWeight: fontWeight,
+            color: variant == ButtonVariant.ghost ? foreground : null,
           ),
         ),
       ],
     );
 
-    final buttonStyle = ElevatedButton.styleFrom(
-      foregroundColor: _getForegroundColor(colors),
-      backgroundColor: _getBackgroundColor(colors),
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(borderRadius),
-      ),
-      elevation: elevation,
-    );
-
-    return SizedBox(
-      width: fullWidth ? double.infinity : null,
-      height: height,
-      child: icon != null
-          ? ElevatedButton.icon(
-              onPressed: onPressed,
-              icon: Icon(icon, size: 24),
-              label: Text(
-                label,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  fontWeight: fontWeight,
-                ),
-              ),
-              style: buttonStyle,
-            )
-          : ElevatedButton(
-              onPressed: onPressed,
-              style: buttonStyle,
-              child: buttonChild,
+    final ButtonStyle buttonStyle = variant == ButtonVariant.ghost
+        ? TextButton.styleFrom(
+            foregroundColor: foreground,
+            backgroundColor: background,
+            padding: buttonPadding,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
             ),
-    );
-  }
+          )
+        : ElevatedButton.styleFrom(
+            foregroundColor: foreground,
+            backgroundColor: background,
+            padding: buttonPadding,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+            ),
+            elevation: elevation,
+          );
 
-  Color? _getForegroundColor(AppColors colors) {
-    switch (variant) {
-      case ButtonVariant.delete:
-        return colors.deleteForeground;
-      case ButtonVariant.primary:
-        return colors.primaryForeground;
-      case ButtonVariant.secondary:
-        return null;
-    }
-  }
+    // Get the available width from constraints if in an unbounded context
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // If we're in an unbounded width context and fullWidth is true,
+        // use a reasonable max width instead of infinity
+        final double? buttonWidth = fullWidth
+            ? (constraints.hasBoundedWidth ? constraints.maxWidth : 280.0)
+            : null;
 
-  Color? _getBackgroundColor(AppColors colors) {
-    switch (variant) {
-      case ButtonVariant.delete:
-        return colors.delete;
-      case ButtonVariant.primary:
-        return colors.primary;
-      case ButtonVariant.secondary:
-        return null;
-    }
-  }
-}
-
-class MiniGhostButton extends StatelessWidget {
-  final String label;
-  final IconData? icon;
-  final VoidCallback? onPressed;
-  final Color? color;
-  final bool isDarkMode;
-  final double iconSize;
-  final double fontSize;
-  final FontWeight fontWeight;
-  final EdgeInsetsGeometry padding;
-  final double borderRadius;
-
-  const MiniGhostButton({
-    super.key,
-    required this.label,
-    this.icon,
-    this.onPressed,
-    this.color,
-    this.isDarkMode = false,
-    this.iconSize = 20.0,
-    this.fontSize = 14.0,
-    this.fontWeight = FontWeight.w500,
-    this.padding = const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-    this.borderRadius = 12.0,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final AppColors colors = isDarkMode ? AppColors.dark : AppColors.light;
-    final buttonColor = color ?? colors.primary;
-
-    return TextButton.icon(
-      onPressed: onPressed,
-      icon: Icon(
-        icon,
-        color: buttonColor,
-        size: iconSize,
-      ),
-      label: Text(
-        label,
-        style: TextStyle(
-          color: buttonColor,
-          fontWeight: fontWeight,
-          fontSize: fontSize,
-        ),
-      ),
-      style: TextButton.styleFrom(
-        backgroundColor: buttonColor.withAlpha(20),
-        padding: padding,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
-        ),
-      ),
+        return SizedBox(
+          width: buttonWidth,
+          child: variant == ButtonVariant.ghost
+              ? TextButton(
+                  onPressed: onPressed,
+                  style: buttonStyle,
+                  child: buttonChild,
+                )
+              : ElevatedButton(
+                  onPressed: onPressed,
+                  style: buttonStyle,
+                  child: buttonChild,
+                ),
+        );
+      }
     );
   }
 }

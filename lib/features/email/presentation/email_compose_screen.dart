@@ -176,9 +176,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-    final AppColors colors = isDarkMode ? AppColors.dark : AppColors.light;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return PopScope(
       canPop: !_hasUnsavedChanges || _isSaving,
@@ -277,14 +275,15 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                       setState(() => _showCcBcc = true),
                                   style: TextButton.styleFrom(
                                     alignment: Alignment.centerLeft,
-                                    padding: EdgeInsets.zero,
+                                    padding: EdgeInsets.only(left: 8),
                                   ),
-                                  child: const Text('Show Cc/Bcc'),
+                                  child: Text('Show Cc/Bcc', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).hintColor)),
                                 ),
 
                               // CC fields (shown conditionally)
                               if (_showCcBcc) ...[
                                 const SizedBox(height: 16),
+
                                 FloatingLabelTextField(
                                   controller: _ccController,
                                   label: 'Cc',
@@ -293,14 +292,15 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                   keyboardType: TextInputType.emailAddress,
                                   darkMode: isDarkMode,
                                 ),
+
                                 TextButton(
                                   onPressed: () =>
                                       setState(() => _showCcBcc = false),
                                   style: TextButton.styleFrom(
                                     alignment: Alignment.centerLeft,
-                                    padding: EdgeInsets.zero,
+                                    padding: EdgeInsets.only(left: 8),
                                   ),
-                                  child: const Text('Hide Cc/Bcc'),
+                                  child: Text('Hide Cc/Bcc', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).hintColor)),
                                 ),
                               ],
 
@@ -335,7 +335,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                               // AI suggestions to improve the email
                               Text(
                                 'Improve this email:',
-                                style: theme.textTheme.bodyMedium,
+                                style: Theme.of(context).textTheme.bodyMedium,
                               ),
                               const SizedBox(height: 8),
 
@@ -376,21 +376,21 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                 child: ExpansionTile(
                                   title: Text(
                                     'Original Email',
-                                    style: theme.textTheme.bodyMedium,
+                                    style: Theme.of(context).textTheme.bodyMedium,
                                   ),
-                                  collapsedIconColor: colors.primary,
-                                  iconColor: colors.primary,
+                                  collapsedIconColor: Theme.of(context).colorScheme.primary,
+                                  iconColor: Theme.of(context).colorScheme.primary,
                                   initiallyExpanded: false,
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.all(16),
                                       decoration: BoxDecoration(
-                                        color: colors.card,
+                                        color: Theme.of(context).colorScheme.surface,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
                                         widget.originalEmail,
-                                        style: theme.textTheme.bodyMedium,
+                                        style: Theme.of(context).textTheme.bodyMedium,
                                       ),
                                     ),
                                   ],
@@ -405,7 +405,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                       if (_isImproving)
                         Container(
                           padding: const EdgeInsets.symmetric(vertical: 16.0),
-                          color: colors.background,
+                          color: Theme.of(context).colorScheme.surfaceContainer,
                           child: Center(
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -415,12 +415,12 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: colors.foreground.withAlpha(160),
+                                    color: Theme.of(context).colorScheme.onSurface.withAlpha(160),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Text('Improving email...',
-                                    style: theme.textTheme.bodyMedium),
+                                    style: Theme.of(context).textTheme.bodyMedium),
                               ],
                             ),
                           ),
@@ -430,16 +430,16 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                       Container(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
-                          color: colors.background,
+                          color: Theme.of(context).colorScheme.surfaceContainer,
                           border: Border(
                             top: BorderSide(
-                              color: colors.foreground.withAlpha(20),
+                              color: Theme.of(context).colorScheme.onSurface.withAlpha(20),
                               width: 1,
                             ),
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: isDarkMode ? Colors.transparent : colors.foreground.withAlpha(30),
+                              color: isDarkMode ? Colors.transparent : Theme.of(context).colorScheme.onSurface.withAlpha(30),
                               blurRadius: 3,
                               offset: const Offset(0, -1),
                             ),
@@ -448,7 +448,7 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                         child: Row(
                           children: [
                             Expanded(
-                              child: LargeButton(
+                              child: Button(
                                 label: 'Save Draft',
                                 icon: Icons.save,
                                 onPressed: _isLoading || _isSaving
@@ -457,22 +457,20 @@ class _EmailComposeScreenState extends State<EmailComposeScreen> {
                                         // Return true to indicate the email was saved
                                         Navigator.pop(context, true);
                                       },
-                                variant: ButtonVariant.secondary,
-                                isDarkMode: Theme.of(context).brightness ==
-                                    Brightness.dark,
+                                variant: ButtonVariant.normal,
+                                isDarkMode: isDarkMode,
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: LargeButton(
+                              child: Button(
                                 label: 'Send Email',
                                 icon: Icons.send,
                                 onPressed: _isLoading || _isSaving
                                     ? null
                                     : _shareEmail,
                                 variant: ButtonVariant.primary,
-                                isDarkMode: Theme.of(context).brightness ==
-                                    Brightness.dark,
+                                isDarkMode: isDarkMode,
                               ),
                             ),
                           ],

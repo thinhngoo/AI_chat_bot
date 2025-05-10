@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../features/bot/services/bot_service.dart';
 import '../../../features/bot/presentation/bot_list_screen.dart';
 import '../../../widgets/button.dart';
@@ -129,10 +128,7 @@ class AssistantSelectorState extends State<AssistantSelector> {
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
     final offset = renderBox.localToGlobal(Offset.zero);
-
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-    final colors = isDarkMode ? AppColors.dark : AppColors.light;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return OverlayEntry(
       builder: (context) => GestureDetector(
@@ -153,9 +149,9 @@ class AssistantSelectorState extends State<AssistantSelector> {
                   child: Container(
                     height: 400, // Fixed height with scrolling
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
+                      color: Theme.of(context).colorScheme.surface,
                       border: isDarkMode
-                          ? Border.all(color: theme.dividerColor.withAlpha(120))
+                          ? Border.all(color: Theme.of(context).dividerColor.withAlpha(120))
                           : null,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
@@ -177,7 +173,7 @@ class AssistantSelectorState extends State<AssistantSelector> {
                             children: [
                               Text(
                                 'Base AI Models',
-                                style: theme.textTheme.titleMedium,
+                                style: Theme.of(context).textTheme.titleMedium,
                               ),
                             ],
                           ),
@@ -211,12 +207,12 @@ class AssistantSelectorState extends State<AssistantSelector> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Divider(
-                                      color: colors.border,
+                                      color: Theme.of(context).colorScheme.outline,
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       'Your Bots',
-                                      style: theme.textTheme.headlineMedium,
+                                      style: Theme.of(context).textTheme.headlineMedium,
                                     ),
                                   ],
                                 ),
@@ -228,7 +224,7 @@ class AssistantSelectorState extends State<AssistantSelector> {
                                   padding: EdgeInsets.only(top: 20.0, bottom: 8.0),
                                   child: Center(
                                       child: CircularProgressIndicator(
-                                    color: colors.muted,
+                                    color: Theme.of(context).hintColor,
                                   )),
                                 )
                               else if (_botsError != null)
@@ -236,8 +232,8 @@ class AssistantSelectorState extends State<AssistantSelector> {
                                   padding: const EdgeInsets.only(left: 20, top: 8),
                                   child: Text(
                                     'Error loading bots: $_botsError',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.error,
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.error,
                                     ),
                                   ),
                                 )
@@ -246,8 +242,8 @@ class AssistantSelectorState extends State<AssistantSelector> {
                                   padding: const EdgeInsets.only(left: 20, top: 8),
                                   child: Text(
                                     'No custom bots found',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: colors.muted,
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).hintColor,
                                       fontStyle: FontStyle.italic,
                                     ),
                                   ),
@@ -273,7 +269,7 @@ class AssistantSelectorState extends State<AssistantSelector> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12.0),
                           child: Center(
-                            child: MiniGhostButton(
+                            child: Button(
                               label: 'Manage Bots',
                               icon: Icons.settings,
                               onPressed: () {
@@ -284,10 +280,9 @@ class AssistantSelectorState extends State<AssistantSelector> {
                                   ),
                                 );
                               },
-                              color: colors.cardForeground,
-                              isDarkMode: theme.brightness == Brightness.dark,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 10, horizontal: 16),
+                              color: Theme.of(context).colorScheme.onSurface,
+                              isDarkMode: isDarkMode,
+                              variant: ButtonVariant.ghost,
                             ),
                           ),
                         ),
@@ -311,17 +306,13 @@ class AssistantSelectorState extends State<AssistantSelector> {
     required VoidCallback onTap,
     bool isCustomBot = false,
   }) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-    final color = isDarkMode ? AppColors.dark : AppColors.light;
-
     return InkWell(
       onTap: onTap,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         color: selected
-            ? theme.colorScheme.primary.withAlpha(10)
+            ? Theme.of(context).colorScheme.primary.withAlpha(10)
             : Colors.transparent,
         child: Row(
           children: [
@@ -330,7 +321,7 @@ class AssistantSelectorState extends State<AssistantSelector> {
               height: 8,
               margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(
-                color: selected ? theme.colorScheme.primary : color.muted,
+                color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).hintColor,
                 shape: BoxShape.circle,
               ),
             ),
@@ -340,32 +331,32 @@ class AssistantSelectorState extends State<AssistantSelector> {
                 children: [
                   Text(
                     title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight:
                           selected ? FontWeight.bold : FontWeight.normal,
                       color: selected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface,
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontSize: 13,
                       color: selected
-                          ? theme.colorScheme.primary.withAlpha(200)
-                          : color.muted,
+                          ? Theme.of(context).colorScheme.primary.withAlpha(200)
+                          : Theme.of(context).hintColor,
                     ),
                   ),
                 ],
               ),
             ),
             if (isCustomBot)
-              Icon(Icons.smart_toy, color: color.muted, size: 16),
+              Icon(Icons.smart_toy, color: Theme.of(context).hintColor, size: 16),
             const SizedBox(width: 1),
             if (selected)
-              Icon(Icons.check, color: theme.colorScheme.primary, size: 20),
+              Icon(Icons.check, color: Theme.of(context).colorScheme.primary, size: 20),
           ],
         ),
       ),
@@ -374,9 +365,6 @@ class AssistantSelectorState extends State<AssistantSelector> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors =
-        theme.brightness == Brightness.dark ? AppColors.dark : AppColors.light;
     String title = 'AI Assistant';
     bool isCustomBot = false;
 
@@ -409,19 +397,19 @@ class AssistantSelectorState extends State<AssistantSelector> {
                 width: 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
+                  color: Theme.of(context).colorScheme.primary,
                   shape: BoxShape.circle,
                 ),
               ),
               const SizedBox(width: 6),
               Text(
                 title,
-                style: theme.textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(width: 8),
               if (isCustomBot)
                 Icon(Icons.android,
-                    size: 24, color: colors.foreground.withAlpha(204)),
+                    size: 24, color: Theme.of(context).colorScheme.onSurface.withAlpha(204)),
             ],
           ),
         ),

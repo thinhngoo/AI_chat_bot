@@ -338,8 +338,7 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colors = isDarkMode ? AppColors.dark : AppColors.light;
 
     return Container(
@@ -368,7 +367,7 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                 const SizedBox(width: 40),
                 Text(
                   'Select a prompt',
-                  style: theme.textTheme.headlineMedium,
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 Container(
                   width: 40,
@@ -437,7 +436,7 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                                   prompt.title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -445,7 +444,7 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                                   prompt.description,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall?.copyWith(
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: colors.muted,
                                   ),
                                 ),
@@ -519,7 +518,7 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
               icon: const Icon(Icons.add),
               label: const Text('Create New Prompt'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 48),
               ),

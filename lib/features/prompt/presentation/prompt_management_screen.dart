@@ -232,6 +232,9 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
             ),
           ),
           indicatorSize: TabBarIndicatorSize.tab,
+          dividerColor: theme.colorScheme.outline.withAlpha(184),
+          labelColor: theme.colorScheme.primary,
+          unselectedLabelColor: theme.colorScheme.onSurface.withAlpha(184),
           tabs: const [
             Tab(text: 'Public'),
             Tab(text: 'Private'),
@@ -239,6 +242,7 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
           ],
         ),
       ),
+      
       body: TabBarView(
         controller: _tabController,
         children: [

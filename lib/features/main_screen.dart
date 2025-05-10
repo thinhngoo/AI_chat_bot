@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../core/constants/app_colors.dart';
 import 'chat/presentation/chat_screen.dart';
 import 'bot/presentation/bot_list_screen.dart';
 import 'email/presentation/email_screen.dart';
@@ -52,8 +51,6 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -63,10 +60,10 @@ class _MainScreenState extends State<MainScreen> {
         height: 65, // Fixed height for the nav bar
         padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
+          color: Theme.of(context).colorScheme.surface,
           border: Border(
             top: BorderSide(
-              color: theme.colorScheme.onSurface.withAlpha(20),
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(20),
               width: 0.5,
             ),
           ),
@@ -100,12 +97,10 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildNavItem(IconData icon, String tooltip, int index) {
     final isSelected = _currentIndex == index;
-    final theme = Theme.of(context);
-    final colors = theme.brightness == Brightness.dark ? AppColors.dark : AppColors.light;
     
     Color iconColor = isSelected 
-        ? theme.colorScheme.primary
-        : colors.muted;
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).hintColor;
     
     // Fixed size for square items
     const double itemSize = 42;
@@ -125,7 +120,7 @@ class _MainScreenState extends State<MainScreen> {
               width: itemSize,
               decoration: isSelected
                   ? BoxDecoration(
-                      color: theme.colorScheme.primary.withAlpha(60),
+                      color: Theme.of(context).colorScheme.primary.withAlpha(60),
                       borderRadius: BorderRadius.circular(12),
                     )
                   : null,

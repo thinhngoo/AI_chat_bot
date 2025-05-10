@@ -7,7 +7,6 @@ import 'dart:convert';
 import '../../../core/services/auth/auth_service.dart';
 import '../services/chat_service.dart';
 import '../models/conversation_message.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../features/bot/services/bot_service.dart';
 import '../../../features/prompt/presentation/prompt_selector.dart';
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
@@ -719,18 +718,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final bool isDarkMode = theme.brightness == Brightness.dark;
-    final colors = isDarkMode ? AppColors.dark : AppColors.light;
-
     return Scaffold(
-      drawer: _buildChatHistoryDrawer(theme, isDarkMode),
+      drawer: _buildChatHistoryDrawer(),
       appBar: AppBar(
         leading: Builder(
           builder: (context) => Padding(
             padding: const EdgeInsets.all(8.0),
             child: IconButton(
-              icon: Icon(Icons.menu, color: colors.foreground.withAlpha(204)),
+              icon: Icon(Icons.menu, color: Theme.of(context).colorScheme.onSurface.withAlpha(204)),
               tooltip: 'Chat History',
               onPressed: () {
                 Scaffold.of(context).openDrawer();
@@ -778,7 +773,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             child: IconButton(
               icon: Icon(
                 Icons.edit_document,
-                color: colors.foreground.withAlpha(204),
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
               ),
               tooltip: 'New conversation',
               onPressed: () {
@@ -798,16 +793,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             // Show ad banner for free users
             if (!_isPro) const AdBannerWidget(),
 
-            _buildChatMessages(theme, colors),
+            _buildChatMessages(),
 
-            _buildMessageInputArea(theme, isDarkMode, colors),
+            _buildMessageInputArea(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildChatHistoryDrawer(ThemeData theme, bool isDarkMode) {
+  Widget _buildChatHistoryDrawer() {
     return ChatHistoryDrawer(
       selectedAssistantId: _selectedAssistantId,
       currentConversationId: _currentConversationId,
@@ -824,11 +819,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       onDeleteConversation: (conversationId) {
         // This will be handled inside the ChatHistoryDrawer
       },
-      isDarkMode: isDarkMode,
     );
   }
 
-  Widget _buildChatMessages(ThemeData theme, dynamic colors) {
+  Widget _buildChatMessages() {
     if (_isLoading) {
       return Expanded(
         child: InformationIndicator(
@@ -857,7 +851,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               Icon(
                 Icons.auto_awesome,
                 size: 64,
-                color: colors.muted.withAlpha(128),
+                color: Theme.of(context).hintColor.withAlpha(128),
               ),
               const SizedBox(height: 20),
               if (!_isPro)
@@ -866,8 +860,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   child: Text(
                     'Free users have limited messages. Upgrade for unlimited access.',
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colors.muted,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).hintColor,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -906,7 +900,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.surface,
+                            color: Theme.of(context).colorScheme.surface,
                             borderRadius: const BorderRadius.only(
                               topLeft: Radius.circular(20),
                               topRight: Radius.circular(20),
@@ -924,7 +918,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                           child: SelectableText(
                             message.query,
                             style: TextStyle(
-                              color: theme.colorScheme.onSurface,
+                              color: Theme.of(context).colorScheme.onSurface,
                               height: 1.4,
                             ),
                           ),
@@ -946,67 +940,67 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                             data: message.answer,
                             selectable: true,
                             styleSheet: MarkdownStyleSheet(
-                              p: theme.textTheme.bodyMedium?.copyWith(
+                              p: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 height: 1.5,
-                                color: theme.colorScheme.onSurface,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
-                              h1: theme.textTheme.headlineMedium?.copyWith(
+                              h1: Theme.of(context).textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.onSurface,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
-                              h2: theme.textTheme.titleLarge?.copyWith(
+                              h2: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.onSurface,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
-                              h3: theme.textTheme.titleMedium?.copyWith(
+                              h3: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.onSurface,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
-                              listBullet: theme.textTheme.bodyMedium?.copyWith(
-                                color: colors.muted,
+                              listBullet: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).hintColor,
                                 height: 1.5,
                               ),
-                              blockquote: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface.withAlpha(204),
+                              blockquote: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
                                 fontStyle: FontStyle.italic,
                                 height: 1.5,
                               ),
                               blockquoteDecoration: BoxDecoration(
                                 border: Border(
                                   left: BorderSide(
-                                    color: theme.colorScheme.primary.withAlpha(128),
+                                    color: Theme.of(context).colorScheme.primary.withAlpha(128),
                                     width: 4.0,
                                   ),
                                 ),
                               ),
                               blockquotePadding: const EdgeInsets.only(left: 16.0),
-                              code: theme.textTheme.bodyMedium?.copyWith(
+                              code: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 fontFamily: 'monospace',
-                                color: theme.colorScheme.onSurface,
-                                backgroundColor: colors.input,
+                                color: Theme.of(context).colorScheme.onSurface,
+                                backgroundColor: Theme.of(context).colorScheme.surfaceDim,
                               ),
                               codeblockDecoration: BoxDecoration(
-                                color: colors.input,
+                                color: Theme.of(context).colorScheme.surfaceDim,
                                 borderRadius: BorderRadius.circular(4.0),
                               ),
                               codeblockPadding: const EdgeInsets.all(8.0),
-                              tableHead: theme.textTheme.bodyMedium?.copyWith(
+                              tableHead: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.onSurface,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
-                              tableBody: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface,
+                              tableBody: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                               tableBorder: TableBorder.all(
-                                color: theme.colorScheme.outline.withAlpha(128),
+                                color: Theme.of(context).colorScheme.outline.withAlpha(128),
                                 width: 1.0,
                               ),
                               tableCellsPadding: const EdgeInsets.symmetric(
                                 horizontal: 8.0,
                                 vertical: 4.0,
                               ),
-                              a: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.primary,
+                              a: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
                                 decoration: TextDecoration.underline,
                               ),
                               listIndent: 24.0,
@@ -1027,7 +1021,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                 icon: Icon(
                                   Icons.copy,
                                   size: 18,
-                                  color: colors.muted,
+                                  color: Theme.of(context).hintColor,
                                 ),
                                 tooltip: 'Copy to clipboard',
                                 padding: const EdgeInsets.only(left: 0),
@@ -1069,34 +1063,34 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 selectable: true,
                 styleSheet: MarkdownStyleSheet(
                   p: TextStyle(
-                    color: theme.colorScheme.onSurface,
+                    color: Theme.of(context).colorScheme.onSurface,
                     height: 1.5,
                   ),
-                  h1: theme.textTheme.headlineMedium?.copyWith(
+                  h1: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
-                  h2: theme.textTheme.titleLarge?.copyWith(
+                  h2: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
-                  h3: theme.textTheme.titleMedium?.copyWith(
+                  h3: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   listBullet: TextStyle(
-                    color: colors.muted,
+                    color: Theme.of(context).hintColor,
                     height: 1.5,
                   ),
                   blockquote: TextStyle(
-                    color: theme.colorScheme.onSurface.withAlpha(204),
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
                     fontStyle: FontStyle.italic,
                     height: 1.5,
                   ),
                   blockquoteDecoration: BoxDecoration(
                     border: Border(
                       left: BorderSide(
-                        color: theme.colorScheme.primary.withAlpha(128),
+                        color: Theme.of(context).colorScheme.primary.withAlpha(128),
                         width: 4.0,
                       ),
                     ),
@@ -1104,16 +1098,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   blockquotePadding: const EdgeInsets.only(left: 16.0),
                   code: TextStyle(
                     fontFamily: 'monospace',
-                    color: theme.colorScheme.onSurface,
-                    backgroundColor: colors.input,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    backgroundColor: Theme.of(context).colorScheme.surfaceDim,
                   ),
                   codeblockDecoration: BoxDecoration(
-                    color: colors.input,
+                    color: Theme.of(context).colorScheme.surfaceDim,
                     borderRadius: BorderRadius.circular(4.0),
                   ),
                   codeblockPadding: const EdgeInsets.all(8.0),
                   a: TextStyle(
-                    color: theme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     decoration: TextDecoration.underline,
                   ),
                   listIndent: 24.0,
@@ -1134,16 +1128,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildMessageInputArea(
-      ThemeData theme, bool isDarkMode, dynamic colors) {
+  Widget _buildMessageInputArea() {
     return Container(
       padding: const EdgeInsets.fromLTRB(6, 4, 6, 8),
       margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 6.0),
       decoration: BoxDecoration(
-        color: colors.input,
+        color: Theme.of(context).colorScheme.surfaceDim,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: colors.border,
+          color: Theme.of(context).colorScheme.outline,
           width: 1,
         ),
         boxShadow: [
@@ -1166,9 +1159,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               minLines: 1,
               textInputAction: TextInputAction.newline,
               keyboardType: TextInputType.multiline,
-              cursorColor: colors.inputForeground,
+              cursorColor: Theme.of(context).colorScheme.onSurface,
               decoration: InputDecoration(
-                fillColor: colors.input,
+                fillColor: Theme.of(context).colorScheme.surfaceDim,
                 filled: true,
                 hintText: 'Type a message or / for prompts...',
                 border: InputBorder.none,
@@ -1177,7 +1170,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                 isDense: true,
                 hintStyle: TextStyle(
-                  color: colors.muted,
+                  color: Theme.of(context).hintColor,
                 ),
               ),
               onSubmitted: (_) => _sendMessage(),
@@ -1198,7 +1191,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     IconButton(
                       icon: Icon(
                         Icons.mic_none,
-                        color: colors.muted,
+                        color: Theme.of(context).hintColor,
                       ),
                       onPressed: () {
                         GlobalSnackBar.show(
@@ -1213,7 +1206,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     IconButton(
                       icon: Icon(
                         Icons.image_outlined,
-                        color: colors.muted,
+                        color: Theme.of(context).hintColor,
                       ),
                       onPressed: () {
                         GlobalSnackBar.show(
@@ -1228,7 +1221,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     IconButton(
                       icon: Icon(
                         Icons.format_quote,
-                        color: colors.muted,
+                        color: Theme.of(context).hintColor,
                       ),
                       onPressed: () {
                         // Show the prompt selector dialog directly with empty query
@@ -1251,8 +1244,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
                     return Material(
                       color: isDisabled
-                          ? colors.muted.withAlpha(30)
-                          : colors.inputForeground,
+                          ? Theme.of(context).hintColor.withAlpha(30)
+                          : Theme.of(context).colorScheme.onSurface,
                       borderRadius: BorderRadius.circular(24),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(24),
@@ -1266,15 +1259,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2.5,
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                      colors.muted,
+                                      Theme.of(context).hintColor,
                                     ),
                                   ),
                                 )
                               : Icon(
                                   Icons.arrow_upward,
                                   color: isDisabled
-                                      ? colors.muted.withAlpha(128)
-                                      : colors.input,
+                                      ? Theme.of(context).hintColor.withAlpha(128)
+                                      : Theme.of(context).colorScheme.surfaceDim,
                                   size: 24,
                                 ),
                         ),

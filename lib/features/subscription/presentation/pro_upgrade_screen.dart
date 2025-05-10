@@ -10,6 +10,7 @@ import '../../../core/services/auth/auth_service.dart';
 import '../../../widgets/text_field.dart';
 import '../../../widgets/button.dart';
 import '../../../widgets/information.dart';
+import '../../../widgets/dialog.dart';
 
 class ProUpgradeScreen extends StatefulWidget {
   const ProUpgradeScreen({super.key});
@@ -85,9 +86,9 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
     // });
  
     // Pre-fill test credit card for demo
-    _cardNumberController.text = '4567 3137 8682 2209';
-    _expiryController.text = '12/29';
-    _cvvController.text = '277';
+    _cardNumberController.text = '4242 4242 4242 4242';
+    _expiryController.text = '12/25';
+    _cvvController.text = '123';
     _nameController.text = 'Thinh Ngo';
 
     // Set up listeners to validate on change
@@ -161,10 +162,10 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
 
     // Validation for test card
     final cardNumber = _cardNumberController.text.replaceAll(' ', '');
-    if (cardNumber != '4567313786822209') {
+    if (cardNumber != '4242424242424242') {
       GlobalSnackBar.show(
         context: context,
-        message: 'Please use the test card 4567 3137 8682 2209',
+        message: 'Please use the test card 4242 4242 4242 4242',
         variant: SnackBarVariant.warning,
       );
       return;
@@ -193,21 +194,14 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
 
       if (success && mounted) {
         // Show success dialog
-        await showDialog(
+        await GlobalDialog.show(
           context: context,
+          title: 'Subscription Activated',
+          message: 'Your Pro subscription has been activated successfully! '
+                'You now have unlimited tokens and access to all premium features.',
+          variant: DialogVariant.success,
+          confirmLabel: 'OK',
           barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            title: const Text('Subscription Activated'),
-            content: const Text(
-                'Your Pro subscription has been activated successfully! '
-                'You now have unlimited tokens and access to all premium features.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
         );
 
         // Return to previous screen
@@ -305,7 +299,7 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
       return 'Card number must be 16 digits';
     }
 
-    if (cleanedValue != '4567313786822209') {
+    if (cleanedValue != '4242424242424242') {
       return 'Please use the test card number';
     }
 
@@ -346,9 +340,7 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Upgrade to Pro'),
@@ -375,35 +367,39 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                         padding: const EdgeInsets.only(bottom: 16),
                         child: Text(
                           _errorMessage,
-                          style: const TextStyle(
-                            color: Colors.red,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
 
                     // Payment button
-                    LargeButton(
+                    Button(
                       label: _isProcessing ? 'Processing...' : 'Upgrade Now',
                       onPressed: _isProcessing ? null : _processPayment,
                       variant: ButtonVariant.primary,
+                      size: ButtonSize.large,
                       isDarkMode: isDarkMode,
                       icon: _isProcessing ? null : Icons.rocket_launch,
+                      fontWeight: FontWeight.bold,
                     ),
 
                     const SizedBox(height: 16),
 
                     // Restore purchases
-                    LargeButton(
+                    Button(
                       label: 'Restore Previous Purchase',
                       onPressed: _isProcessing ? null : _restorePurchases,
-                      variant: ButtonVariant.secondary,
+                      variant: ButtonVariant.normal,
+                      size: ButtonSize.large,
                       isDarkMode: isDarkMode,
                       icon: Icons.restore,
+                      fontWeight: FontWeight.bold,
                     ),
 
-                    // Legal info
                     const SizedBox(height: 16),
+                    
                     Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
@@ -412,7 +408,7 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                           'before the end of the current period.',
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey,
+                                    color: Theme.of(context).hintColor,
                                   ),
                           textAlign: TextAlign.center,
                         )),
@@ -426,8 +422,7 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
   }
 
   Widget _buildPricingCard() {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colors = isDarkMode ? AppColors.dark : AppColors.light;
     if (_selectedPlan == null) {
       return const SizedBox.shrink();
@@ -444,7 +439,7 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
             // Plan name
             Text(
               _selectedPlan!.name,
-              style: theme.textTheme.titleLarge,
+              style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
 
@@ -453,8 +448,8 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
             // Plan description
             Text(
               _selectedPlan!.description,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: colors.muted,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Theme.of(context).hintColor,
                 fontWeight: FontWeight.w400,
               ),
               textAlign: TextAlign.center,
@@ -481,17 +476,17 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                   backgroundColor: WidgetStateProperty.resolveWith<Color>(
                     (Set<WidgetState> states) {
                       if (states.contains(WidgetState.selected)) {
-                        return theme.colorScheme.primary;
+                        return Theme.of(context).colorScheme.primary;
                       }
-                      return theme.colorScheme.surface;
+                      return Theme.of(context).colorScheme.surface;
                     },
                   ),
                   foregroundColor: WidgetStateProperty.resolveWith<Color>(
                     (Set<WidgetState> states) {
                       if (states.contains(WidgetState.selected)) {
-                        return theme.colorScheme.onPrimary;
+                        return Theme.of(context).colorScheme.onPrimary;
                       }
-                      return theme.colorScheme.onSurface;
+                      return Theme.of(context).colorScheme.onSurface;
                     },
                   ),
                   side: WidgetStateProperty.resolveWith<BorderSide>(
@@ -524,12 +519,12 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                   _isYearly
                       ? _selectedPlan!.formattedMonthlyPriceYearly
                       : _selectedPlan!.formattedMonthlyPrice,
-                  style: theme.textTheme.headlineLarge,
+                  style: Theme.of(context).textTheme.headlineLarge,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   _isYearly ? '/ month' : '/ month',
-                  style: theme.textTheme.bodyLarge,
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ],
             ),
@@ -541,8 +536,8 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
               Center(
                 child: Text(
                   'Billed annually as ${_selectedPlan!.formattedAnnualPrice}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colors.muted,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).hintColor,
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -621,8 +616,7 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
   }
 
   Widget _buildFeatureItem(String feature) {
-    final theme = Theme.of(context);
-    final colors = theme.brightness == Brightness.dark ? AppColors.dark : AppColors.light;
+    final colors = Theme.of(context).brightness == Brightness.dark ? AppColors.dark : AppColors.light;
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -638,7 +632,7 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
           Expanded(
             child: Text(
               feature,
-              style: theme.textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
         ],

@@ -155,7 +155,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   ThemeData _buildTheme({required bool isDark}) {
+    final theme = Theme.of(context);
     final AppColors colors = isDark ? AppColors.dark : AppColors.light;
+    final overlayColor = isDark ? colors.foreground.withAlpha(128) : colors.foreground.withAlpha(100);
 
     return ThemeData(
       useMaterial3: true,
@@ -166,7 +168,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       cardTheme: CardTheme(
         elevation: 2,
         color: colors.card,
-        surfaceTintColor: colors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
 
@@ -178,12 +179,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             width: 1,
           ),
         ),
-        // enabledBorder: OutlineInputBorder(
-        //   borderRadius: BorderRadius.circular(12),
-        //   borderSide: BorderSide(
-        //     width: 1,
-        //   ),
-        // ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
@@ -209,30 +208,39 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          backgroundColor: colors.button,
-          foregroundColor: colors.buttonForeground,
+          backgroundColor: colors.primary,
+          foregroundColor: colors.primaryForeground,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+          overlayColor: overlayColor,
+        ),
+      ),
+
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          overlayColor: overlayColor,
         ),
       ),
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: colors.primary,
+          foregroundColor: colors.cardForeground.withAlpha(128),
           side: BorderSide(color: colors.border),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          overlayColor: overlayColor,
         ),
       ),
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: colors.primary,
+          foregroundColor: theme.colorScheme.primary,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          overlayColor: overlayColor,
         ),
       ),
 
@@ -279,11 +287,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         elevation: 0,
         backgroundColor: colors.background,
         foregroundColor: colors.foreground,
+        surfaceTintColor: colors.background,
         centerTitle: false,
         titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: colors.foreground,
+          color: colors.cardForeground,
         ),
       ),
 
@@ -293,94 +302,85 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         displayLarge: TextStyle(
           fontSize: 40,
           fontWeight: FontWeight.bold,
-          color: colors.foreground,
+          color: colors.cardForeground,
         ),
         displayMedium: TextStyle(
           fontSize: 32,
           fontWeight: FontWeight.bold,
-          color: colors.foreground,
+          color: colors.cardForeground,
           fontFamily: 'Geist',
         ),
         displaySmall: TextStyle(
           fontSize: 26,
           fontWeight: FontWeight.bold,
-          color: colors.foreground,
+          color: colors.cardForeground,
           fontFamily: 'Geist',
         ),
         headlineLarge: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w600,
-          color: colors.foreground,
+          color: colors.cardForeground,
           fontFamily: 'Geist',
         ),
         headlineMedium: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: colors.foreground,
+          color: colors.cardForeground,
           fontFamily: 'Geist',
         ),
         headlineSmall: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: colors.foreground,
+          color: colors.cardForeground,
           fontFamily: 'Geist',
         ),
         titleLarge: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
-          color: colors.foreground,
+          color: colors.cardForeground,
           fontFamily: 'Geist',
         ),
         titleMedium: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: colors.foreground,
+          color: colors.cardForeground,
           fontFamily: 'Geist',
         ),
         titleSmall: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: colors.foreground,
+          color: colors.cardForeground,
           fontFamily: 'Geist',
         ),
         bodyLarge: TextStyle(
           fontSize: 16,
-          color: colors.foreground,
+          color: colors.cardForeground,
         ),
         bodyMedium: TextStyle(
           fontSize: 14,
-          color: colors.foreground,
+          color: colors.cardForeground,
         ),
         bodySmall: TextStyle(
           fontSize: 12,
-          color: colors.foreground,
+          color: colors.cardForeground,
         ),
       ),
 
-      dividerColor: colors.border,
-      colorScheme: isDark
-          ? ColorScheme.dark(
-              primary: colors.primary,
-              onPrimary: colors.primaryForeground,
-              secondary: colors.secondary,
-              onSecondary: colors.secondaryForeground,
-              surface: colors.card,
-              onSurface: colors.cardForeground,
-              surfaceTint: colors.background,
-              error: colors.error,
-              onError: colors.errorForeground,
-            )
-          : ColorScheme.light(
-              primary: colors.primary,
-              onPrimary: colors.primaryForeground,
-              secondary: colors.secondary,
-              onSecondary: colors.secondaryForeground,
-              surface: colors.card,
-              onSurface: colors.cardForeground,
-              surfaceTint: colors.background,
-              error: colors.error,
-              onError: colors.errorForeground,
-            ),
+      hintColor: colors.muted,
+      colorScheme: (isDark ? ColorScheme.dark() : ColorScheme.light()).copyWith(
+        primary: colors.primary,
+        onPrimary: colors.primaryForeground,
+        secondary: colors.secondary,
+        onSecondary: colors.secondaryForeground,
+        surface: colors.card,
+        surfaceDim: colors.input,
+        surfaceContainer: colors.background,
+        onSurface: colors.cardForeground,
+        error: colors.error,
+        onError: colors.errorForeground,
+        tertiary: colors.success,
+        outline: colors.border,
+      ),
     );
   }
 }
