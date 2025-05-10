@@ -214,9 +214,12 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    crossAxisAlignment: CrossAxisAlignment.start,                    children: [
                       Card(
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
@@ -299,23 +302,30 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      Text(
+                      const SizedBox(height: 24),                      Text(
                         'Data Sources',
-                        style: theme.textTheme.headlineMedium,
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      _knowledgeBase!.sources.isEmpty
+                      const SizedBox(height: 16),                      _knowledgeBase!.sources.isEmpty
                           ? _buildEmptySourcesMessage()
                           : Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               child: Padding(
                                 padding: const EdgeInsets.all(16.0),
                                 child: SizedBox(
-                                  width: double.infinity,
-                                  child: DataTable2(
+                                  width: double.infinity,                                child: DataTable2(
+                                    headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
                                     columnSpacing: 12,
                                     horizontalMargin: 12,
                                     minWidth: 600,
+                                    dividerThickness: 1,
+                                    dataRowHeight: 64,
+                                    headingRowHeight: 56,
                                     columns: const [
                                       DataColumn2(
                                         label: Text('Name'),
@@ -338,19 +348,38 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
                                         size: ColumnSize.S,
                                       ),
                                     ],
-                                    rows: _knowledgeBase!.sources.map((source) {
-                                      return DataRow2(
+                                    rows: _knowledgeBase!.sources.map((source) {                                      return DataRow2(
                                         cells: [
-                                          DataCell(Text(source.name)),
+                                          DataCell(
+                                            Container(
+                                              constraints: const BoxConstraints(maxWidth: 200),
+                                              child: Text(
+                                                source.name,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                          ),
                                           DataCell(_buildSourceTypeLabel(source.type)),
                                           DataCell(_buildStatusBadge(source.status)),
                                           DataCell(Text(
                                             _formatDate(source.createdAt),
-                                          )),
-                                          DataCell(
+                                          )),                                          DataCell(
                                             Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
+                                                IconButton(
+                                                  icon: const Icon(Icons.edit, color: Colors.blue),
+                                                  onPressed: () {
+                                                    // Handle edit source
+                                                  },
+                                                  tooltip: 'Edit',
+                                                  iconSize: 20,
+                                                  constraints: const BoxConstraints(),
+                                                  padding: EdgeInsets.zero,
+                                                ),
+                                                const SizedBox(width: 8),
                                                 IconButton(
                                                   icon: Icon(
                                                     Icons.delete,
@@ -360,6 +389,8 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
                                                       _showDeleteConfirmation(source),
                                                   tooltip: 'Delete',
                                                   iconSize: 20,
+                                                  constraints: const BoxConstraints(),
+                                                  padding: EdgeInsets.zero,
                                                 ),
                                               ],
                                             ),
@@ -376,9 +407,12 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
                 ),
     );
   }
-
   Widget _buildEmptySourcesMessage() {
     return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -410,14 +444,19 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       ),
     );
   }
-
   Widget _buildAddSourceButton(String label, IconData icon, VoidCallback onPressed) {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 18),
-      label: Text(label),      style: ButtonStyle(
+      label: Text(label),
+      style: ButtonStyle(
         padding: WidgetStateProperty.all(
           const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        ),
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
         ),
       ),
     );
