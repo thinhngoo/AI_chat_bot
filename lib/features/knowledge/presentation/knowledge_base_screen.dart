@@ -1,3 +1,5 @@
+import 'dart:math';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/knowledge_base_model.dart';
 import '../services/knowledge_base_service.dart';
@@ -19,7 +21,30 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
   String? _error;
   int _page = 1;
   bool _hasMoreData = true;
-  final int _limit = 10;
+  final int _limit = 10;  // Local implementation of formatBytes method
+  String _formatBytes(int? bytes) {
+    print('KnowledgeBaseScreen._formatBytes input: $bytes bytes');
+    if (bytes == null || bytes <= 0) {
+      print('KnowledgeBaseScreen._formatBytes returning: 0 B (null or <= 0)');
+      return '0 B';
+    }
+    
+    const suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    final i = (log(bytes) / log(1024)).floor();
+    print('KnowledgeBaseScreen._formatBytes suffixes index: $i');
+    
+    // If less than 1 KB, show in bytes with no decimal places
+    if (i == 0) {
+      final result = '$bytes ${suffixes[i]}';
+      print('KnowledgeBaseScreen._formatBytes returning: $result (bytes)');
+      return result;
+    }
+    
+    // Otherwise show with the specified number of decimal places
+    final result = '${(bytes / pow(1024, i)).toStringAsFixed(1)} ${suffixes[i]}';
+    print('KnowledgeBaseScreen._formatBytes returning: $result');
+    return result;
+  }
 
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -46,7 +71,6 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
       }
     }
   }
-
   Future<void> _loadKnowledgeBases() async {
     setState(() {
       _isLoading = true;
@@ -56,11 +80,20 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
     });
 
     try {
+      print('Loading knowledge bases with search query: "$_searchQuery"');
       final knowledgeBases = await _knowledgeBaseService.getKnowledgeBases(
         search: _searchQuery,
         page: _page,
         limit: _limit,
+        includeUnits: true, // Make sure we fetch datasources for each knowledge base
       );
+
+      // Log the datasources count for debugging
+      for (var kb in knowledgeBases) {
+        print('Knowledge base ${kb.knowledgeName} has ${kb.sources.length} datasources');
+        print('Unit count (from getter): ${kb.unitCount}');
+        print('Total size: ${kb.totalSize} bytes (${_formatBytes(kb.totalSize)})');
+      }
 
       setState(() {
         _knowledgeBases = knowledgeBases;
@@ -68,6 +101,7 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      print('Error loading knowledge bases: $e');
       setState(() {
         _error = 'Failed to load knowledge bases: $e';
         _isLoading = false;
@@ -143,11 +177,26 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context) {    return Scaffold(
       appBar: AppBar(
         title: const Text('Knowledge Base'),
         elevation: 0,
+        actions: [
+          // Refresh button to reload knowledge bases
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh knowledge bases',
+            onPressed: () {
+              _loadKnowledgeBases();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Refreshing knowledge bases...'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [          // Search and create section
@@ -377,6 +426,42 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
                             fontSize: 12,
                           ),
                         ),
+                      const SizedBox(height: 4),
+                      // Hiển thị số units và dung lượng
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green[50],
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${kb.unitCount} ${kb.unitCount == 1 ? 'unit' : 'units'}',
+                              style: TextStyle(
+                                color: Colors.green[700],
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50],
+                              borderRadius: BorderRadius.circular(4),
+                            ),                            child: Text(
+                              _formatBytes(kb.totalSize),
+                              style: TextStyle(
+                                color: Colors.blue[700],
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
