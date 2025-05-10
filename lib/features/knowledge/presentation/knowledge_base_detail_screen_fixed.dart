@@ -26,36 +26,29 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
   final KnowledgeBaseService _knowledgeBaseService = KnowledgeBaseService();
   bool _isLoading = true;
   KnowledgeBase? _knowledgeBase;
-  String? _error;  // Phương thức helper để định dạng bytes thành chuỗi đọc được
+  String? _error;
+
+  // Phương thức helper để định dạng bytes thành chuỗi đọc được
   String _formatBytes(int? bytes) {
-    print('KnowledgeBaseDetailScreen._formatBytes input: $bytes bytes');
-    if (bytes == null || bytes <= 0) {
-      print('KnowledgeBaseDetailScreen._formatBytes returning: 0 B (null or <= 0)');
-      return '0 B';
-    }
+    if (bytes == null || bytes <= 0) return '0 B';
     
     const suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
     final i = (log(bytes) / log(1024)).floor();
-    print('KnowledgeBaseDetailScreen._formatBytes suffixes index: $i');
     
     // If less than 1 KB, show in bytes with no decimal places
-    if (i == 0) {
-      final result = '$bytes ${suffixes[i]}';
-      print('KnowledgeBaseDetailScreen._formatBytes returning: $result (bytes)');
-      return result;
-    }
+    if (i == 0) return '$bytes ${suffixes[i]}';
     
     // Otherwise show with the specified number of decimal places
-    final result = '${(bytes / pow(1024, i)).toStringAsFixed(1)} ${suffixes[i]}';
-    print('KnowledgeBaseDetailScreen._formatBytes returning: $result');
-    return result;
+    return '${(bytes / pow(1024, i)).toStringAsFixed(1)} ${suffixes[i]}';
   }
 
   @override
   void initState() {
     super.initState();
     _loadKnowledgeBase();
-  }  Future<void> _loadKnowledgeBase() async {
+  }
+
+  Future<void> _loadKnowledgeBase() async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
@@ -63,58 +56,14 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     });
 
     try {
-      // First get the basic knowledge base info
       final knowledgeBase = await _knowledgeBaseService.getKnowledgeBase(widget.knowledgeBaseId);
-      
-      debugPrint('Knowledge Base loaded: ${knowledgeBase.knowledgeName}');
-      debugPrint('Initial sources count: ${knowledgeBase.sources.length}');
-      debugPrint('Unit count (from getter): ${knowledgeBase.unitCount}');
-      
-      // Now explicitly fetch datasources using the new method to ensure we get the latest data
-      try {
-        final datasources = await _knowledgeBaseService.getDatasources(widget.knowledgeBaseId);
-        debugPrint('Fetched ${datasources.length} datasources directly');
-        
-        // Create an updated knowledge base with the fresh datasources
-        final updatedKnowledgeBase = KnowledgeBase(
-          id: knowledgeBase.id,
-          knowledgeName: knowledgeBase.knowledgeName,
-          description: knowledgeBase.description,
-          status: knowledgeBase.status,
-          userId: knowledgeBase.userId,
-          createdBy: knowledgeBase.createdBy,
-          updatedBy: knowledgeBase.updatedBy,
-          createdAt: knowledgeBase.createdAt,
-          updatedAt: knowledgeBase.updatedAt,
-          sources: datasources,
-        );
-        
-        // Debug each source
-        for (var source in updatedKnowledgeBase.sources) {
-          debugPrint('Source: ${source.name}, fileSize: ${source.fileSize}, type: ${source.type}');
-        }
-        
-        // Debug the total size
-        debugPrint('Total size (from getter): ${updatedKnowledgeBase.totalSize}');
-        debugPrint('Total size formatted: ${_formatBytes(updatedKnowledgeBase.totalSize)}');
 
-        if (!mounted) return;
-        setState(() {
-          _knowledgeBase = updatedKnowledgeBase;
-          _isLoading = false;
-        });
-      } catch (datasourceError) {
-        debugPrint('Error fetching datasources: $datasourceError, using original knowledge base');
-        
-        // Use the original knowledge base if there was an error fetching datasources
-        if (!mounted) return;
-        setState(() {
-          _knowledgeBase = knowledgeBase;
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _knowledgeBase = knowledgeBase;
+        _isLoading = false;
+      });
     } catch (e) {
-      debugPrint('Error loading knowledge base: $e');
       if (!mounted) return;
       setState(() {
         _error = 'Failed to load knowledge base: $e';
@@ -326,7 +275,9 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
         ],
       ),
     );
-  }  Widget _buildKnowledgeBaseDetail() {
+  }
+
+  Widget _buildKnowledgeBaseDetail() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -342,26 +293,13 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Title
-                    Expanded(
-                      child: Text(
-                        _knowledgeBase!.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    // Refresh button
-                    IconButton(
-                      icon: const Icon(Icons.refresh),
-                      tooltip: 'Refresh datasources',
-                      onPressed: _loadKnowledgeBase,
-                    ),
-                  ],
+                // Title and ID
+                Text(
+                  _knowledgeBase!.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 
                 // Description
