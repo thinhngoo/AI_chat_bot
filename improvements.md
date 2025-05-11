@@ -35,16 +35,53 @@
    - Enhanced UI to show subtle indicators without disrupting the user experience
    - Created an `UpdateManager` utility to help manage the transition to the fixed code
 
+6. **Subscription Service Timeout Handling**
+   - Fixed timeout issues in `SubscriptionService` API calls
+   - Implemented tiered caching similar to the BotService improvements
+   - Added better timeout handling with adjusted timeout durations
+   - Created background refresh capabilities for subscription data
+   - Implemented a robust fallback chain: API → cached data → defaults
+   - Added proper cache timestamp tracking for all subscription data types
+
+7. **Service Wrappers for Smooth Transition**
+   - Created wrapper services for BotService and SubscriptionService
+   - Implemented A/B testing capability with feature flags
+   - Added graceful fallback between improved and legacy implementations
+   - Created unified stream interfaces for UI components
+   - Ensured proper resource disposal and cache management
+
 ## How to Apply the Changes
 
-1. Replace the existing `assistant_selector.dart` file with `assistant_selector_fixed.dart` 
+### Core Fixes
+
+1. Replace the existing `assistant_selector.dart` file with `assistant_selector_fixed.dart`
 2. Replace the existing `bot_service.dart` file with `bot_service_optimized.dart`
-3. Add the new `background_refresh_indicator.dart` widget to the widgets folder
+3. Add the new `background_refresh_indicator_fixed.dart` widget to the widgets folder
 4. Add the `update_manager.dart` utility to the core/utils folder
+
+### Subscription Service Fixes
+
+5. Add the new `subscription_service_fixed.dart` file to features/subscription/services/
+6. Add the wrapper services:
+   - `bot_service_wrapper.dart` to features/bot/services/
+   - `subscription_service_wrapper.dart` to features/subscription/services/
+7. Update imports in the `splash_screen.dart` and other files to use wrapper services
+8. Add `subscription_info_widget.dart` that demonstrates the improved UI with background indicators
+9. Add the `splash_screen_extensions.dart` for enhanced refresh status indicators
+
+### Testing and Verification
+
+10. Run the `subscription_service_test.dart` to verify timeout handling
+11. Verify all services continue to work in offline mode
+12. Confirm background refresh indicators appear appropriately
 
 ## Future Enhancements
 
-- Consider prefetching bot data when the app starts
+- Consider prefetching bot data when the app starts (already implemented in SplashScreen!)
 - Add refresh failure notifications that are minimally intrusive
 - Implement offline mode with more robust caching strategies
 - Add data compression for cached results to reduce memory usage
+- Add request prioritization for critical vs. background requests
+- Implement cache invalidation on certain user actions (e.g., changing settings)
+- Add analytics to track cache hit/miss rates and optimization opportunities
+- Create a debug panel to manually control caching behavior during development
