@@ -6,6 +6,7 @@ import '../../features/auth/presentation/login_page.dart';
 import '../../features/main_screen.dart';
 import '../../core/constants/app_colors.dart';
 import '../auth/presentation/widgets/auth_background.dart';
+import '../../features/bot/services/bot_service.dart';
 
 class SplashScreen extends StatefulWidget {
   final Function toggleTheme;
@@ -25,12 +26,14 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   final AuthService _authService = AuthService();
+  final BotService _botService = BotService();
   final Logger _logger = Logger();
 
   late AnimationController _animationController;
   late Animation<double> _animation;
   
   // bool _isCheckingAuth = true;
+  bool _dataPreloaded = false;
   
   @override
   void initState() {
@@ -56,11 +59,39 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _checkAuthAndNavigate();
   }
   
-  // Khởi tạo AuthService trong nền không chặn UI
+  // Prefetch data in background for faster app startup
+  Future<void> _prefetchData() async {
+    if (!mounted) return;
+    try {
+      // Only prefetch if user is logged in
+      final isLoggedIn = await _authService.isLoggedIn();
+      if (!isLoggedIn) return;
+      
+      _logger.i('Prefetching data in background...');
+      
+      // Fetch bot list in background
+      _botService.getBots().then((bots) {
+        _logger.i('Successfully prefetched ${bots.length} bots');
+        if (mounted) {
+          setState(() {
+            _dataPreloaded = true;
+          });
+        }
+      }).catchError((e) {
+        _logger.e('Error prefetching bots: $e');
+      });
+    } catch (e) {
+      _logger.e('Error during prefetch: $e');
+    }
+  }
+    // Khởi tạo AuthService trong nền không chặn UI
   Future<void> _initializeAuthService() async {
     try {
       await _authService.initializeService();
       _logger.i('Auth service initialized successfully');
+      
+      // Start prefetching data once auth service is initialized
+      _prefetchData();
     } catch (e) {
       _logger.e('Error initializing auth service: $e');
     }
@@ -79,9 +110,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       
       if (!mounted) return;
       
-      // setState(() {
-      //   _isCheckingAuth = false;
-      // });
+      // Wait a bit more if user is logged in but data isn't preloaded yet
+      // This ensures a smoother experience when the app opens
+      if (isLoggedIn && !_dataPreloaded) {
+        // Give a little more time for prefetching to complete, but don't wait forever
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
       
       // Chuyển hướng đến màn hình thích hợp dựa trên trạng thái đăng nhập
       if (isLoggedIn) {

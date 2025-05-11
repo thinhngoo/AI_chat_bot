@@ -39,10 +39,12 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
   OverlayEntry? _overlayEntry;
   final Logger _logger = Logger();
   final BotService _botService = BotService();
-
+  
+  // Animation controller for refresh indicator - fixed single declaration
   late AnimationController _refreshController;
   bool _isBackgroundRefreshing = false;
 
+  // Base AI models
   final List<Assistant> _baseAssistants = [
     Assistant(
         id: 'gpt-4o',
@@ -68,8 +70,7 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
         id: 'deepseek-chat',
         name: 'Deepseek Chat',
         description: 'DeepSeek\'s conversational AI model'),
-  ];
-
+  ];  // Custom bots from user
   List<Assistant> _customBots = [];
   bool _isLoadingBots = false;
   String? _botsError;
@@ -78,35 +79,38 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
   @override
   void initState() {
     super.initState();
+    // Initialize animation controller for refresh indicator only once
     _refreshController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
-    )..repeat();
-
+    )..repeat(); // Start repeating animation immediately
+    
     _loadCustomBots();
-
+    
+    // Set up periodic refresh of bot list every 2 minutes
     _refreshTimer = Timer.periodic(const Duration(minutes: 2), (_) {
       _refreshBots();
     });
   }
-
+  
   @override
   void dispose() {
     _refreshTimer?.cancel();
     _refreshController.dispose();
     super.dispose();
   }
-
+  
+  // Background refresh without showing loading indicators
   Future<void> _refreshBots() async {
     if (!mounted) return;
-
+    
     setState(() {
       _isBackgroundRefreshing = true;
     });
 
     try {
       final bots = await _botService.getBots(forceRefresh: true);
-
+      
       if (mounted) {
         setState(() {
           _customBots = bots
@@ -122,6 +126,8 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
       }
     } catch (e) {
       _logger.e('Error refreshing bots: $e');
+      // Don't update the error state to avoid UI flicker
+      // But we can log it for debugging purposes
     } finally {
       if (mounted) {
         setState(() {
@@ -130,16 +136,17 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
       }
     }
   }
-
+  
   Future<void> _loadCustomBots() async {
     if (!mounted) return;
-
+    
     setState(() {
       _isLoadingBots = true;
       _botsError = null;
     });
 
     try {
+      // Try to load from cache first (fast)
       final bots = await _botService.getBots(forceRefresh: false);
 
       if (mounted) {
@@ -154,7 +161,8 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
               .toList();
           _isLoadingBots = false;
         });
-
+        
+        // Then refresh in background after a short delay
         Future.delayed(const Duration(milliseconds: 300), () {
           _refreshBots();
         });
@@ -208,7 +216,7 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                 child: Material(
                   color: Colors.transparent,
                   child: Container(
-                    height: 400,
+                    height: 400, // Fixed height with scrolling
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surface,
                       border: isDarkMode
@@ -236,6 +244,7 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                                 'Base AI Models',
                                 style: theme.textTheme.titleMedium,
                               ),
+                              // Enhanced background refresh indicator
                               if (_isBackgroundRefreshing)
                                 Padding(
                                   padding: const EdgeInsets.only(left: 8.0),
@@ -251,24 +260,31 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                             ],
                           ),
                         ),
+
                         Expanded(
                           child: ListView(
                             shrinkWrap: true,
                             padding: const EdgeInsets.only(top: 0, bottom: 12),
                             children: [
-                              ..._baseAssistants.map((assistant) => _buildMenuOption(
-                                    id: assistant.id,
-                                    title: assistant.name,
-                                    subtitle: assistant.description,
-                                    selected: widget.selectedAssistantId == assistant.id,
-                                    isCustomBot: false,
-                                    onTap: () {
-                                      widget.onSelect(assistant.id);
-                                      _hideMenu();
-                                    },
-                                  )),
+                              // Base AI models
+                              ..._baseAssistants
+                                  .map((assistant) => _buildMenuOption(
+                                        id: assistant.id,
+                                        title: assistant.name,
+                                        subtitle: assistant.description,
+                                        selected: widget.selectedAssistantId ==
+                                            assistant.id,
+                                        isCustomBot: false,
+                                        onTap: () {
+                                          widget.onSelect(assistant.id);
+                                          _hideMenu();
+                                        },
+                                      )),
+
+                              // Divider between models and bots
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 20),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -283,6 +299,8 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                                   ],
                                 ),
                               ),
+
+                              // Custom bots section with improved UI feedback
                               if (_isLoadingBots)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 20.0, bottom: 8.0),
@@ -317,7 +335,8 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                                       id: bot.id,
                                       title: bot.name,
                                       subtitle: bot.description,
-                                      selected: widget.selectedAssistantId == bot.id,
+                                      selected:
+                                          widget.selectedAssistantId == bot.id,
                                       isCustomBot: true,
                                       onTap: () {
                                         widget.onSelect(bot.id);
@@ -327,6 +346,8 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                             ],
                           ),
                         ),
+
+                        // Create new bot button
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12.0),
                           child: Center(
@@ -343,7 +364,8 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                               },
                               color: colors.cardForeground,
                               isDarkMode: theme.brightness == Brightness.dark,
-                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 10, horizontal: 16),
                             ),
                           ),
                         ),
@@ -376,7 +398,9 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        color: selected ? theme.colorScheme.primary.withAlpha(10) : Colors.transparent,
+        color: selected
+            ? theme.colorScheme.primary.withAlpha(10)
+            : Colors.transparent,
         child: Row(
           children: [
             Container(
@@ -395,8 +419,11 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                   Text(
                     title,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                      color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+                      fontWeight:
+                          selected ? FontWeight.bold : FontWeight.normal,
+                      color: selected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -404,15 +431,19 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                     subtitle,
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontSize: 13,
-                      color: selected ? theme.colorScheme.primary.withAlpha(200) : color.muted,
+                      color: selected
+                          ? theme.colorScheme.primary.withAlpha(200)
+                          : color.muted,
                     ),
                   ),
                 ],
               ),
             ),
-            if (isCustomBot) Icon(Icons.smart_toy, color: color.muted, size: 16),
+            if (isCustomBot)
+              Icon(Icons.smart_toy, color: color.muted, size: 16),
             const SizedBox(width: 1),
-            if (selected) Icon(Icons.check, color: theme.colorScheme.primary, size: 20),
+            if (selected)
+              Icon(Icons.check, color: theme.colorScheme.primary, size: 20),
           ],
         ),
       ),
@@ -422,10 +453,12 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = theme.brightness == Brightness.dark ? AppColors.dark : AppColors.light;
+    final colors =
+        theme.brightness == Brightness.dark ? AppColors.dark : AppColors.light;
     String title = 'AI Assistant';
     bool isCustomBot = false;
 
+    // Find the selected assistant to display its name correctly
     for (final assistant in assistants) {
       if (assistant.id == widget.selectedAssistantId) {
         title = assistant.name;
@@ -465,7 +498,9 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
               ),
               const SizedBox(width: 8),
               if (isCustomBot)
-                Icon(Icons.android, size: 24, color: colors.foreground.withAlpha(204)),
+                Icon(Icons.android,
+                    size: 24, color: colors.foreground.withAlpha(204)),
+              // Show a small refresh indicator in the main selector when background refreshing
               if (_isBackgroundRefreshing)
                 Padding(
                   padding: const EdgeInsets.only(left: 4.0),

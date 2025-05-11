@@ -28,7 +28,6 @@ class _BotListScreenState extends State<BotListScreen>
   late AnimationController _refreshIconController;
 
   final TextEditingController _searchController = TextEditingController();
-
   @override
   void initState() {
     super.initState();
@@ -39,8 +38,30 @@ class _BotListScreenState extends State<BotListScreen>
       duration: const Duration(milliseconds: 1000),
     );
     
-    // Immediately fetch bots when the screen loads
-    _fetchBots();
+    // First try to fetch from cache (forceRefresh: false), then do a background refresh
+    _initialFetch();
+  }
+  
+  // Two-phase loading strategy: Quick load from cache, then refresh in background
+  Future<void> _initialFetch() async {
+    try {
+      // Phase 1: Load from cache if available (fast)
+      final cachedBots = await _botService.getBots(forceRefresh: false);
+      
+      if (mounted) {
+        setState(() {
+          _bots = cachedBots;
+          // Keep _isLoading true for the background refresh
+        });
+      }
+      
+      // Phase 2: Then refresh from network in background (accurate)
+      _fetchBots(forceRefresh: true);
+    } catch (e) {
+      _logger.e('Error in initial fetch: $e');
+      // If cache fails, just do a normal fetch
+      _fetchBots(forceRefresh: true);
+    }
   }
 
   @override
@@ -49,8 +70,7 @@ class _BotListScreenState extends State<BotListScreen>
     _searchController.dispose();
     super.dispose();
   }
-
-  Future<void> _fetchBots() async {
+  Future<void> _fetchBots({bool forceRefresh = true}) async {
     try {
       setState(() {
         _errorMessage = '';
@@ -58,7 +78,7 @@ class _BotListScreenState extends State<BotListScreen>
         _refreshIconController.repeat();
       });
 
-      final bots = await _botService.getBots();
+      final bots = await _botService.getBots(forceRefresh: forceRefresh);
 
       if (mounted) {
         setState(() {

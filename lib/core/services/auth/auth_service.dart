@@ -21,8 +21,28 @@ class AuthService {
 
   // Thêm Future để đảm bảo việc khởi tạo chỉ được thực hiện một lần
   static Future<void>? _initFuture;
+  
+  // Auth state listener support
+  final List<Function(bool)> _authStateListeners = [];
 
   AuthService._internal();
+  
+  // Method to add an auth state listener
+  void addAuthStateListener(Function(bool) listener) {
+    _authStateListeners.add(listener);
+  }
+  
+  // Method to remove an auth state listener
+  void removeAuthStateListener(Function(bool) listener) {
+    _authStateListeners.remove(listener);
+  }
+  
+  // Method to notify all listeners of auth state change
+  void _notifyAuthStateChanged(bool isLoggedIn) {
+    for (final listener in _authStateListeners) {
+      listener(isLoggedIn);
+    }
+  }
 
   Future<void> initializeService() async {
     if (_isInitialized) return;
@@ -65,7 +85,6 @@ class AuthService {
       throw e.toString();
     }
   }
-
   Future<bool> signInWithEmailAndPassword(
     String email,
     String password,
@@ -81,6 +100,9 @@ class AuthService {
         // Clear any existing chat cache to prevent showing previous user's chats
         ChatService().clearCache();
         
+        // Notify listeners of authentication state change
+        _notifyAuthStateChanged(true);
+        
         return true;
       }
 
@@ -90,7 +112,6 @@ class AuthService {
       throw e.toString();
     }
   }
-
   Future<bool> signOut() async {
     try {
       _logger.i('Signing out user');
@@ -101,6 +122,9 @@ class AuthService {
       
       // Clear chat service cache to ensure previous user's chat history is not accessible
       ChatService().clearCache();
+      
+      // Notify listeners of authentication state change
+      _notifyAuthStateChanged(false);
       
       return true;
     } catch (e) {
@@ -114,6 +138,9 @@ class AuthService {
       } catch (cacheError) {
         _logger.e('Error clearing chat cache during sign out: $cacheError');
       }
+      
+      // Notify listeners of authentication state change even if API call fails
+      _notifyAuthStateChanged(false);
       
       return true;
     }

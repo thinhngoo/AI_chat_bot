@@ -10,7 +10,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../widgets/button.dart';
 import '../../../widgets/information.dart';
 import 'pro_upgrade_screen.dart';
-import '../../bot/presentation/bot_sharing_screen.dart';
 
 class SubscriptionInfoScreen extends StatefulWidget {
   final Function? toggleTheme;
