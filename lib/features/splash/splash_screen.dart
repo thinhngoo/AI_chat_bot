@@ -6,7 +6,8 @@ import '../../features/auth/presentation/login_page.dart';
 import '../../features/main_screen.dart';
 import '../../core/constants/app_colors.dart';
 import '../auth/presentation/widgets/auth_background.dart';
-import '../../features/bot/services/bot_service.dart';
+import '../../features/bot/services/bot_service_wrapper.dart';
+import '../../features/subscription/services/subscription_service_wrapper.dart';
 
 class SplashScreen extends StatefulWidget {
   final Function toggleTheme;
@@ -26,7 +27,8 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   final AuthService _authService = AuthService();
-  final BotService _botService = BotService();
+  final BotServiceWrapper _botService = BotServiceWrapper();
+  final SubscriptionServiceWrapper _subscriptionService = SubscriptionServiceWrapper();
   final Logger _logger = Logger();
 
   late AnimationController _animationController;
@@ -58,8 +60,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // Chuyển màn hình sau khi hoàn thành kiểm tra xác thực
     _checkAuthAndNavigate();
   }
-  
-  // Prefetch data in background for faster app startup
+    // Prefetch data in background for faster app startup
   Future<void> _prefetchData() async {
     if (!mounted) return;
     try {
@@ -69,19 +70,43 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       
       _logger.i('Prefetching data in background...');
       
-      // Fetch bot list in background
-      _botService.getBots().then((bots) {
-        _logger.i('Successfully prefetched ${bots.length} bots');
+      // Prefetch both bots and subscription data in parallel
+      Future.wait([
+        _prefetchBots(),
+        _prefetchSubscription(),
+      ]).then((_) {
         if (mounted) {
           setState(() {
             _dataPreloaded = true;
           });
         }
       }).catchError((e) {
-        _logger.e('Error prefetching bots: $e');
+        _logger.e('Error in prefetch operations: $e');
       });
     } catch (e) {
       _logger.e('Error during prefetch: $e');
+    }
+  }
+  
+  Future<void> _prefetchBots() async {
+    try {
+      final bots = await _botService.getBots();
+      _logger.i('Successfully prefetched ${bots.length} bots');
+      return;
+    } catch (e) {
+      _logger.e('Error prefetching bots: $e');
+      // Don't rethrow - we want to continue even if this fails
+    }
+  }
+  
+  Future<void> _prefetchSubscription() async {
+    try {
+      await _subscriptionService.getCurrentSubscription();
+      _logger.i('Successfully prefetched subscription data');
+      return;
+    } catch (e) {
+      _logger.e('Error prefetching subscription: $e');
+      // Don't rethrow - we want to continue even if this fails
     }
   }
     // Khởi tạo AuthService trong nền không chặn UI
