@@ -22,14 +22,34 @@ class BotService {
   // Cache danh sách bot để tránh gọi API liên tục
   List<AIBot>? _cachedBots;
   DateTime? _lastFetchTime;
+  String? _cachedUserId; // Track the user ID that owns the cached bots
   
   // Timeout cho các API call để tránh treo vô thời hạn
-  static const Duration _timeoutDuration = Duration(seconds: 15);
+  static const Duration _timeoutDuration = Duration(seconds: 8); // Further reduced timeout
   
-  // Thời gian cache hợp lệ (5 phút)
-  static const Duration _cacheValidDuration = Duration(minutes: 5);
+  // Thời gian cache hợp lệ (2 phút)
+  static const Duration _cacheValidDuration = Duration(minutes: 2); // Further reduced cache time
   
-  BotService._internal();
+  // Constructor
+  BotService._internal() {
+    // Listen to auth state changes to clear cache on logout
+    _authService.addAuthStateListener(_onAuthStateChanged);
+  }
+  
+  // Method to handle auth state changes
+  void _onAuthStateChanged(bool isLoggedIn) {
+    if (!isLoggedIn) {
+      clearCache();
+    }
+  }
+  
+  // Clear cache method
+  void clearCache() {
+    _logger.i('Clearing BotService cache');
+    _cachedBots = null;
+    _lastFetchTime = null;
+    _cachedUserId = null;
+  }
 
   // Create a new AI Bot
   Future<AIBot> createBot({
@@ -121,19 +141,33 @@ class BotService {
       rethrow;
     }
   }
-  
+
   // Get all AI Bots
   Future<List<AIBot>> getBots({String? query, bool forceRefresh = false}) async {
     try {
+      // Get current user ID for verification
+      final currentUserId = _authService.getUserId();
+      
       // Kiểm tra xem có thể dùng cache hay không
-      if (!forceRefresh && _cachedBots != null && _lastFetchTime != null) {
+      if (!forceRefresh && 
+          _cachedBots != null && 
+          _lastFetchTime != null &&
+          _cachedUserId != null &&
+          _cachedUserId == currentUserId) { // Only use cache if user ID matches
+        
         final currentTime = DateTime.now();
         final difference = currentTime.difference(_lastFetchTime!);
         
         if (difference < _cacheValidDuration) {
-          _logger.i('Using cached bots list (${_cachedBots!.length} items)');
+          _logger.i('Using cached bots list (${_cachedBots!.length} items) for user $_cachedUserId');
           return _cachedBots!;
         }
+      }
+      
+      // If we got here and user IDs don't match, force a cache clear
+      if (_cachedUserId != null && _cachedUserId != currentUserId) {
+        _logger.w('User ID mismatch: $_cachedUserId != $currentUserId, clearing cache');
+        clearCache();
       }
       
       _logger.i('Fetching AI Bots');
@@ -186,6 +220,12 @@ class BotService {
           final assistants = data['data'] as List<dynamic>;
           _cachedBots = assistants.map((item) => AIBot.fromJson(item)).toList();
           _lastFetchTime = DateTime.now();
+          
+          // Always store the current user ID with the cache
+          String? currentUserId = _authService.getUserId();
+          _cachedUserId = currentUserId;
+          
+          _logger.i('Cached ${_cachedBots!.length} bots for user $_cachedUserId');
           return _cachedBots!;
         } else {
           // Log unexpected format

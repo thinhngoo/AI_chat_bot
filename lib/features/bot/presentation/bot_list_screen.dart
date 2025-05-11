@@ -5,6 +5,7 @@ import '../services/bot_service.dart';
 import 'bot_detail_screen.dart';
 import 'create_bot_screen.dart';
 import 'bot_preview_screen.dart';
+import 'bot_sharing_screen.dart';
 
 class BotListScreen extends StatefulWidget {
   const BotListScreen({super.key});
@@ -27,7 +28,6 @@ class _BotListScreenState extends State<BotListScreen>
   late AnimationController _refreshIconController;
 
   final TextEditingController _searchController = TextEditingController();
-
   @override
   void initState() {
     super.initState();
@@ -38,8 +38,30 @@ class _BotListScreenState extends State<BotListScreen>
       duration: const Duration(milliseconds: 1000),
     );
     
-    // Immediately fetch bots when the screen loads
-    _fetchBots();
+    // First try to fetch from cache (forceRefresh: false), then do a background refresh
+    _initialFetch();
+  }
+  
+  // Two-phase loading strategy: Quick load from cache, then refresh in background
+  Future<void> _initialFetch() async {
+    try {
+      // Phase 1: Load from cache if available (fast)
+      final cachedBots = await _botService.getBots(forceRefresh: false);
+      
+      if (mounted) {
+        setState(() {
+          _bots = cachedBots;
+          // Keep _isLoading true for the background refresh
+        });
+      }
+      
+      // Phase 2: Then refresh from network in background (accurate)
+      _fetchBots(forceRefresh: true);
+    } catch (e) {
+      _logger.e('Error in initial fetch: $e');
+      // If cache fails, just do a normal fetch
+      _fetchBots(forceRefresh: true);
+    }
   }
 
   @override
@@ -48,8 +70,7 @@ class _BotListScreenState extends State<BotListScreen>
     _searchController.dispose();
     super.dispose();
   }
-
-  Future<void> _fetchBots() async {
+  Future<void> _fetchBots({bool forceRefresh = true}) async {
     try {
       setState(() {
         _errorMessage = '';
@@ -57,7 +78,7 @@ class _BotListScreenState extends State<BotListScreen>
         _refreshIconController.repeat();
       });
 
-      final bots = await _botService.getBots();
+      final bots = await _botService.getBots(forceRefresh: forceRefresh);
 
       if (mounted) {
         setState(() {
@@ -471,14 +492,17 @@ class BotCard extends StatelessWidget {
                 // Action buttons
                 Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Share button
+                  children: [                    // Share button
                     IconButton(
                       icon: const Icon(Icons.share_outlined),
                       onPressed: () {
-                        // Implement share functionality
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Sharing bot...')),
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => BotSharingScreen(
+                              botId: bot.id,
+                              botName: bot.name,
+                            ),
+                          ),
                         );
                       },
                       tooltip: 'Share',
