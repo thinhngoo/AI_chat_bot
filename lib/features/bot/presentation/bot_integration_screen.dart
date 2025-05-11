@@ -27,7 +27,6 @@ class _BotIntegrationScreenState extends State<BotIntegrationScreen> with Single
   final BotIntegrationService _botIntegrationService = BotIntegrationService();
   final BotAnalyticsService _analyticsService = BotAnalyticsService();
   final BotWebhookService _webhookService = BotWebhookService();
-  
   bool _isLoading = true;
   String _errorMessage = '';
   Map<String, dynamic> _configurations = {};
@@ -893,8 +892,17 @@ class _BotIntegrationScreenState extends State<BotIntegrationScreen> with Single
                     'Integration Details',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
-                ),
-                if (_usageStats.containsKey(platform))
+                ),                if (_loadingStats)
+                  const Chip(
+                    label: SizedBox(
+                      width: 80, 
+                      height: 16, 
+                      child: Center(
+                        child: LinearProgressIndicator(),
+                      ),
+                    ),
+                  )
+                else if (_usageStats.containsKey(platform))
                   Chip(
                     label: Text(
                       'Usage: ${_usageStats[platform]} interactions',
@@ -951,8 +959,27 @@ class _BotIntegrationScreenState extends State<BotIntegrationScreen> with Single
                           ),
                         ],
                       ),
-                    ],
-                    if (_usageStats.containsKey(platform) && _usageStats[platform]! > 0) ...[
+                    ],                    if (_loadingStats) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        'Analytics',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12.0),
+                          child: SizedBox(
+                            width: 120,
+                            height: 2,
+                            child: LinearProgressIndicator(),
+                          ),
+                        ),
+                      ),
+                    ] else if (_usageStats.containsKey(platform) && _usageStats[platform]! > 0) ...[
                       const SizedBox(height: 16),
                       Text(
                         'Analytics',

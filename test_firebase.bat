@@ -1,0 +1,3 @@
+@echo off
+echo Chạy ứng dụng test Firebase Analytics...
+flutter run -d chrome --web-port=8082 --web-renderer=html -t lib/firebase_test.dart
