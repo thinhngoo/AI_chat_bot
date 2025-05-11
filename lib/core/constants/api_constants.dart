@@ -67,9 +67,13 @@ class ApiConstants {
   static const String knowledgeUploadGoogleDrive = '/api/v1/knowledge/{knowledgeBaseId}/upload/google-drive';
   static const String knowledgeUploadSlack = '/api/v1/knowledge/{knowledgeBaseId}/upload/slack';
   static const String knowledgeUploadConfluence = '/api/v1/knowledge/{knowledgeBaseId}/upload/confluence';
-  
-  // Prompt Management endpoints
+    // Prompt Management endpoints
   static const String promptsEndpoint = '/api/v1/prompts';
+  
+  // Subscription and Token Management endpoints
+  static const String subscriptionMeEndpoint = '/api/v1/subscriptions/me';
+  static const String subscriptionSubscribeEndpoint = '/api/v1/subscriptions/subscribe';
+  static const String tokenUsageEndpoint = '/api/v1/tokens/usage';
   
   // Verification callback URL
   static const String verificationCallbackUrl = 'https://auth.dev.jarvis.cx/handler/email-verification?after_auth_return_to=%2Fauth%2Fsignin%3Fclient_id%3Djarvis_chat%26redirect%3Dhttps%253A%252F%252Fchat.dev.jarvis.cx%252Fauth%252Foauth%252Fsuccess';

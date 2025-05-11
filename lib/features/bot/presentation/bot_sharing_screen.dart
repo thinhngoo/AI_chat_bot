@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
-
 import '../../../core/constants/api_constants.dart';
+import '../../../core/services/auth/auth_service.dart';
 import '../services/bot_sharing_service.dart';
 import '../models/sharing_config.dart';
+import '../../../features/subscription/services/subscription_service.dart';
+import '../../../features/subscription/models/token_usage_model.dart';
+import '../../../features/subscription/models/subscription_info_model.dart';
 import '../utils/webhook_url_helper.dart';
 
 class BotSharingScreen extends StatefulWidget {
@@ -51,12 +54,18 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
     'telegram': const Color(0xFF0088CC),
     'messenger': const Color(0xFF0084FF),
   };
+  // Add token usage and subscription info variables
+  final AuthService _authService = AuthService(); // Add AuthService instance
+  TokenUsageModel? _tokenUsage;
+  SubscriptionInfoModel? _subscriptionInfo;
+  bool _isLoadingSubscriptionInfo = true;
   
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _fetchSharingConfigurations();
+    _fetchSubscriptionData(); // Load subscription data
   }
   
   @override
@@ -125,7 +134,8 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
       );
     }
   }
-    Future<void> _fetchSharingConfigurations() async {
+  
+  Future<void> _fetchSharingConfigurations() async {
     try {
       setState(() {
         _isLoading = true;
@@ -133,7 +143,8 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
       });
       
       _logger.d('Starting to fetch sharing configurations for botId: ${widget.botId}');
-      final config = await _botSharingService.getConfigurations(widget.botId);      _logger.d('Successfully retrieved configuration: ${config.platforms}');
+      final config = await _botSharingService.getConfigurations(widget.botId);
+      _logger.d('Successfully retrieved configuration: ${config.platforms}');
       
       if (mounted) {
         setState(() {
@@ -158,6 +169,39 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
         setState(() {
           _errorMessage = e.toString();
           _isLoading = false;
+        });
+      }
+    }
+  }
+  
+  // Fetch subscription and token usage data
+  Future<void> _fetchSubscriptionData() async {
+    try {
+      setState(() {
+        _isLoadingSubscriptionInfo = true;
+      });
+      
+      // Create subscription service
+      final subscriptionService = SubscriptionService(_authService, _logger);
+      
+      // Get subscription info and token usage
+      _subscriptionInfo = await subscriptionService.getSubscriptionInfo();
+      _tokenUsage = await subscriptionService.getTokenUsage();
+      
+      if (mounted) {
+        setState(() {
+          _isLoadingSubscriptionInfo = false;
+        });
+        
+        _logger.i('Loaded subscription info: ${_subscriptionInfo?.name}');
+        _logger.i('Loaded token usage: ${_tokenUsage?.unlimited == true ? "Unlimited" : "${_tokenUsage?.availableTokens} tokens"}');
+      }
+    } catch (e) {
+      _logger.e('Error fetching subscription data: $e');
+      
+      if (mounted) {
+        setState(() {
+          _isLoadingSubscriptionInfo = false;
         });
       }
     }
@@ -360,6 +404,58 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
     }
   }
   
+  // Subscribe to Pro plan
+  Future<void> _subscribeToPro() async {
+    try {
+      setState(() {
+        _isLoadingSubscriptionInfo = true;
+      });
+      
+      final subscriptionService = SubscriptionService(_authService, _logger);
+      final result = await subscriptionService.subscribe();
+      
+      if (!mounted) return;
+      
+      if (result) {
+        // Success - reload data
+        _fetchSubscriptionData();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Successfully upgraded to Pro account with unlimited tokens!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        setState(() {
+          _isLoadingSubscriptionInfo = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to upgrade. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      _logger.e('Error subscribing to Pro: $e');
+      
+      if (mounted) {
+        setState(() {
+          _isLoadingSubscriptionInfo = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
   Future<Map<String, dynamic>?> _showConfigDialog(String platform) async {
     final TextEditingController tokenController = TextEditingController();
     final TextEditingController channelController = TextEditingController();
@@ -399,7 +495,8 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
     
     // Different fields for different platforms
     Widget configFields;
-    switch (platform) {      case 'slack':
+    switch (platform) {
+      case 'slack':
         configFields = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -446,7 +543,8 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
           ],
         );
         break;
-        case 'telegram':
+      
+      case 'telegram':
         configFields = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -514,7 +612,8 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 16),            // Display the callback URL information for Messenger
+            const SizedBox(height: 16),
+            // Display the callback URL information for Messenger
             WebhookUrlHelper.buildWebhookUrlDisplay(
               context: context,
               webhookUrl: WebhookUrlHelper.generateMessengerCallbackUrl(widget.botId),
@@ -577,7 +676,8 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
             TextButton(
               onPressed: () => Navigator.of(context).pop(null),
               child: const Text('CANCEL'),
-            ),            ElevatedButton(
+            ),
+            ElevatedButton(
               onPressed: () {
                 // Collect values from controllers
                 final config = <String, dynamic>{};
@@ -597,7 +697,8 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
                 if (appSecretController.text.isNotEmpty) {
                   config['appSecret'] = appSecretController.text;
                 }
-                  // For platforms that need callback URLs, include them
+                
+                // For platforms that need callback URLs, include them
                 if (platform == 'messenger') {
                   config['callbackUrl'] = WebhookUrlHelper.generateMessengerCallbackUrl(widget.botId);
                 } else if (platform == 'telegram') {
@@ -647,6 +748,123 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
     );
   }
   
+  // Build widget to display subscription info and token usage
+  Widget _buildAccountInfoCard() {
+    final bool isPro = _subscriptionInfo?.isPro ?? false;
+    final bool isUnlimited = _tokenUsage?.unlimited ?? false;
+    
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isPro ? Icons.workspace_premium : Icons.person_outline,
+                  color: isPro ? Colors.amber : Colors.grey,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Account Status',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                const Spacer(),
+                if (isPro)
+                  Chip(
+                    label: const Text('PRO'),
+                    backgroundColor: Colors.amber.shade100,
+                    labelStyle: TextStyle(color: Colors.amber.shade800, fontWeight: FontWeight.bold),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            
+            if (_isLoadingSubscriptionInfo)
+              const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Subscription: ${_subscriptionInfo?.name ?? 'Free'}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Token information
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Available Tokens:',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface.withAlpha(179),
+                          ),
+                        ),
+                      ),
+                      
+                      if (isUnlimited)
+                        Row(
+                          children: [
+                            const Icon(Icons.all_inclusive, color: Colors.green, size: 20),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Unlimited',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        Text(
+                          '${_tokenUsage?.availableTokens ?? 0} / ${_tokenUsage?.totalTokens ?? 0}',
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                    ],
+                  ),
+                  
+                  if (!isUnlimited) const SizedBox(height: 8),
+                  
+                  if (!isUnlimited)
+                    LinearProgressIndicator(
+                      minHeight: 6,
+                      borderRadius: BorderRadius.circular(3),
+                      value: _tokenUsage != null && _tokenUsage!.totalTokens > 0
+                          ? _tokenUsage!.availableTokens / _tokenUsage!.totalTokens
+                          : 0,
+                      backgroundColor: Theme.of(context).colorScheme.onSurface.withAlpha(25),
+                    ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  if (!isPro)
+                    Center(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.workspace_premium),
+                        label: const Text('Upgrade to Pro'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber.shade700,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: _subscribeToPro,
+                      ),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -664,7 +882,8 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
               ),
             ),
           ],
-        ),        actions: [
+        ),
+        actions: [
           // Add test button to verify API endpoints
           IconButton(
             icon: const Icon(Icons.bug_report),
@@ -713,12 +932,19 @@ class _BotSharingScreenState extends State<BotSharingScreen> with SingleTickerPr
                     ],
                   ),
                 )
-              : TabBarView(
-                  controller: _tabController,
+              : Column(
                   children: [
-                    _buildPlatformTab('slack'),
-                    _buildPlatformTab('telegram'),
-                    _buildPlatformTab('messenger'),
+                    _buildAccountInfoCard(),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildPlatformTab('slack'),
+                          _buildPlatformTab('telegram'),
+                          _buildPlatformTab('messenger'),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
     );
