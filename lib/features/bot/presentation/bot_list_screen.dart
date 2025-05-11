@@ -5,6 +5,7 @@ import '../services/bot_service.dart';
 import 'bot_detail_screen.dart';
 import 'create_bot_screen.dart';
 import 'bot_preview_screen.dart';
+import 'bot_sharing_screen.dart';
 
 class BotListScreen extends StatefulWidget {
   const BotListScreen({super.key});
@@ -471,14 +472,17 @@ class BotCard extends StatelessWidget {
                 // Action buttons
                 Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Share button
+                  children: [                    // Share button
                     IconButton(
                       icon: const Icon(Icons.share_outlined),
                       onPressed: () {
-                        // Implement share functionality
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Sharing bot...')),
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => BotSharingScreen(
+                              botId: bot.id,
+                              botName: bot.name,
+                            ),
+                          ),
                         );
                       },
                       tooltip: 'Share',
