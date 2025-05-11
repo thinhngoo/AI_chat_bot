@@ -35,10 +35,15 @@ class ApiConstants {
   static const String assistantPublishPlatform = '/kb-core/v1/ai-assistant/{assistantId}/publish/{platform}';
   static const String assistantConfigurations = '/kb-core/v1/ai-assistant/{assistantId}/configurations';
   static const String favoriteAssistant = '/kb-core/v1/ai-assistant/{assistantId}/favorite';
-  
-  // Thread Management endpoints
+    // Thread Management endpoints
   static const String threadsEndpoint = '/kb-core/v1/threads';
   static const String createThreadForAssistant = '/kb-core/v1/ai-assistant/{assistantId}/thread';
+  
+  // Bot Sharing endpoints
+  static const String botSharingConfigurations = '/v1/bot-sharing/{botId}/configurations';
+  static const String botSharingDisconnect = '/v1/bot-sharing/{botId}/disconnect/{platform}';
+  static const String botSharingVerify = '/v1/bot-sharing/{botId}/verify/{platform}';
+  static const String botSharingPublish = '/v1/bot-sharing/{botId}/publish/{platform}';
   static const String threadById = '/kb-core/v1/threads/{threadId}';
   static const String threadMessages = '/kb-core/v1/threads/{threadId}/messages';
   static const String updateAssistantWithThread = '/kb-core/v1/ai-assistant/{assistantId}/thread/{threadId}';

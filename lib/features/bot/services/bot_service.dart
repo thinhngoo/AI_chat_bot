@@ -11,6 +11,7 @@ import '../../../core/services/auth/auth_service.dart';
 import '../models/ai_bot.dart';
 import '../models/knowledge_data.dart';
 import 'bot_integration_service.dart';
+import 'bot_sharing_service.dart';
 
 class BotService {
   static final BotService _instance = BotService._internal();
