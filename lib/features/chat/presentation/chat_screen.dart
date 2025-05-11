@@ -5,10 +5,12 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import '../../../core/services/auth/auth_service.dart';
+import '../../../core/services/analytics/analytics_service.dart';
 import '../services/chat_service.dart';
 import '../models/conversation_message.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../features/bot/services/bot_service.dart';
+import '../analytics/chat_analytics.dart';
 import '../../../features/prompt/presentation/prompt_selector.dart';
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../features/subscription/services/ad_manager.dart';
@@ -42,6 +44,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   );
   final AdManager _adManager = AdManager();
   final Logger _logger = Logger();
+  final AnalyticsService _analytics = AnalyticsService();
+  // Chat-specific analytics helper
+  late final ChatAnalytics _chatAnalytics;
 
   // ===== STATE VARIABLES =====
   // Conversation state
@@ -59,11 +64,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
-  late AnimationController _sendButtonController;
-
-  @override
+  late AnimationController _sendButtonController;  @override
   void initState() {
     super.initState();
+    
+    // Initialize chat analytics helper
+    _chatAnalytics = ChatAnalytics(_analytics);
     
     // Clear the chat cache to ensure we're not showing a previous user's conversations
     _chatService.clearCache();
@@ -78,6 +84,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     // Listen for changes in the message text to detect slash commands
     _messageController.addListener(_handleMessageChanged);
+    
+    // Log screen view for analytics
+    _analytics.logScreenView(
+      screenName: 'ChatScreen',
+      screenClass: 'ChatScreen',
+    );
   }
 
   @override
@@ -152,10 +164,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             'You have run out of tokens. Please upgrade your subscription to continue using the AI chat.',
         variant: SnackBarVariant.error,
         duration: const Duration(seconds: 10),
-        actionLabel: 'Upgrade',
-        onActionPressed: () {
+        actionLabel: 'Upgrade',        onActionPressed: () {
           // Navigate to subscription screen
           _navigateToSubscriptionScreen();
+          
+          // Track subscription event in analytics
+          _analytics.logSubscriptionEvent(
+            action: 'upgrade_button_clicked',
+            plan: 'from_insufficient_tokens',
+          );
+          
           _logger.i(
               'User clicked upgrade button after seeing insufficient tokens error');
         },
@@ -251,8 +269,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       }
     }
   }
-
   Future<void> _loadConversation(String conversationId) async {
+    // Track conversation load time
+    final startTime = DateTime.now().millisecondsSinceEpoch;
+    bool isSuccess = false;
+    
     try {
       setState(() {
         _isLoading = true;
@@ -272,9 +293,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           _messages = messages;
           _isLoading = false;
         });
-      }
+        isSuccess = true;      }
     } catch (e) {
       _logger.e('Error loading conversation: $e');
+      isSuccess = false;
 
       if (mounted) {
         setState(() {
@@ -289,6 +311,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           duration: const Duration(seconds: 3),
         );
       }
+    } finally {
+      // Log conversation load performance
+      final loadTime = DateTime.now().millisecondsSinceEpoch - startTime;
+      _chatAnalytics.logConversationLoadTime(
+        loadTimeMs: loadTime,
+        modelId: _selectedAssistantId,
+        isSuccessful: isSuccess,
+      );
     }
   }
 
@@ -311,7 +341,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       });
     }
   }
-
   void _handlePromptSelected(String content) {
     setState(() {
       _messageController.text = content;
@@ -319,6 +348,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         TextPosition(offset: content.length),
       );
     });
+
+    // Track prompt usage in analytics
+    _chatAnalytics.logPromptInteraction(
+      promptAction: 'selected',
+      promptText: content,
+    );
 
     // Focus on the text field
     _messageFocusNode.requestFocus();
@@ -411,9 +446,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _handleGenericSendError(e, message);
     }
   }
-
   Future<void> _sendMessageToCustomBot(String message) async {
-    try {
+    try {      // Log message sent to analytics
+      _chatAnalytics.logMessageSent(
+        modelId: _selectedAssistantId,
+        isCustomBot: true,
+        conversationId: _currentConversationId,
+        message: message,
+      );
+      
       // Set typing indicator to true
       setState(() {
         _isTyping = true;
@@ -448,6 +489,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       }
     } catch (e) {
       _logger.e('Error sending message to custom bot: $e');
+        // Log error to analytics
+      _chatAnalytics.logMessageError(
+        errorType: 'custom_bot_error',
+        errorMessage: e.toString(),
+        modelId: _selectedAssistantId,
+        conversationId: _currentConversationId,
+      );
 
       if (mounted) {
         setState(() {
@@ -474,9 +522,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       }
     }
   }
-
   Future<void> _sendMessageToAIModel(String message) async {
     _logger.i('Sending message with conversation ID: $_currentConversationId');
+      // Log message sent event for analytics
+    _chatAnalytics.logMessageSent(
+      modelId: _selectedAssistantId,
+      isCustomBot: false,
+      conversationId: _currentConversationId,
+      message: message,
+    );
 
     // Set typing indicator to true
     setState(() {
@@ -497,6 +551,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _handleSuccessfulAIResponse(response, message);
     } catch (e) {
       _logger.e('Error sending message (first attempt): $e');
+        // Log error to analytics
+      _chatAnalytics.logMessageError(
+        errorType: 'ai_model_error',
+        errorMessage: e.toString(),
+        modelId: _selectedAssistantId,
+        conversationId: _currentConversationId,
+      );
 
       // Check for token-related errors
       if (e.toString().toLowerCase().contains('insufficient') ||
@@ -739,10 +800,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           ),
         ),
         title: AssistantSelector(
-          selectedAssistantId: _selectedAssistantId,
-          onSelect: (id) {
+          selectedAssistantId: _selectedAssistantId,          onSelect: (id) {
             if (id != _selectedAssistantId) {
               _logger.i('Switching model from $_selectedAssistantId to $id');
+                // Track model change in analytics
+              _chatAnalytics.logModelSwitched(
+                fromModel: _selectedAssistantId,
+                toModel: id,
+              );
+              
               setState(() {
                 _selectedAssistantId = id;
 
@@ -780,12 +846,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 Icons.edit_document,
                 color: colors.foreground.withAlpha(204),
               ),
-              tooltip: 'New conversation',
-              onPressed: () {
+              tooltip: 'New conversation',              onPressed: () {
                 setState(() {
                   _currentConversationId = null;
                   _messages = [];
                 });
+                
+                // Track new chat creation
+                _chatAnalytics.logNewChat(modelId: _selectedAssistantId);
               },
             ),
           ),
