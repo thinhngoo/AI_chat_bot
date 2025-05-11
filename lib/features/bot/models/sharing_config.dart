@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 /// Represents the configuration for sharing a bot across various platforms
 class SharingConfig {
   /// ID of the bot being shared
