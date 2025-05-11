@@ -145,6 +145,7 @@ class _CreateEditPromptScreenState extends State<CreateEditPromptScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditMode ? 'Edit Prompt' : 'Create Prompt'),
+        centerTitle: true,
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _savePrompt,

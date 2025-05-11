@@ -234,6 +234,9 @@ class FloatingLabelTextField extends StatelessWidget {
               labelStyle: TextStyle(
                 color: colors.muted,
               ),
+              floatingLabelStyle: TextStyle(
+                color: colors.foreground,
+              ),
               floatingLabelBehavior: FloatingLabelBehavior.auto,
               alignLabelWithHint: isMultiline,
               prefixIcon: prefixIcon != null

@@ -13,9 +13,9 @@ class InformationIndicator extends StatelessWidget {
   final InformationVariant variant;
   final String? buttonText;
   final VoidCallback? onButtonPressed;
-  
+
   const InformationIndicator({
-    super.key, 
+    super.key,
     this.message,
     this.variant = InformationVariant.loading,
     this.buttonText,
@@ -26,7 +26,7 @@ class InformationIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colors = isDarkMode ? AppColors.dark : AppColors.light;
-    
+
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -36,22 +36,18 @@ class InformationIndicator extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _buildIndicator(colors),
-
             if (message != null) ...[
               const SizedBox(height: 8),
-
               Text(
                 message!,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: _getTextColor(colors),
-                ),
+                      color: _getTextColor(colors),
+                    ),
               ),
             ],
-
             if (buttonText != null && onButtonPressed != null) ...[
-              const SizedBox(height: 12),
-              
+              const SizedBox(height: 16),
               Button(
                 label: buttonText!,
                 onPressed: onButtonPressed,
@@ -68,7 +64,7 @@ class InformationIndicator extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildIndicator(AppColors colors) {
     switch (variant) {
       case InformationVariant.error:
@@ -96,7 +92,7 @@ class InformationIndicator extends StatelessWidget {
         );
     }
   }
-  
+
   Color _getTextColor(AppColors colors) {
     switch (variant) {
       case InformationVariant.error:
@@ -114,6 +110,7 @@ enum SnackBarVariant {
   error,
   warning,
   success,
+  loading,
 }
 
 class GlobalSnackBar {
@@ -128,17 +125,20 @@ class GlobalSnackBar {
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colors = isDarkMode ? AppColors.dark : AppColors.light;
-    
+
     final Color backgroundColor;
     final Color foregroundColor;
-    final IconData iconData;
-    
+    IconData iconData = Icons.info_outline;
+
     // Configure based on variant
     switch (variant) {
+      case SnackBarVariant.loading:
+        backgroundColor = colors.card;
+        foregroundColor = colors.muted;
+        break;
       case SnackBarVariant.info:
         backgroundColor = colors.card;
         foregroundColor = colors.cardForeground;
-        iconData = Icons.info_outline;
         break;
       case SnackBarVariant.error:
         backgroundColor = colors.error;
@@ -156,7 +156,7 @@ class GlobalSnackBar {
         iconData = Icons.check_circle_outline;
         break;
     }
-    
+
     final snackBar = SnackBar(
       behavior: SnackBarBehavior.floating,
       margin: const EdgeInsets.all(8),
@@ -172,11 +172,21 @@ class GlobalSnackBar {
       dismissDirection: DismissDirection.horizontal,
       content: Row(
         children: [
-          Icon(
-            iconData,
-            color: foregroundColor,
-            size: 20,
-          ),
+          if (variant != SnackBarVariant.loading)
+            Icon(
+              iconData,
+              color: foregroundColor,
+              size: 20,
+            )
+          else
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                color: foregroundColor,
+                strokeWidth: 2,
+              ),
+            ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -197,30 +207,31 @@ class GlobalSnackBar {
             )
           : null,
     );
-    
+
     // Hide any existing snackbar before showing a new one
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    
+
     // Show the snackbar
-    final snackBarController = ScaffoldMessenger.of(context).showSnackBar(snackBar);
-    
+    final snackBarController =
+        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+
     // Add dismissed callback if provided
     if (onDismissed != null) {
       snackBarController.closed.then((_) => onDismissed());
     }
   }
-  
+
   // Helper method to show a pre-built SnackBar
   static void showSnackBar(BuildContext context, SnackBar snackBar) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
-  
+
   // Helper method to hide the current snackbar
   static void hideCurrent(BuildContext context) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
   }
-  
+
   // Helper method for safely showing snackbars in async contexts
   static void showSafe(
     State state, {
@@ -244,4 +255,4 @@ class GlobalSnackBar {
       );
     }
   }
-} 
+}
