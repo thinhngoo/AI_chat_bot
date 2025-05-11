@@ -3,10 +3,13 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
 import '../../../core/services/auth/auth_service.dart';
-import 'api_constants.dart';
+import '../../../core/constants/api_constants.dart' as core_api;
+import 'api_constants.dart' as local_api;
 import '../models/subscription_model.dart';
 import '../models/usage_stats.dart';
 import '../models/pricing_model.dart';
+import '../models/token_usage_model.dart';
+import '../models/subscription_info_model.dart';
 
 class SubscriptionService {
   final AuthService _authService;
@@ -14,6 +17,8 @@ class SubscriptionService {
   
   Subscription? _currentSubscription;
   UsageStats? _usageStats;
+  TokenUsageModel? _tokenUsage;
+  SubscriptionInfoModel? _subscriptionInfo;
   
   // Constructor with dependency injection
   SubscriptionService(this._authService, this._logger);
@@ -37,7 +42,7 @@ class SubscriptionService {
         return _getDefaultSubscription();
       }
       
-      final url = Uri.parse('${ApiConstants.subscriptionBaseUrl}/current');
+      final url = Uri.parse('${local_api.ApiConstants.subscriptionBaseUrl}/current');
       final headers = {
         'Authorization': 'Bearer $token',
       };
@@ -134,7 +139,7 @@ class SubscriptionService {
         return _getDefaultUsageStats();
       }
       
-      final url = Uri.parse('${ApiConstants.jarvisApiUrl}/api/v1/usage/stats');
+      final url = Uri.parse('${local_api.ApiConstants.jarvisApiUrl}/api/v1/usage/stats');
       final headers = {
         'Authorization': 'Bearer $token',
       };
@@ -401,6 +406,192 @@ class SubscriptionService {
     }
   }
 
+  // Get subscription info from /v1/subscriptions/me endpoint
+  Future<SubscriptionInfoModel> getSubscriptionInfo({bool forceRefresh = false}) async {
+    if (_subscriptionInfo != null && !forceRefresh) {
+      return _subscriptionInfo!;
+    }
+    
+    try {
+      final isLoggedIn = await _authService.isLoggedIn();
+      if (!isLoggedIn) {
+        throw 'User not logged in';
+      }
+      
+      final token = _authService.accessToken;
+      if (token == null) {
+        throw 'No access token available';
+      }
+      
+      final url = Uri.parse('${core_api.ApiConstants.jarvisApiUrl}${core_api.ApiConstants.subscriptionMeEndpoint}');
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'x-jarvis-guid': '',
+      };
+      
+      _logger.i('Getting subscription info from: $url');
+      
+      final response = await http.get(url, headers: headers)
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        _logger.w('Subscription info API request timed out');
+        throw 'Connection timed out';
+      });
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final subscriptionInfo = SubscriptionInfoModel.fromJson(data);
+        
+        // Cache the subscription info
+        await _cacheSubscriptionInfoData(subscriptionInfo);
+        
+        _subscriptionInfo = subscriptionInfo;
+        return subscriptionInfo;
+      } else {
+        _logger.e('Failed to get subscription info: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        // Try to get cached data if available
+        final cachedInfo = await _getCachedSubscriptionInfo();
+        if (cachedInfo != null) {
+          _logger.i('Using cached subscription info');
+          _subscriptionInfo = cachedInfo;
+          return cachedInfo;
+        }
+        
+        throw 'Failed to get subscription info: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error getting subscription info: $e');
+      
+      // Try to get cached data if available
+      final cachedInfo = await _getCachedSubscriptionInfo();
+      if (cachedInfo != null) {
+        _logger.i('Using cached subscription info after error');
+        _subscriptionInfo = cachedInfo;
+        return cachedInfo;
+      }
+      
+      // Return a default if all else fails
+      final defaultInfo = _getDefaultSubscriptionInfo();
+      _subscriptionInfo = defaultInfo;
+      return defaultInfo;
+    }
+  }
+  
+  // Get token usage from /v1/tokens/usage endpoint
+  Future<TokenUsageModel> getTokenUsage({bool forceRefresh = false}) async {
+    if (_tokenUsage != null && !forceRefresh) {
+      return _tokenUsage!;
+    }
+    
+    try {
+      final isLoggedIn = await _authService.isLoggedIn();
+      if (!isLoggedIn) {
+        throw 'User not logged in';
+      }
+      
+      final token = _authService.accessToken;
+      if (token == null) {
+        throw 'No access token available';
+      }
+      
+      final url = Uri.parse('${core_api.ApiConstants.jarvisApiUrl}${core_api.ApiConstants.tokenUsageEndpoint}');
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'x-jarvis-guid': '',
+      };
+      
+      _logger.i('Getting token usage from: $url');
+      
+      final response = await http.get(url, headers: headers)
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        _logger.w('Token usage API request timed out');
+        throw 'Connection timed out';
+      });
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final tokenUsage = TokenUsageModel.fromJson(data);
+        
+        // Cache the token usage
+        await _cacheTokenUsageData(tokenUsage);
+        
+        _tokenUsage = tokenUsage;
+        return tokenUsage;
+      } else {
+        _logger.e('Failed to get token usage: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        // Try to get cached data if available
+        final cachedUsage = await _getCachedTokenUsage();
+        if (cachedUsage != null) {
+          _logger.i('Using cached token usage');
+          _tokenUsage = cachedUsage;
+          return cachedUsage;
+        }
+        
+        throw 'Failed to get token usage: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error getting token usage: $e');
+      
+      // Try to get cached data if available
+      final cachedUsage = await _getCachedTokenUsage();
+      if (cachedUsage != null) {
+        _logger.i('Using cached token usage after error');
+        _tokenUsage = cachedUsage;
+        return cachedUsage;
+      }
+      
+      // Return a default if all else fails
+      final defaultUsage = _getDefaultTokenUsage();
+      _tokenUsage = defaultUsage;
+      return defaultUsage;
+    }
+  }
+  
+  // Subscribe to Pro plan
+  Future<bool> subscribe() async {
+    try {
+      final isLoggedIn = await _authService.isLoggedIn();
+      if (!isLoggedIn) {
+        throw 'User not logged in';
+      }
+      
+      final token = _authService.accessToken;
+      if (token == null) {
+        throw 'No access token available';
+      }
+      
+      final url = Uri.parse('${core_api.ApiConstants.jarvisApiUrl}${core_api.ApiConstants.subscriptionSubscribeEndpoint}');
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'x-jarvis-guid': '',
+      };
+      
+      _logger.i('Subscribing user at: $url');
+      
+      final response = await http.get(url, headers: headers);
+      
+      if (response.statusCode == 200) {
+        _logger.i('Subscription successful');
+        
+        // Refresh subscription info and token usage data
+        await getSubscriptionInfo(forceRefresh: true);
+        await getTokenUsage(forceRefresh: true);
+        
+        return true;
+      } else {
+        _logger.e('Failed to subscribe: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      _logger.e('Error subscribing: $e');
+      return false;
+    }
+  }
+  
   // Cache subscription to shared preferences
   Future<void> _cacheSubscriptionData(Subscription subscription) async {
     try {
@@ -461,6 +652,64 @@ class SubscriptionService {
     }
   }
   
+  // Cache and retrieve subscription info data
+  Future<void> _cacheSubscriptionInfoData(SubscriptionInfoModel info) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonData = jsonEncode(info.toJson());
+      await prefs.setString('cached_subscription_info', jsonData);
+      _logger.d('Subscription info cached');
+    } catch (e) {
+      _logger.e('Error caching subscription info: $e');
+    }
+  }
+  
+  Future<SubscriptionInfoModel?> _getCachedSubscriptionInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonData = prefs.getString('cached_subscription_info');
+      
+      if (jsonData == null) {
+        return null;
+      }
+      
+      final data = jsonDecode(jsonData);
+      return SubscriptionInfoModel.fromJson(data);
+    } catch (e) {
+      _logger.e('Error getting cached subscription info: $e');
+      return null;
+    }
+  }
+  
+  // Cache and retrieve token usage data
+  Future<void> _cacheTokenUsageData(TokenUsageModel usage) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonData = jsonEncode(usage.toJson());
+      await prefs.setString('cached_token_usage', jsonData);
+      _logger.d('Token usage cached');
+    } catch (e) {
+      _logger.e('Error caching token usage: $e');
+    }
+  }
+  
+  Future<TokenUsageModel?> _getCachedTokenUsage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonData = prefs.getString('cached_token_usage');
+      
+      if (jsonData == null) {
+        return null;
+      }
+      
+      final data = jsonDecode(jsonData);
+      return TokenUsageModel.fromJson(data);
+    } catch (e) {
+      _logger.e('Error getting cached token usage: $e');
+      return null;
+    }
+  }
+  
   // Default objects for fallback
   
   Subscription _getDefaultSubscription() {
@@ -492,6 +741,24 @@ class SubscriptionService {
       modelBreakdown: {
         'gpt-4o-mini': 0,
       },
+    );
+  }
+  
+  SubscriptionInfoModel _getDefaultSubscriptionInfo() {
+    return SubscriptionInfoModel(
+      name: 'Free',
+      dailyTokens: 50,
+      monthlyTokens: 1500,
+      annuallyTokens: 18000,
+    );
+  }
+  
+  TokenUsageModel _getDefaultTokenUsage() {
+    return TokenUsageModel(
+      availableTokens: 50,
+      totalTokens: 50,
+      unlimited: false,
+      date: DateTime.now(),
     );
   }
 }
