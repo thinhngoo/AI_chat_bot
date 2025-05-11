@@ -75,7 +75,7 @@ class CustomTextField extends StatelessWidget {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
-                  color: errorText != null ? colors.error : colors.border,
+                  color: errorText != null ? colors.red : colors.border,
                   width: 1,
                 ),
               ),
@@ -122,7 +122,7 @@ class CustomTextField extends StatelessWidget {
             child: Text(
               errorText!,
               style: TextStyle(
-                color: colors.error,
+                color: colors.red,
                 fontSize: 12,
               ),
             ),
@@ -214,7 +214,7 @@ class FloatingLabelTextField extends StatelessWidget {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
-                  color: errorText != null ? colors.error : colors.border,
+                  color: errorText != null ? colors.red : colors.border,
                   width: 1,
                 ),
               ),
@@ -270,7 +270,7 @@ class FloatingLabelTextField extends StatelessWidget {
             child: Text(
               errorText!,
               style: TextStyle(
-                color: colors.error,
+                color: colors.red,
                 fontSize: 12,
               ),
             ),

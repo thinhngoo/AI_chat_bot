@@ -3,33 +3,35 @@ import 'package:flutter/material.dart';
 import '../models/prompt.dart';
 import '../../../widgets/information.dart';
 import '../../../widgets/text_field.dart';
-import '../../../widgets/dialog.dart';
+import 'prompt_drawer.dart';
 
 class PromptListScreen extends StatefulWidget {
-  final List<Prompt> prompts;
   final bool isLoading;
-  final String errorMessage;
   final bool isEditable;
+  final String errorMessage;
+  final String emptyMessage;
+
+  final List<Prompt> prompts;
+  final List<String> availableCategories;
   final Function()? onRefresh;
   final Function(Prompt prompt)? onDelete;
   final Function(Prompt prompt)? onEdit;
   final Function(Prompt prompt)? onPromptToggleFavorite;
   final Function(Prompt prompt)? onPromptSelected;
-  final String emptyMessage;
-  final List<String> availableCategories;
+
   const PromptListScreen({
     super.key,
     required this.prompts,
+    this.availableCategories = const [],
     this.isLoading = false,
-    this.errorMessage = '',
     this.isEditable = false,
+    this.errorMessage = '',
+    this.emptyMessage = 'No prompts available',
     this.onRefresh,
     this.onDelete,
     this.onEdit,
     this.onPromptToggleFavorite,
     this.onPromptSelected,
-    this.emptyMessage = 'No prompts available',
-    this.availableCategories = const [],
   });
 
   @override
@@ -82,7 +84,6 @@ class _PromptListScreenState extends State<PromptListScreen> {
       return true;
     }).toList();
   }
-  // Removed unused _promptTapped method
 
   @override
   Widget build(BuildContext context) {
@@ -95,58 +96,17 @@ class _PromptListScreenState extends State<PromptListScreen> {
       child: Column(
         children: [
           // Search and filter bar
+          const SizedBox(height: 16),
+
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                // Search field
-                Expanded(
-                  child: CustomTextField(
-                    controller: _searchController,
-                    label: 'Search',
-                    hintText: 'Search prompts...',
-                    prefixIcon: Icons.search,
-                    darkMode: isDarkMode,
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                            },
-                          )
-                        : null,
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                  ),
-                ),
-
-                // Category filter dropdown
-                if (widget.availableCategories.isNotEmpty) ...[
-                  const SizedBox(width: 12),
-                  DropdownButton<String?>(
-                    value: _selectedCategory,
-                    hint: const Text('Category'),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedCategory = value;
-                      });
-                    },
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('All Categories'),
-                      ),                      ...widget.availableCategories.map((category) {
-                        return DropdownMenuItem<String>(
-                          value: category,
-                          child: Text(category),
-                        );
-                      }),
-                    ],
-                  ),
-                ],
+                _buildSearchBar(isDarkMode),
+                // if (widget.availableCategories.isNotEmpty) ...[
+                //   const SizedBox(width: 12),
+                //   _buildFilterDropdown(),
+                // ],
               ],
             ),
           ),
@@ -154,22 +114,14 @@ class _PromptListScreenState extends State<PromptListScreen> {
           // Results count
           if (!widget.isLoading &&
               widget.errorMessage.isEmpty &&
-              widget.prompts.isNotEmpty)
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 26.0, vertical: 4),
-              child: Row(
-                children: [
-                  Text(
-                    'Showing ${_filteredPrompts.length} of ${widget.prompts.length} prompts',
-                    style: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: Theme.of(context).hintColor),
-                  ),
-                ],
-              ),
-            ),
+              widget.prompts.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _buildResultsCount(),
+          ],
 
           // Main content
+          const SizedBox(height: 12),
+
           Expanded(
             child: widget.isLoading
                 ? InformationIndicator(
@@ -195,10 +147,10 @@ class _PromptListScreenState extends State<PromptListScreen> {
                               )
                             : ListView.separated(
                                 padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
+                                    const EdgeInsets.fromLTRB(16, 0, 16, 30),
                                 itemCount: _filteredPrompts.length,
                                 separatorBuilder: (context, index) =>
-                                    const SizedBox(height: 12),
+                                    const SizedBox(height: 6),
                                 itemBuilder: (context, index) {
                                   final prompt = _filteredPrompts[index];
                                   return _buildPromptCard(prompt);
@@ -210,9 +162,75 @@ class _PromptListScreenState extends State<PromptListScreen> {
     );
   }
 
+  Widget _buildSearchBar(bool isDarkMode) {
+    return Expanded(
+      child: CustomTextField(
+        controller: _searchController,
+        label: 'Search',
+        hintText: 'Search prompts...',
+        prefixIcon: Icons.search,
+        darkMode: isDarkMode,
+        suffixIcon: _searchQuery.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                },
+              )
+            : null,
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value;
+          });
+        },
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildFilterDropdown() {
+    return DropdownButton<String?>(
+      value: _selectedCategory,
+      hint: const Text('Category'),
+      onChanged: (value) {
+        setState(() {
+          _selectedCategory = value;
+        });
+      },
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('All Categories'),
+        ),
+        ...widget.availableCategories.map((category) {
+          return DropdownMenuItem<String>(
+            value: category,
+            child: Text(category),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildResultsCount() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 26.0),
+      child: Row(
+        children: [
+          Text(
+            'Showing ${_filteredPrompts.length} of ${widget.prompts.length} prompts',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: Theme.of(context).hintColor),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPromptCard(Prompt prompt) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colors = isDarkMode ? AppColors.dark : AppColors.light;
 
     return Card(
@@ -220,117 +238,168 @@ class _PromptListScreenState extends State<PromptListScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          if (widget.onPromptSelected != null) {
-            widget.onPromptSelected!(prompt);
-            Navigator.of(context).pop();
-          }
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0),
-          child: ListTile(
-            title: Text(
-              prompt.title,
-              style: theme.textTheme.headlineLarge,
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (prompt.category.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0, bottom: 6.0),
-                    child: Row(
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Main content
+            Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
+                  topRight: Radius.circular(0),
+                  bottomRight: Radius.circular(0),
+                ),
+                onTap: () {
+                  // If it's a private prompt and edit function is provided, show the edit drawer
+                  if (!prompt.isPublic && widget.onEdit != null) {
+                    PromptDrawer.showEdit(
+                      context,
+                      prompt,
+                      (_) {
+                        // Refresh after edit
+                        if (widget.onRefresh != null) {
+                          widget.onRefresh!();
+                        }
+                      },
+                    );
+                  } 
+                  // If it's a public prompt, show it in view-only mode
+                  else if (prompt.isPublic) {
+                    PromptDrawer.showViewOnly(
+                      context,
+                      prompt,
+                      onFavoriteToggled: (_) {
+                        // Refresh when favorites are toggled
+                        if (widget.onRefresh != null) {
+                          widget.onRefresh!();
+                        }
+                      },
+                    );
+                  }
+                  // Fallback for other cases (directly select the prompt)
+                  else if (widget.onPromptSelected != null) {
+                    widget.onPromptSelected!(prompt);
+                    Navigator.of(context).pop();
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                  child: ListTile(
+                    title: Text(
+                      prompt.title,
+                      style: Theme.of(context).textTheme.headlineMedium,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Chip(
-                          label: Text(
-                            prompt.category,
-                            style: theme.textTheme.bodySmall,
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 70, // Fixed height for content area
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (prompt.description.isNotEmpty) ...[
+                                Text(
+                                  prompt.description,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).hintColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+
+                                const SizedBox(height: 4),
+
+                                Expanded(
+                                  child: Text(
+                                    prompt.content,
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ] else
+                                Expanded(
+                                  child: Text(
+                                    prompt.content,
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                            ],
                           ),
-                          padding: EdgeInsets.zero,
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                          side: BorderSide(color: colors.border),
                         ),
-                        const Spacer(),
-                        // Thêm nút star để thêm/xóa prompt khỏi danh sách yêu thích
-                        if (widget.onPromptToggleFavorite != null)
-                          InkWell(
-                            onTap: () => widget.onPromptToggleFavorite!(prompt),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4.0),
-                              child: Icon(
-                                prompt.isFavorite ? Icons.star : Icons.star_border,
-                                color: prompt.isFavorite ? Colors.amber : theme.colorScheme.primary,
-                                size: 22,
-                              ),
+                        
+                        if (prompt.category.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Row(
+                              children: [
+                                Chip(
+                                  label: Text(
+                                    prompt.category,
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  side: BorderSide(color: colors.border),
+                                ),
+                                const Spacer(),
+                                // Display public/private indicator
+                                Icon(
+                                  prompt.isPublic ? Icons.public : Icons.lock,
+                                  size: 16,
+                                  color: Theme.of(context).hintColor,
+                                ),
+                              ],
                             ),
                           ),
                       ],
                     ),
                   ),
-                if (prompt.description.isNotEmpty) ...[
-                  Text(
-                    prompt.description,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colors.muted,
+                ),
+              ),
+            ),
+
+            // Favorite button
+            ClipRRect(
+              borderRadius: BorderRadius.only(
+                topRight: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+              ),
+              child: Material(
+                child: InkWell(
+                  onTap: () {
+                    if (widget.onPromptToggleFavorite != null) {
+                      widget.onPromptToggleFavorite!(prompt);
+                    }
+                  },
+                  child: Container(
+                    width: 40,
+                    decoration: BoxDecoration(
+                      color: prompt.isFavorite ? colors.yellow : colors.cardForeground.withAlpha(24),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Container(
-                  padding: const EdgeInsets.all(8.0),
-                  width: double.infinity,
-                  constraints: const BoxConstraints(
-                    minHeight: 48, // Minimum height for approximately 2 lines
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: colors.border,
-                    ),
-                  ),
-                  child: Text(
-                    prompt.content.length > 100
-                        ? '${prompt.content.substring(0, 100)}...'
-                        : prompt.content,
-                    style: TextStyle(
-                      color: colors.inputForeground,
-                      fontSize: 14,
-                      fontFamily: 'monospace',
+                    child: Center(
+                      child: Icon(
+                        prompt.isFavorite ? Icons.star : Icons.star_border,
+                        color: prompt.isFavorite ? colors.yellowForeground : colors.yellow,
+                        size: 28,
+                      ),
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
-            trailing: widget.isEditable &&
-                    (widget.onEdit != null || widget.onDelete != null)
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (widget.onEdit != null)
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => widget.onEdit!(prompt),
-                          tooltip: 'Edit prompt',
-                        ),
-                      if (widget.onDelete != null)
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () => widget.onDelete!(prompt),
-                          color: Colors.red,
-                          tooltip: 'Delete prompt',
-                        ),
-                    ],
-                  )
-                : null,
-          ),
+          ],
         ),
       ),
     );
   }
-  // Removed unused _formatDate method
 }

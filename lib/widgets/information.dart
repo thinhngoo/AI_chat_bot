@@ -71,7 +71,7 @@ class InformationIndicator extends StatelessWidget {
         return Icon(
           Icons.error_outline,
           size: 60,
-          color: colors.error,
+          color: colors.red,
         );
       case InformationVariant.info:
         return Icon(
@@ -96,7 +96,7 @@ class InformationIndicator extends StatelessWidget {
   Color _getTextColor(AppColors colors) {
     switch (variant) {
       case InformationVariant.error:
-        return colors.error;
+        return colors.red;
       case InformationVariant.info:
         return colors.muted;
       case InformationVariant.loading:
@@ -141,18 +141,18 @@ class GlobalSnackBar {
         foregroundColor = colors.cardForeground;
         break;
       case SnackBarVariant.error:
-        backgroundColor = colors.error;
-        foregroundColor = colors.errorForeground;
+        backgroundColor = colors.red;
+        foregroundColor = colors.redForeground;
         iconData = Icons.error_outline;
         break;
       case SnackBarVariant.warning:
-        backgroundColor = colors.warning;
-        foregroundColor = colors.warningForeground;
+        backgroundColor = colors.yellow;
+        foregroundColor = colors.yellowForeground;
         iconData = Icons.warning_amber_outlined;
         break;
       case SnackBarVariant.success:
-        backgroundColor = colors.success;
-        foregroundColor = colors.successForeground;
+        backgroundColor = colors.green;
+        foregroundColor = colors.greenForeground;
         iconData = Icons.check_circle_outline;
         break;
     }
@@ -254,5 +254,24 @@ class GlobalSnackBar {
         onDismissed: onDismissed,
       );
     }
+  }
+}
+
+class DrawerTopIndicator extends StatelessWidget {
+  const DrawerTopIndicator({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: Container(
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: Theme.of(context).hintColor,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
   }
 }

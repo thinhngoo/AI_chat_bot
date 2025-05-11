@@ -351,7 +351,7 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12.0),
                           child: Center(
-                            child: MiniGhostButton(
+                            child: Button(
                               label: 'Manage Bots',
                               icon: Icons.settings,
                               onPressed: () {
@@ -364,8 +364,6 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                               },
                               color: colors.cardForeground,
                               isDarkMode: theme.brightness == Brightness.dark,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 10, horizontal: 16),
                             ),
                           ),
                         ),

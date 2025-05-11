@@ -129,9 +129,10 @@ class PromptService {
       }
       
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}');
-        // Instead of trying to map category, just use 'other' which we know works from the API doc
-      String validCategory = 'other';
-      
+
+      // Use a simple fixed category to avoid potential issues
+      final validCategory = 'other';
+
       final body = jsonEncode({
         'title': title,
         'content': content,

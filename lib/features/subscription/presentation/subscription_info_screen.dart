@@ -621,7 +621,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                     const Spacer(),
 
                     if (isPro)
-                      Icon(Icons.all_inclusive, color: colors.success)
+                      Icon(Icons.all_inclusive, color: colors.green)
                     else
                       Text(
                         '${usageStats.totalTokensUsed} / ${usageStats.totalTokensLimit}',
@@ -637,8 +637,8 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                   borderRadius: BorderRadius.circular(16),
                   value: isPro ? 1 : usageStats.usagePercentage,
                   backgroundColor: Theme.of(context).colorScheme.onSurface.withAlpha(30),
-                  valueColor: isPro ? AlwaysStoppedAnimation<Color>(colors.success) : AlwaysStoppedAnimation<Color>(
-                    Color.lerp(colors.success, Theme.of(context).colorScheme.error, usageStats.usagePercentage) ?? Theme.of(context).colorScheme.error,
+                  valueColor: isPro ? AlwaysStoppedAnimation<Color>(colors.green) : AlwaysStoppedAnimation<Color>(
+                    Color.lerp(colors.green, Theme.of(context).colorScheme.error, usageStats.usagePercentage) ?? Theme.of(context).colorScheme.error,
                   ),
                 ),
                 
@@ -657,14 +657,14 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(Icons.check_circle, color: colors.success),
+                      Icon(Icons.check_circle, color: colors.green),
                       
                       const SizedBox(width: 8),
                       
                       Text(
                         'Unlimited tokens with Pro subscription',
                         style: TextStyle(
-                          color: colors.success,
+                          color: colors.green,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -714,7 +714,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                               Text(
                                 'Unlimited',
                                 style: TextStyle(
-                                  color: colors.success,
+                                  color: colors.green,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -728,7 +728,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                             value: model.usagePercentage,
                             backgroundColor: Theme.of(context).colorScheme.onSurface.withAlpha(30),
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Color.lerp(colors.success, Theme.of(context).colorScheme.error, model.usagePercentage) ?? Theme.of(context).colorScheme.error,
+                              Color.lerp(colors.green, Theme.of(context).colorScheme.error, model.usagePercentage) ?? Theme.of(context).colorScheme.error,
                             ),
                           ),
                         ],

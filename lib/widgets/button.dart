@@ -33,6 +33,7 @@ class Button extends StatelessWidget {
   final VoidCallback? onPressed;
   final Color? color;
   final int ghostAlpha;
+  final double? width;
 
   const Button({
     super.key,
@@ -48,6 +49,7 @@ class Button extends StatelessWidget {
     this.elevation = 2.0,
     this.color,
     this.ghostAlpha = 20,
+    this.width,
   });
 
   @override
@@ -105,8 +107,8 @@ class Button extends StatelessWidget {
         foreground = colors.cardForeground;
         break;
       case ButtonVariant.delete:
-        background = colors.delete;
-        foreground = colors.deleteForeground;
+        background = colors.red;
+        foreground = colors.redForeground;
         break;
       case ButtonVariant.ghost:
         final Color ghostColor = (color ?? colors.primary);
@@ -156,11 +158,13 @@ class Button extends StatelessWidget {
     // Get the available width from constraints if in an unbounded context
     return LayoutBuilder(
       builder: (context, constraints) {
-        // If we're in an unbounded width context and fullWidth is true,
-        // use a reasonable max width instead of infinity
-        final double? buttonWidth = fullWidth
-            ? (constraints.hasBoundedWidth ? constraints.maxWidth : 280.0)
-            : null;
+        double? buttonWidth;
+        if (fullWidth) {
+          // If fullWidth is true, take the available width (or a reasonable default)
+          buttonWidth = constraints.hasBoundedWidth ? constraints.maxWidth : 280.0;
+        } else if (width != null) {
+          buttonWidth = width;
+        }
 
         return SizedBox(
           width: buttonWidth,

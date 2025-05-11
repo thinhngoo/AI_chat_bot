@@ -410,9 +410,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         surfaceDim: colors.input,
         surfaceContainer: colors.background,
         onSurface: colors.cardForeground,
-        error: colors.error,
-        onError: colors.errorForeground,
-        tertiary: colors.success,
+        error: colors.red,
+        onError: colors.redForeground,
+        tertiary: colors.green,
         outline: colors.border,
       ),
     );

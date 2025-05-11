@@ -303,7 +303,7 @@ class _SignupPageState extends State<SignupPage> {
           Icon(
             Icons.check_circle_outline,
             size: 80,
-            color: colors.success,
+            color: colors.green,
           ),
           const SizedBox(height: 16),
           Text(
@@ -555,7 +555,7 @@ class _PasswordRequirementWidget extends StatelessWidget {
         children: [
           Icon(
             isMet ? Icons.check_circle : Icons.circle_outlined,
-            color: isMet ? colors.success : colors.muted,
+            color: isMet ? colors.green : colors.muted,
             size: 16,
           ),
           const SizedBox(width: 8),
@@ -563,7 +563,7 @@ class _PasswordRequirementWidget extends StatelessWidget {
             child: Text(
               text,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: isMet ? colors.success : colors.muted,
+                color: isMet ? colors.green : colors.muted,
               ),
             ),
           ),

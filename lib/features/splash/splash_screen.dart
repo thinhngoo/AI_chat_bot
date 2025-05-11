@@ -31,32 +31,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   final SubscriptionServiceWrapper _subscriptionService = SubscriptionServiceWrapper();
   final Logger _logger = Logger();
 
-  late AnimationController _animationController;
-  late Animation<double> _animation;
-  
   // bool _isCheckingAuth = true;
   bool _dataPreloaded = false;
   
   @override
   void initState() {
     super.initState();
-    
-    // Thiết lập animation logo
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
-    
-    _animation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    );
-    
-    _animationController.forward();
-    
     // Khởi tạo dịch vụ xác thực trong nền
     _initializeAuthService();
-    
     // Chuyển màn hình sau khi hoàn thành kiểm tra xác thực
     _checkAuthAndNavigate();
   }
@@ -140,10 +122,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       if (isLoggedIn && !_dataPreloaded) {
         // Give a little more time for prefetching to complete, but don't wait forever
         await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
       }
       
       // Chuyển hướng đến màn hình thích hợp dựa trên trạng thái đăng nhập
       if (isLoggedIn) {
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => MainScreen(
@@ -154,6 +138,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           ),
         );
       } else {
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => const LoginPage(),
@@ -175,62 +160,25 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
   
   @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-  
-  @override
   Widget build(BuildContext context) {
     final AppColors colors = AppColors.dark;
 
     return AuthBackground(
-      child: FutureBuilder<bool>(
-        future: _authService.isLoggedIn(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'AI Chat Bot',
-                    style: TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      color: colors.foreground,
-                      fontFamily: 'Geist',
-                    ),
-                  ),
-                ],
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'AI Chat Bot',
+              style: TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.bold,
+                color: colors.foreground,
+                fontFamily: 'Geist',
               ),
-            );
-          }
-
-          if (snapshot.hasData && snapshot.data == true) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => MainScreen(
-                    toggleTheme: widget.toggleTheme,
-                    setThemeMode: widget.setThemeMode,
-                    currentThemeMode: widget.currentThemeMode,
-                  ),
-                ),
-              );
-            });
-          } else {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => const LoginPage(),
-                ),
-              );
-            });
-          }
-
-          return const SizedBox.shrink();
-        },
+            ),
+          ],
+        ),
       ),
     );
   }
