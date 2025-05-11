@@ -1,0 +1,51 @@
+name: Firebase Functions
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'functions/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'functions/**'
+
+jobs:
+  build-and-test-functions:
+    name: Build and Test Functions
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: functions/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Create .secret.local file for local testing
+        run: |
+          echo "GOOGLE_GENAI_API_KEY=dummy-key-for-ci" > .secret.local
+        
+      - name: Lint functions
+        run: npm run lint
+        continue-on-error: true
+      
+      - name: Build functions
+        run: npm run build
+        
+      # Deploy to Firebase on push to main
+      - name: Deploy Firebase Functions
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only functions
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          PROJECT_ID: vinh-aff13

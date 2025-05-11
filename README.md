@@ -71,14 +71,20 @@ This project uses GitHub Actions for Continuous Integration and Continuous Deplo
 ### Setting Up the Pipeline
 
 1. Configure the following secrets in your GitHub repository:
-   - `FIREBASE_SERVICE_ACCOUNT_VINH_AFF13`: Firebase service account JSON
+   - `FIREBASE_SERVICE_ACCOUNT_VINH_AFF13`: Firebase service account JSON để deploy lên Firebase Hosting
 
 2. Enable GitHub Actions in your repository settings
 
-3. Each push to `main` will automatically:
-   - Run tests
-   - Build the application
-   - Deploy to Firebase Hosting
+3. Các workflow đã được cấu hình trong thư mục `.github/workflows/`:
+   - `flutter_build_test.yml`: Kiểm tra mã nguồn và build web
+   - `firebase_functions.yml`: Build và kiểm tra Firebase Functions
+   - `windows_build.yml`: Build ứng dụng Windows
+   - `firebase_deployment.yml`: Triển khai lên Firebase Hosting
+
+4. Mỗi push lên nhánh `main` sẽ tự động:
+   - Chạy kiểm thử
+   - Build ứng dụng
+   - Triển khai lên Firebase Hosting
 
 ## Project Directory Structure
 
