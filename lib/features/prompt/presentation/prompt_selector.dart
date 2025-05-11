@@ -5,7 +5,8 @@ import '../services/prompt_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/text_field.dart';
 import '../../../widgets/information.dart';
-import 'simple_prompt_dialog.dart';
+import '../../../widgets/dialog.dart';
+import 'simple_prompt_drawer.dart';
 
 class PromptSelector extends StatelessWidget {
   final Function(String content) onPromptSelected;
@@ -178,11 +179,10 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
         
         if (!mounted) return;
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error: Cannot update favorites for prompt with empty ID'),
-            backgroundColor: Colors.red,
-          ),
+        GlobalSnackBar.show(
+          context: context,
+          message: 'Error: Cannot update favorites for prompt with empty ID',
+          variant: SnackBarVariant.error,
         );
         return;
       }
@@ -210,13 +210,10 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
       if (success) {
         _fetchPrompts();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(prompt.isFavorite
-                ? 'Removed from favorites'
-                : 'Added to favorites'),
-            backgroundColor: Colors.green,
-          ),
+        GlobalSnackBar.show(
+          context: context,
+          message: prompt.isFavorite ? 'Removed from favorites' : 'Added to favorites',
+          variant: SnackBarVariant.success,
         );
       }
     } catch (e) {
@@ -228,11 +225,10 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Error: ${e.toString()}',
+        variant: SnackBarVariant.error,
       );
     }
   }
@@ -244,19 +240,19 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
       
       if (!mounted) return;
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cannot edit prompt: ID is empty'),
-          backgroundColor: Colors.red,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Cannot edit prompt: ID is empty',
+        variant: SnackBarVariant.error,
       );
       return;
     }
     
-    SimplePromptDialog.showEdit(
+    SimplePromptDrawer.showEdit(
       context,
       prompt,
       (content) {
+        // Refresh the list after editing
         _fetchPrompts();
       },
     );
@@ -269,32 +265,21 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
       
       if (!mounted) return;
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cannot delete prompt: ID is empty'),
-          backgroundColor: Colors.red,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Cannot delete prompt: ID is empty',
+        variant: SnackBarVariant.error,
       );
       return;
     }
     
-    final confirmed = await showDialog<bool>(
+    final confirmed = await GlobalDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Prompt'),
-        content: Text('Are you sure you want to delete "${prompt.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('CANCEL'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('DELETE'),
-          ),
-        ],
-      ),
+      title: 'Delete Prompt',
+      message: 'Are you sure you want to delete "${prompt.title}"?',
+      variant: DialogVariant.warning,
+      confirmLabel: 'DELETE',
+      cancelLabel: 'CANCEL',
     );
 
     if (confirmed != true) return;
@@ -311,11 +296,10 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
       if (success) {
         _fetchPrompts();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Prompt deleted'),
-            backgroundColor: Colors.green,
-          ),
+        GlobalSnackBar.show(
+          context: context,
+          message: 'Prompt deleted',
+          variant: SnackBarVariant.success,
         );
       }
     } catch (e) {
@@ -327,13 +311,16 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Error: ${e.toString()}',
+        variant: SnackBarVariant.error,
       );
     }
+  }
+
+  void _createNewPrompt() {
+    SimplePromptDrawer.show(context, null);
   }
 
   @override
@@ -511,10 +498,7 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).pop();
-                SimplePromptDialog.show(context, null);
-              },
+              onPressed: _createNewPrompt,
               icon: const Icon(Icons.add),
               label: const Text('Create New Prompt'),
               style: ElevatedButton.styleFrom(

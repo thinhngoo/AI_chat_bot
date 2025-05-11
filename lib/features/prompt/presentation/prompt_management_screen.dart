@@ -4,7 +4,9 @@ import '../models/prompt.dart';
 import '../services/prompt_service.dart';
 import 'prompt_list_screen.dart';
 import 'create_edit_prompt_screen.dart';
-import 'simple_prompt_dialog.dart';
+import 'simple_prompt_drawer.dart';
+import '../../../widgets/information.dart';
+import '../../../widgets/dialog.dart';
 
 class PromptManagementScreen extends StatefulWidget {
   const PromptManagementScreen({super.key});
@@ -204,7 +206,7 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
 
   void _createPrompt() {
     // Show the simplified prompt dialog instead of navigating to the full screen
-    SimplePromptDialog.show(
+    SimplePromptDrawer.show(
       context,
       (content) {
         // Refresh the private prompts list after creating a new prompt
@@ -287,13 +289,21 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
           ),
         ],
       ),
-      floatingActionButton: _tabController.index == 1
-          ? FloatingActionButton(
-              onPressed: _createPrompt,
-              tooltip: 'Create new prompt',
-              child: const Icon(Icons.add),
-            )
-          : null,
+      floatingActionButton: _tabController.index == 0 ? FloatingActionButton(
+        onPressed: _createPrompt,
+        tooltip: 'Create new prompt',
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: Theme.of(context).brightness == Brightness.dark
+            ? RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.outline,
+                  width: 1,
+                ),
+              )
+            : null,
+        child: Icon(Icons.add, color: Theme.of(context).colorScheme.onSurface, size: 32),
+      ) : null,
     );
   }
 
@@ -305,11 +315,10 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
         
         if (!mounted) return;
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error: Cannot update favorites for prompt with empty ID'),
-            backgroundColor: Colors.red,
-          ),
+        GlobalSnackBar.show(
+          context: context,
+          message: 'Error: Cannot update favorites for prompt with empty ID',
+          variant: SnackBarVariant.error,
         );
         return;
       }
@@ -348,23 +357,11 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
       });
       
       // Show loading indicator
-      final snackBar = ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const SizedBox(
-                width: 20, 
-                height: 20, 
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 12),
-              Text(previousState 
-                  ? 'Removing from favorites...' 
-                  : 'Adding to favorites...'),
-            ],
-          ),
-          duration: const Duration(seconds: 1),
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: previousState ? 'Removing from favorites...' : 'Adding to favorites...',
+        variant: SnackBarVariant.loading,
+        duration: const Duration(seconds: 1),
       );
       
       // Call the appropriate API
@@ -376,18 +373,16 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
       }
       
       // Close the loading snackbar
-      snackBar.close();
+      GlobalSnackBar.hideCurrent(context);
 
       if (success) {
         if (!mounted) return;
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(previousState
-                ? 'Removed from favorites'
-                : 'Added to favorites'),
-            duration: const Duration(seconds: 2),
-          ),
+        GlobalSnackBar.show(
+          context: context,
+          message: previousState ? 'Removed from favorites' : 'Added to favorites',
+          variant: SnackBarVariant.success,
+          duration: const Duration(seconds: 2),
         );
 
         // Refresh favorites tab if that's where we are
@@ -414,11 +409,10 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
           }
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to update favorite status'),
-            backgroundColor: Colors.red,
-          ),
+        GlobalSnackBar.show(
+          context: context,
+          message: 'Failed to update favorite status',
+          variant: SnackBarVariant.error,
         );
       }
     } catch (e) {
@@ -426,11 +420,10 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
       
       if (!mounted) return;
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Error: ${e.toString()}',
+        variant: SnackBarVariant.error,
       );
       
       // Refresh all data to ensure UI is consistent with server state
@@ -452,11 +445,10 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
         
         if (!mounted) return;
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error: Cannot delete prompt with empty ID'),
-            backgroundColor: Colors.red,
-          ),
+        GlobalSnackBar.show(
+          context: context,
+          message: 'Error: Cannot delete prompt with empty ID',
+          variant: SnackBarVariant.error,
         );
         return;
       }
@@ -464,23 +456,13 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
       // Log the ID to help debug
       _logger.i('Attempting to delete prompt with ID: ${prompt.id}');
 
-      final confirmed = await showDialog<bool>(
+      final confirmed = await GlobalDialog.show(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Delete Prompt'),
-          content: Text('Are you sure you want to delete "${prompt.title}"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('CANCEL'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('DELETE'),
-            ),
-          ],
-        ),
+        title: 'Delete Prompt',
+        message: 'Are you sure you want to delete "${prompt.title}"?',
+        variant: DialogVariant.warning,
+        confirmLabel: 'DELETE',
+        cancelLabel: 'CANCEL',
       );
 
       if (confirmed != true) return;
@@ -500,11 +482,11 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
           _fetchFavoritePrompts();
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Prompt deleted'),
-            duration: Duration(seconds: 2),
-          ),
+        GlobalSnackBar.show(
+          context: context,
+          message: 'Prompt deleted',
+          variant: SnackBarVariant.success,
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
@@ -512,11 +494,10 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Error: ${e.toString()}',
+        variant: SnackBarVariant.error,
       );
     }
   }
@@ -540,11 +521,10 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
       // Use mounted check before using BuildContext
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Prompt deleted successfully'),
-          backgroundColor: Colors.green,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Prompt deleted successfully',
+        variant: SnackBarVariant.success,
       );
     } catch (e) {
       _logger.e('Error deleting prompt: $e');
@@ -555,11 +535,10 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Error: ${e.toString()}',
+        variant: SnackBarVariant.error,
       );
     }
   }
@@ -569,11 +548,10 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
     if (prompt.id.isEmpty) {
       _logger.e('Cannot edit prompt: ID is empty');
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cannot edit prompt: ID is empty'),
-          backgroundColor: Colors.red,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Cannot edit prompt: ID is empty',
+        variant: SnackBarVariant.error,
       );
       return;
     }

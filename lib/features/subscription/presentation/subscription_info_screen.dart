@@ -538,7 +538,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
     required VoidCallback onTap,
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDarkMode ? Theme.of(context).colorScheme.onSurface : Colors.amber;
+    final primaryColor = isDarkMode ? Theme.of(context).colorScheme.onSurface : Colors.amber.shade300;
 
     return Expanded(
       child: GestureDetector(

@@ -157,7 +157,7 @@ class LightColors implements AppColors {
   @override
   final Color border = Colors.grey.shade400;
   @override
-  final Color ring = Colors.black.withAlpha(180);
+  final Color ring = Colors.grey;
 
   // Additional colors
   @override

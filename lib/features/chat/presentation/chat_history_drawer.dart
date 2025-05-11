@@ -70,7 +70,8 @@ class ChatHistoryDrawer extends StatelessWidget {
     }
   }
 
-  void _showDeleteConfirmation(BuildContext context, String conversationId) async {
+  void _showDeleteConfirmation(
+      BuildContext context, String conversationId) async {
     await GlobalDialog.show(
       context: context,
       title: 'Delete Conversation',
@@ -120,7 +121,7 @@ class ChatHistoryDrawer extends StatelessWidget {
     final double screenWidth = MediaQuery.of(context).size.width;
     final TextEditingController searchController = TextEditingController();
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Drawer(
       width: screenWidth, // Make drawer use the full screen width
       backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
@@ -153,7 +154,8 @@ class ChatHistoryDrawer extends StatelessWidget {
                 // Title
                 const SizedBox(width: 40),
                 const Spacer(),
-                Text('Chat History', style: Theme.of(context).textTheme.titleMedium),
+                Text('Chat History',
+                    style: Theme.of(context).textTheme.titleMedium),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.keyboard_double_arrow_right, size: 32),
@@ -163,9 +165,7 @@ class ChatHistoryDrawer extends StatelessWidget {
               ],
             ),
           ),
-          
           const SizedBox(height: 12),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: CustomTextField(
@@ -179,9 +179,7 @@ class ChatHistoryDrawer extends StatelessWidget {
               },
             ),
           ),
-
           const SizedBox(height: 12),
-
           Expanded(
             child: ChatHistoryList(
               selectedAssistantId: selectedAssistantId,
@@ -239,7 +237,7 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
     super.initState();
     // Load conversations immediately when the widget is created
     _loadConversations();
-    
+
     // Add listener to the search controller
     widget.searchController.addListener(_onSearchChanged);
   }
@@ -260,15 +258,17 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
 
   void _filterConversations() {
     if (_conversations == null) return;
-    
+
     if (_searchQuery.isEmpty) {
       _filteredConversations = _conversations;
     } else {
       _filteredConversations = _conversations!.where((conversation) {
         final title = _getConversationTitle(conversation).toLowerCase();
-        final firstMessage = (conversation['first_message'] as String? ?? '').toLowerCase();
-        
-        return title.contains(_searchQuery) || firstMessage.contains(_searchQuery);
+        final firstMessage =
+            (conversation['first_message'] as String? ?? '').toLowerCase();
+
+        return title.contains(_searchQuery) ||
+            firstMessage.contains(_searchQuery);
       }).toList();
     }
   }
@@ -280,7 +280,7 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
     if (oldWidget.selectedAssistantId != widget.selectedAssistantId) {
       _loadConversations();
     }
-    
+
     // Update listener if the controller changed
     if (oldWidget.searchController != widget.searchController) {
       oldWidget.searchController.removeListener(_onSearchChanged);
@@ -438,8 +438,10 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
         variant: InformationVariant.info,
       );
     }
-    
-    if (_filteredConversations != null && _filteredConversations!.isEmpty && _searchQuery.isNotEmpty) {
+
+    if (_filteredConversations != null &&
+        _filteredConversations!.isEmpty &&
+        _searchQuery.isNotEmpty) {
       return InformationIndicator(
         message: 'No conversations matching "$_searchQuery"',
         variant: InformationVariant.info,
@@ -463,48 +465,53 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
           final timestamp = _getConversationTimestamp(conversation);
           final isActive = conversationId == widget.currentConversationId;
 
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: ListTile(
-              dense: true,
-              contentPadding: const EdgeInsets.only(left: 16, right: 0),
-              tileColor: isActive 
-                  ? Theme.of(context).colorScheme.surface
-                  : null,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(isActive ? 8 : 0),
-                side: isActive
-                    ? BorderSide(
-                        color: Theme.of(context).colorScheme.onSurface.withAlpha(30),
-                        width: 1,
-                      )
-                    : BorderSide.none,
-              ),
-              title: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              subtitle: Text(
-                timestamp,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).hintColor,
-                ),
-              ),
-              trailing: IconButton(
-                icon: Icon(Icons.delete_outline, color: Theme.of(context).hintColor),
-                onPressed: () {
-                  widget.onDeleteConversation(conversationId);
-                },
-                padding: EdgeInsets.zero,
-              ),
+          return Card(
+            elevation: 0,
+            color: isActive
+                ? Theme.of(context).colorScheme.surface
+                : Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: isActive
+                  ? BorderSide(
+                      color:
+                          Theme.of(context).colorScheme.onSurface.withAlpha(30),
+                      width: 1,
+                    )
+                  : BorderSide.none,
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
               onTap: () => widget.onConversationSelected(conversationId),
+              child: ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.only(left: 16, right: 0),
+                title: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                ),
+                subtitle: Text(
+                  timestamp,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).hintColor,
+                      ),
+                ),
+                trailing: IconButton(
+                  icon: Icon(Icons.delete_outline,
+                      color: Theme.of(context).hintColor),
+                  onPressed: () {
+                    widget.onDeleteConversation(conversationId);
+                  },
+                  padding: EdgeInsets.zero,
+                ),
+              ),
             ),
           );
         },

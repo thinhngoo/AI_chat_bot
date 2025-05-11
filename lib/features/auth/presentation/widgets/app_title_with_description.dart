@@ -50,6 +50,7 @@ class _AppTitleWithDescriptionState extends State<AppTitleWithDescription> {
           style: theme.textTheme.displayLarge?.copyWith(
             fontFamily: 'monospace',
             wordSpacing: -4,
+            color: colors.foreground,
           ),
         ),
 
