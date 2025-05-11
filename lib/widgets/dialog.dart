@@ -38,20 +38,20 @@ class GlobalDialog {
         buttonVariant = ButtonVariant.primary;
         break;
       case DialogVariant.error:
-        backgroundColor = colors.error;
-        foregroundColor = colors.errorForeground;
+        backgroundColor = colors.red;
+        foregroundColor = colors.redForeground;
         iconData = Icons.error_outline;
         buttonVariant = ButtonVariant.delete;
         break;
       case DialogVariant.warning:
-        backgroundColor = colors.error;
-        foregroundColor = colors.errorForeground;
+        backgroundColor = colors.red;
+        foregroundColor = colors.redForeground;
         iconData = Icons.warning_amber_outlined;
         buttonVariant = ButtonVariant.delete;
         break;
       case DialogVariant.success:
-        backgroundColor = colors.success;
-        foregroundColor = colors.successForeground;
+        backgroundColor = colors.green;
+        foregroundColor = colors.greenForeground;
         iconData = Icons.check_circle_outline;
         buttonVariant = ButtonVariant.primary;
         break;

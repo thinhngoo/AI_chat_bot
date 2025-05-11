@@ -5,8 +5,8 @@ import '../services/prompt_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/text_field.dart';
 import '../../../widgets/information.dart';
-import '../../../widgets/dialog.dart';
-import 'simple_prompt_drawer.dart';
+import 'prompt_drawer.dart';
+import 'prompt_management_screen.dart';
 
 class PromptSelector extends StatelessWidget {
   final Function(String content) onPromptSelected;
@@ -92,20 +92,24 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
       });
 
       // Fetch user's favorite prompts first with the correct parameter
-      final favorites = await _promptService.getPrompts(isFavorite: true, limit: 5);
-      
+      final favorites =
+          await _promptService.getPrompts(isFavorite: true, limit: 5);
+
       // Then fetch some general prompts - explicitly NOT filtering for favorites
       final allPrompts = await _promptService.getPrompts(limit: 10);
 
       // Filter out prompts with empty IDs
       final validFavorites = favorites.where((p) => p.id.isNotEmpty).toList();
       final validAllPrompts = allPrompts.where((p) => p.id.isNotEmpty).toList();
-      
-      final emptyIdCount = favorites.length - validFavorites.length + 
-                          allPrompts.length - validAllPrompts.length;
-      
+
+      final emptyIdCount = favorites.length -
+          validFavorites.length +
+          allPrompts.length -
+          validAllPrompts.length;
+
       if (emptyIdCount > 0) {
-        _logger.w('Found $emptyIdCount prompts with empty IDs that were filtered out from prompt selector');
+        _logger.w(
+            'Found $emptyIdCount prompts with empty IDs that were filtered out from prompt selector');
       }
 
       // Combine and remove duplicates - put favorites first
@@ -176,9 +180,9 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
       // Verify that the ID is not empty
       if (prompt.id.isEmpty) {
         _logger.e('Cannot toggle favorite: prompt ID is empty');
-        
+
         if (!mounted) return;
-        
+
         GlobalSnackBar.show(
           context: context,
           message: 'Error: Cannot update favorites for prompt with empty ID',
@@ -188,7 +192,8 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
       }
 
       // Log the ID to help debug
-      _logger.i('Toggling favorite for prompt with ID: ${prompt.id}, current state: ${prompt.isFavorite}');
+      _logger.i(
+          'Toggling favorite for prompt with ID: ${prompt.id}, current state: ${prompt.isFavorite}');
 
       setState(() {
         _isLoading = true;
@@ -212,7 +217,9 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
 
         GlobalSnackBar.show(
           context: context,
-          message: prompt.isFavorite ? 'Removed from favorites' : 'Added to favorites',
+          message: prompt.isFavorite
+              ? 'Removed from favorites'
+              : 'Added to favorites',
           variant: SnackBarVariant.success,
         );
       }
@@ -237,9 +244,9 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
     // Validate that the ID is not empty
     if (prompt.id.isEmpty) {
       _logger.e('Cannot edit prompt: prompt ID is empty');
-      
+
       if (!mounted) return;
-      
+
       GlobalSnackBar.show(
         context: context,
         message: 'Cannot edit prompt: ID is empty',
@@ -247,8 +254,22 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
       );
       return;
     }
-    
-    SimplePromptDrawer.showEdit(
+
+    // Check if the prompt is public
+    if (prompt.isPublic) {
+      _logger.e('Cannot edit prompt: public prompts cannot be edited');
+
+      if (!mounted) return;
+
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Public prompts cannot be edited',
+        variant: SnackBarVariant.error,
+      );
+      return;
+    }
+
+    PromptDrawer.showEdit(
       context,
       prompt,
       (content) {
@@ -258,69 +279,13 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
     );
   }
 
-  Future<void> _deletePrompt(Prompt prompt) async {
-    // Validate that the ID is not empty
-    if (prompt.id.isEmpty) {
-      _logger.e('Cannot delete prompt: prompt ID is empty');
-      
-      if (!mounted) return;
-      
-      GlobalSnackBar.show(
-        context: context,
-        message: 'Cannot delete prompt: ID is empty',
-        variant: SnackBarVariant.error,
-      );
-      return;
-    }
-    
-    final confirmed = await GlobalDialog.show(
-      context: context,
-      title: 'Delete Prompt',
-      message: 'Are you sure you want to delete "${prompt.title}"?',
-      variant: DialogVariant.warning,
-      confirmLabel: 'DELETE',
-      cancelLabel: 'CANCEL',
+  void _navigateToPromptManagement() {
+    Navigator.of(context).pop(); // Close the selector first
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const PromptManagementScreen(),
+      ),
     );
-
-    if (confirmed != true) return;
-
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final success = await _promptService.deletePrompt(prompt.id);
-
-      if (!mounted) return;
-
-      if (success) {
-        _fetchPrompts();
-
-        GlobalSnackBar.show(
-          context: context,
-          message: 'Prompt deleted',
-          variant: SnackBarVariant.success,
-        );
-      }
-    } catch (e) {
-      _logger.e('Error deleting prompt: $e');
-
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      GlobalSnackBar.show(
-        context: context,
-        message: 'Error: ${e.toString()}',
-        variant: SnackBarVariant.error,
-      );
-    }
-  }
-
-  void _createNewPrompt() {
-    SimplePromptDrawer.show(context, null);
   }
 
   @override
@@ -330,28 +295,35 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.5,
+        maxHeight: MediaQuery.of(context).size.height * 0.6,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const DrawerTopIndicator(),
           Padding(
-            padding: const EdgeInsets.only(top: 8.0),
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colors.muted,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding:
+                const EdgeInsets.symmetric(vertical: 6.0, horizontal: 10.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SizedBox(width: 40),
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  child: IconButton(
+                    icon: const Icon(Icons.settings_outlined),
+                    onPressed: _navigateToPromptManagement,
+                    padding: EdgeInsets.zero,
+                    iconSize: 24,
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Manage Prompts',
+                  ),
+                ),
                 Text(
                   'Select a prompt',
                   style: Theme.of(context).textTheme.headlineMedium,
@@ -363,7 +335,7 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                   child: IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
-                    padding: const EdgeInsets.all(8),
+                    padding: EdgeInsets.zero,
                     iconSize: 24,
                     constraints: const BoxConstraints(),
                   ),
@@ -408,85 +380,82 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                             variant: InformationVariant.info,
                             message: 'No prompts available',
                           )
-                        : ListView.separated(
+                        : ListView.builder(
                             shrinkWrap: true,
-                            padding: const EdgeInsets.symmetric(vertical: 12.0),
-                            itemCount: _prompts.length,
-                            separatorBuilder: (context, index) => const Divider(
-                              height: 1,
-                              indent: 70,
+                            padding: const EdgeInsets.fromLTRB(
+                              16.0,
+                              0,
+                              16.0,
+                              16.0,
                             ),
+                            itemCount: _prompts.length,
                             itemBuilder: (context, index) {
                               final prompt = _prompts[index];
                               return ListTile(
+                                contentPadding:
+                                    const EdgeInsets.fromLTRB(16.0, 0, 4.0, 0),
                                 title: Text(
                                   prompt.title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                 ),
                                 subtitle: Text(
                                   prompt.description,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: colors.muted,
-                                  ),
-                                ),
-                                leading: CircleAvatar(
-                                  backgroundColor: colors.muted.withAlpha(60),
-                                  child: Icon(
-                                    _getCategoryIcon(prompt.category),
-                                    color: colors.cardForeground,
-                                  ),
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        prompt.isFavorite
-                                            ? Icons.star
-                                            : Icons.star_border,
-                                        color: prompt.isFavorite
-                                            ? Colors.amber
-                                            : colors.muted,
-                                        size: 22,
-                                      ),
-                                      onPressed: () => _toggleFavorite(prompt),
-                                      tooltip: prompt.isFavorite
-                                          ? 'Remove from favorites'
-                                          : 'Add to favorites',
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.edit_outlined,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
                                         color: colors.muted,
-                                        size: 20,
                                       ),
-                                      onPressed: () => _editPrompt(prompt),
-                                      tooltip: 'Edit prompt',
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.delete_outline,
-                                        color: colors.muted,
-                                        size: 20,
+                                ),
+                                trailing: SizedBox(
+                                  width: 120,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Show edit button only for private prompts
+                                      if (!prompt.isPublic)
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.edit_outlined,
+                                            color: colors.muted,
+                                            size: 24,
+                                          ),
+                                          onPressed: () => _editPrompt(prompt),
+                                          tooltip: 'Edit prompt',
+                                          padding: const EdgeInsets.all(4),
+                                          constraints: const BoxConstraints(),
+                                        ),
+
+                                      IconButton(
+                                        icon: Icon(
+                                          prompt.isFavorite
+                                              ? Icons.star
+                                              : Icons.star_border,
+                                          color: prompt.isFavorite
+                                              ? colors.yellow
+                                              : colors.muted,
+                                          size: 28,
+                                        ),
+                                        onPressed: () =>
+                                            _toggleFavorite(prompt),
+                                        tooltip: prompt.isFavorite
+                                            ? 'Remove from favorites'
+                                            : 'Add to favorites',
+                                        padding: const EdgeInsets.all(4),
+                                        constraints: const BoxConstraints(),
                                       ),
-                                      onPressed: () => _deletePrompt(prompt),
-                                      tooltip: 'Delete prompt',
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                                 onTap: () {
                                   widget.onPromptSelected(prompt.content);
@@ -495,24 +464,12 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                             },
                           ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ElevatedButton.icon(
-              onPressed: _createNewPrompt,
-              icon: const Icon(Icons.add),
-              label: const Text('Create New Prompt'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 48),
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
+  // ignore: unused_element
   IconData _getCategoryIcon(String category) {
     switch (category.toLowerCase()) {
       case 'programming':

@@ -552,14 +552,14 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
-                      color: colors.success.withAlpha(180),
+                      color: colors.green.withAlpha(180),
                     ),
                   ),
-                  backgroundColor: colors.success.withAlpha(30),
+                  backgroundColor: colors.green.withAlpha(30),
                   label: Text(
                     'Save ${_selectedPlan!.yearlySavingsPercent.round()}%',
                     style: TextStyle(
-                      color: colors.success,
+                      color: colors.green,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -625,7 +625,7 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
         children: [
           Icon(
             Icons.check_circle,
-            color: colors.success,
+            color: colors.green,
             size: 20,
           ),
           const SizedBox(width: 10),

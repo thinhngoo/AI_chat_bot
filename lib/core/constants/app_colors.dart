@@ -28,14 +28,12 @@ abstract class AppColors {
   Color get ring;
 
   // Additional colors
-  Color get error;
-  Color get errorForeground;
-  Color get success;
-  Color get successForeground;
-  Color get warning;
-  Color get warningForeground;
-  Color get delete;
-  Color get deleteForeground;
+  Color get red;
+  Color get redForeground;
+  Color get green;
+  Color get greenForeground;
+  Color get yellow;
+  Color get yellowForeground;
 
   /// Access theme colors
   static final DarkColors dark = DarkColors();
@@ -93,21 +91,17 @@ class DarkColors implements AppColors {
 
   // Additional colors
   @override
-  final Color error = Colors.redAccent;
+  final Color red = Colors.redAccent;
   @override
-  final Color errorForeground = const Color(0xFFFFFFFF);
+  final Color redForeground = const Color(0xFFFFFFFF);
   @override
-  final Color success = Colors.green;
+  final Color green = Colors.green;
   @override
-  final Color successForeground = const Color(0xFFFFFFFF);
+  final Color greenForeground = const Color(0xFFFFFFFF);
   @override
-  final Color warning = Colors.orangeAccent;
+  final Color yellow = Colors.orangeAccent;
   @override
-  final Color warningForeground = const Color(0xFFFFFFFF);
-  @override
-  final Color delete = Colors.redAccent;
-  @override
-  final Color deleteForeground = const Color(0xFFFFFFFF);
+  final Color yellowForeground = const Color(0xFFFFFFFF);
 }
 
 /// Light theme colors implementation
@@ -161,19 +155,15 @@ class LightColors implements AppColors {
 
   // Additional colors
   @override
-  final Color error = Colors.red;
+  final Color red = Colors.red;
   @override
-  final Color errorForeground = const Color(0xFFFFFFFF);
+  final Color redForeground = const Color(0xFFFFFFFF);
   @override
-  final Color success = Colors.green;
+  final Color green = Colors.green;
   @override
-  final Color successForeground = const Color(0xFFFFFFFF);
+  final Color greenForeground = const Color(0xFFFFFFFF);
   @override
-  final Color warning = Colors.orange;
+  final Color yellow = Colors.orange;
   @override
-  final Color warningForeground = const Color(0xFFFFFFFF);
-  @override
-  final Color delete = Colors.red;
-  @override
-  final Color deleteForeground = const Color(0xFFFFFFFF);
+  final Color yellowForeground = const Color(0xFFFFFFFF);
 }
