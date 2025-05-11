@@ -78,8 +78,7 @@ class BotService {
     _isRefreshingCache = isRefreshing;
     _refreshingStreamController.add(isRefreshing);
   }
-  
-  @override
+    // Close resources when no longer needed
   void dispose() {
     _refreshingStreamController.close();
   }
@@ -447,6 +446,163 @@ class BotService {
       _logger.e('Response body: ${response.body}');
       
       throw 'Failed to fetch bot: ${response.statusCode}';
+    }
+  }
+  
+  // Update an existing AI Bot
+  Future<AIBot> updateBot({
+    required String botId,
+    String? name,
+    String? description,
+    String? model,
+    String? prompt,
+  }) async {
+    try {
+      _logger.i('Updating AI Bot with ID: $botId');
+      
+      // Get access token
+      final accessToken = await _authService.getToken();
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json'
+      };
+      
+      // Build request body - only include fields that are provided
+      final Map<String, dynamic> body = {};
+      
+      if (name != null) body['assistantName'] = name;
+      if (description != null) body['description'] = description;
+      if (model != null) body['model'] = model;
+      if (prompt != null) body['instructions'] = prompt;
+      
+      // Build URL
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      const endpoint = ApiConstants.assistantsEndpoint;
+      final uri = Uri.parse('$baseUrl$endpoint/$botId');
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request with timeout
+      final response = await http.patch(
+        uri,
+        headers: headers,
+        body: jsonEncode(body),
+      ).timeout(_timeoutDuration);
+      
+      _logger.i('Update bot response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _logger.i('Bot updated successfully');
+        
+        // Update cache if it exists
+        if (_cachedBots != null) {
+          final index = _cachedBots!.indexWhere((b) => b.id == botId);
+          if (index >= 0) {
+            final updatedBot = AIBot.fromJson(data);
+            _cachedBots![index] = updatedBot;
+          }
+        }
+        
+        return AIBot.fromJson(data);
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return updateBot(
+            botId: botId,
+            name: name,
+            description: description,
+            model: model,
+            prompt: prompt,
+          );
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else if (response.statusCode == 404) {
+        throw 'Bot not found. The ID may be invalid.';
+      } else {
+        _logger.e('Failed to update bot: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to update bot: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error updating bot: $e');
+      rethrow;
+    }
+  }
+  
+  // Delete an AI Bot
+  Future<bool> deleteBot(String botId) async {
+    try {
+      _logger.i('Deleting AI Bot with ID: $botId');
+      
+      // Get access token
+      final accessToken = await _authService.getToken();
+      if (accessToken == null) {
+        throw 'No access token available. Please log in again.';
+      }
+      
+      // Prepare headers
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+      };
+      
+      // Build URL
+      const baseUrl = ApiConstants.kbCoreApiUrl;
+      const endpoint = ApiConstants.assistantsEndpoint;
+      final uri = Uri.parse('$baseUrl$endpoint/$botId');
+      
+      _logger.i('Sending request to: $uri');
+      
+      // Send request with timeout
+      final response = await http.delete(
+        uri, 
+        headers: headers
+      ).timeout(_timeoutDuration);
+      
+      _logger.i('Delete bot response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _logger.i('Bot deleted successfully');
+        
+        // Update cache if it exists
+        if (_cachedBots != null) {
+          _cachedBots!.removeWhere((bot) => bot.id == botId);
+        }
+        
+        return true;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        _logger.w('Token expired, attempting to refresh...');
+        final refreshSuccess = await _authService.refreshToken();
+        
+        if (refreshSuccess) {
+          // Retry with new token
+          return deleteBot(botId);
+        } else {
+          throw 'Authentication expired. Please log in again.';
+        }
+      } else if (response.statusCode == 404) {
+        throw 'Bot not found. The ID may be invalid.';
+      } else {
+        _logger.e('Failed to delete bot: ${response.statusCode}');
+        _logger.e('Response body: ${response.body}');
+        
+        throw 'Failed to delete bot: ${response.statusCode}';
+      }
+    } catch (e) {
+      _logger.e('Error deleting bot: $e');
+      rethrow;
     }
   }
 }

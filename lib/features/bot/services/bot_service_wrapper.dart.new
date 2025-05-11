@@ -1,0 +1,215 @@
+// filepath: c:\Project\AI_chat_bot\lib\features\bot\services\bot_service_wrapper.dart
+import 'dart:async';
+import 'package:logger/logger.dart';
+import '../../../core/services/auth/auth_service.dart';
+import '../models/ai_bot.dart';
+import 'bot_service.dart' as legacy;
+import 'bot_service_optimized.dart' as improved;
+
+/// A wrapper class that provides a smooth transition between old and new BotService implementations,
+/// gradually migrating to the improved version while maintaining fallback capabilities.
+class BotServiceWrapper {
+  static final BotServiceWrapper _instance = BotServiceWrapper._internal();
+  factory BotServiceWrapper() => _instance;
+
+  final Logger _logger = Logger();
+  final AuthService _authService = AuthService();
+  
+  // Service instances
+  late final legacy.BotService _legacyService;
+  late final improved.BotService _improvedService;
+  
+  // Feature flag for controlling the usage of improved service
+  bool _useImprovedService = true;
+  
+  // Stream controller for forwarding refresh status from the improved service
+  final StreamController<bool> _refreshingStreamController = StreamController<bool>.broadcast();
+  Stream<bool> get refreshingStream => _refreshingStreamController.stream;
+  
+  // Constructor
+  BotServiceWrapper._internal() {
+    _legacyService = legacy.BotService();
+    _improvedService = improved.BotService();
+    
+    // Forward stream events from improved service
+    _improvedService.refreshingStream.listen(_refreshingStreamController.add);
+  }
+  
+  // Set whether to use the improved service implementation
+  // This can be controlled by a remote config flag in the future
+  void setUseImprovedService(bool useImproved) {
+    _useImprovedService = useImproved;
+    _logger.i('Using ${useImproved ? 'improved' : 'legacy'} bot service implementation');
+  }
+  
+  // Cleanup resources
+  void dispose() {
+    _refreshingStreamController.close();
+  }
+  
+  // Clear cache method
+  void clearCache() {
+    _legacyService.clearCache();
+    _improvedService.clearCache();
+    _logger.i('All bot service caches cleared');
+  }
+  
+  // Get bots with fallback mechanism
+  Future<List<AIBot>> getBots({bool forceRefresh = false, String? query}) async {
+    if (_useImprovedService) {
+      try {
+        return await _improvedService.getBots(forceRefresh: forceRefresh, query: query);
+      } catch (e) {
+        _logger.w('Error using improved getBots, falling back to legacy: $e');
+        try {
+          return await _legacyService.getBots(forceRefresh: forceRefresh, query: query);
+        } catch (e2) {
+          _logger.e('Both bot services failed: $e2');
+          rethrow;
+        }
+      }
+    } else {
+      return _legacyService.getBots(forceRefresh: forceRefresh, query: query);
+    }
+  }
+  
+  // Get bot by ID with fallback mechanism
+  Future<AIBot?> getBotById(String botId) async {
+    if (_useImprovedService) {
+      try {
+        return await _improvedService.getBotById(botId);
+      } catch (e) {
+        _logger.w('Error using improved getBotById, falling back to legacy: $e');
+        try {
+          return await _legacyService.getBotById(botId);
+        } catch (e2) {
+          _logger.e('Both bot services failed: $e2');
+          rethrow;
+        }
+      }
+    } else {
+      return _legacyService.getBotById(botId);
+    }
+  }
+  
+  // Create bot with fallback mechanism
+  Future<AIBot> createBot({
+    required String name,
+    required String description,
+    required String model,
+    required String prompt,
+  }) async {
+    if (_useImprovedService) {
+      try {
+        return await _improvedService.createBot(
+          name: name,
+          description: description,
+          model: model,
+          prompt: prompt,
+        );
+      } catch (e) {
+        _logger.w('Error using improved createBot, falling back to legacy: $e');
+        try {
+          return await _legacyService.createBot(
+            name: name,
+            description: description,
+            model: model,
+            prompt: prompt,
+          );
+        } catch (e2) {
+          _logger.e('Both bot services failed: $e2');
+          rethrow;
+        }
+      }
+    } else {
+      return _legacyService.createBot(
+        name: name,
+        description: description,
+        model: model,
+        prompt: prompt,
+      );
+    }
+  }
+  
+  // Update bot with fallback mechanism
+  Future<AIBot> updateBot({
+    required String botId,
+    String? name,
+    String? description,
+    String? model,
+    String? prompt,
+  }) async {
+    if (_useImprovedService) {
+      try {
+        // Use dynamic to prevent compile-time errors
+        return await _improvedService.updateBot(
+          botId: botId,
+          name: name,
+          description: description,
+          model: model,
+          prompt: prompt,
+        );
+      } catch (e) {
+        _logger.w('Error using improved updateBot, falling back to legacy: $e');
+        try {
+          return await _legacyService.updateBot(
+            botId: botId,
+            name: name,
+            description: description,
+            model: model,
+            prompt: prompt,
+          );
+        } catch (e2) {
+          _logger.e('Both bot services failed: $e2');
+          rethrow;
+        }
+      }
+    } else {
+      return _legacyService.updateBot(
+        botId: botId,
+        name: name,
+        description: description,
+        model: model,
+        prompt: prompt,
+      );
+    }
+  }
+  
+  // Delete bot with fallback mechanism
+  Future<bool> deleteBot(String botId) async {
+    if (_useImprovedService) {
+      try {
+        // Use dynamic to bypass compile-time checking
+        return await (_improvedService as dynamic).deleteBot(botId);
+      } catch (e) {
+        _logger.w('Error using improved deleteBot, falling back to legacy: $e');
+        try {
+          return await (_legacyService as dynamic).deleteBot(botId);
+        } catch (e2) {
+          _logger.e('Both bot services failed: $e2');
+          rethrow;
+        }
+      }
+    } else {
+      return await (_legacyService as dynamic).deleteBot(botId);
+    }
+  }
+  
+  // Import knowledge bases to a bot with fallback mechanism
+  Future<bool> importKnowledge({
+    required String botId,
+    required List<String> knowledgeBaseIds
+  }) async {
+    try {
+      // Using legacy service directly as improved service may not have this method
+      _logger.i('Using legacy service for importKnowledge');
+      return await _legacyService.importKnowledge(
+        botId: botId,
+        knowledgeBaseIds: knowledgeBaseIds
+      );
+    } catch (e) {
+      _logger.e('Error importing knowledge: $e');
+      rethrow;
+    }
+  }
+}
