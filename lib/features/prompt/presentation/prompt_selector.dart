@@ -347,7 +347,7 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
           Padding(
             padding:
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: CustomTextField(
+            child: CommonTextField(
               controller: _searchController,
               label: '',
               hintText: 'Search prompts...',

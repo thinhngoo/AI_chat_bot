@@ -161,7 +161,7 @@ class ChatHistoryDrawer extends StatelessWidget {
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: CustomTextField(
+            child: CommonTextField(
               controller: searchController,
               label: 'Search',
               hintText: 'Search conversations',

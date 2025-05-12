@@ -39,7 +39,6 @@ class _AppTitleWithDescriptionState extends State<AppTitleWithDescription> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final AppColors colors = AppColors.dark;
     
     return Column(
@@ -47,7 +46,7 @@ class _AppTitleWithDescriptionState extends State<AppTitleWithDescription> {
         // App title
         Text(
           widget.title,
-          style: theme.textTheme.displayLarge?.copyWith(
+          style: Theme.of(context).textTheme.displayLarge?.copyWith(
             fontFamily: 'monospace',
             wordSpacing: -4,
             color: colors.foreground,
@@ -62,7 +61,7 @@ class _AppTitleWithDescriptionState extends State<AppTitleWithDescription> {
           children: [
             Text(
               widget.description,
-              style: theme.textTheme.bodyLarge?.copyWith(
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: colors.muted,
                 fontFamily: 'monospace',
               ),
@@ -71,7 +70,7 @@ class _AppTitleWithDescriptionState extends State<AppTitleWithDescription> {
               width: 12,
               child: Text(
                 _showCursor ? '_' : ' ',
-                style: theme.textTheme.bodyLarge?.copyWith(
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: colors.muted,
                   fontFamily: 'monospace',
                 ),

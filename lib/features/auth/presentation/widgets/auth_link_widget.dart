@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 
-/// Reusable auth link widget for switching between login and register screens
 class AuthLinkWidget extends StatelessWidget {
   final String questionText;
   final String linkText;
@@ -16,7 +15,6 @@ class AuthLinkWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final AppColors colors = AppColors.dark;
 
     return Row(
@@ -24,7 +22,7 @@ class AuthLinkWidget extends StatelessWidget {
       children: [
         Text(
           questionText,
-          style: theme.textTheme.bodyMedium?.copyWith(
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: colors.muted,
           ),
         ),
@@ -37,7 +35,7 @@ class AuthLinkWidget extends StatelessWidget {
           onPressed: onPressed,
           child: Text(
             linkText,
-            style: theme.textTheme.bodyMedium?.copyWith(
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: colors.foreground,
               fontWeight: FontWeight.bold,
             ),

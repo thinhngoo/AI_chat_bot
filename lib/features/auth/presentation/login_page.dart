@@ -4,8 +4,8 @@ import 'dart:async';
 
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/utils/validators/input_validator.dart';
-import 'widgets/auth_widgets.dart';
 import 'signup_page.dart';
+import 'widgets/auth_widgets.dart';
 import '../../../widgets/text_field.dart';
 
 class LoginPage extends StatefulWidget {
@@ -16,15 +16,12 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // ===== CONTROLLERS =====
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  // ===== SERVICES =====
   final AuthService _authService = AuthService();
   final Logger _logger = Logger();
 
-  // ===== STATE VARIABLES =====
   bool _isLoading = false;
   String? _emailErrorMessage;
   String? _passwordErrorMessage;
@@ -32,6 +29,13 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   Future<void> _login() async {
@@ -90,7 +94,7 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       // Already formatted error messages from JarvisApiService
-      if (e.toString().contains('Email hoặc mật khẩu không đúng')) {
+      if (e.toString().contains('Email or password is incorrect')) {
         setState(() {
           _passwordErrorMessage = e.toString();
           _isLoading = false;
@@ -214,7 +218,7 @@ class _LoginPageState extends State<LoginPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          CustomTextField(
+          CommonTextField(
             controller: _emailController,
             label: 'Email',
             hintText: 'Enter your email',
@@ -247,12 +251,5 @@ class _LoginPageState extends State<LoginPage> {
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 }

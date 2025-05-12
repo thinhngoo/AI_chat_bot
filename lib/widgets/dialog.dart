@@ -274,7 +274,7 @@ class GlobalInputDialog {
                     const SizedBox(height: 20),
                     
                     // Input field
-                    CustomTextField(
+                    CommonTextField(
                       controller: textController,
                       label: labelText ?? title,
                       hintText: hintText,

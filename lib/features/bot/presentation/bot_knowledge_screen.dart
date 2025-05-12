@@ -583,7 +583,7 @@ class _BotKnowledgeScreenState extends State<BotKnowledgeScreen> {
           Row(
             children: [
               Expanded(
-                child: CustomTextField(
+                child: CommonTextField(
                   controller: _searchController,
                   label: 'Search',
                   hintText: 'Search knowledge bases...',

@@ -223,7 +223,7 @@ class _BotListScreenState extends State<BotListScreen>
           // Search bar
           Padding(
             padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 12.0),
-            child: CustomTextField(
+            child: CommonTextField(
               controller: _searchController,
               label: 'Search',
               hintText: 'Search bots...',

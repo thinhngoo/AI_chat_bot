@@ -112,7 +112,7 @@ class _AddWebsiteDialogState extends State<AddWebsiteDialog> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
-                CustomTextField(
+                CommonTextField(
                   controller: _urlController,
                   label: 'Website URL',
                   hintText: 'https://example.com',

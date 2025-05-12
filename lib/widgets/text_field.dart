@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 
-class CustomTextField extends StatelessWidget {
+class CommonTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final String hintText;
@@ -20,7 +20,7 @@ class CustomTextField extends StatelessWidget {
   final bool enabled;
   final bool obscureText;
 
-  const CustomTextField({
+  const CommonTextField({
     super.key,
     required this.controller,
     required this.label,
