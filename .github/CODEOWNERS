@@ -1,0 +1,28 @@
+# CODEOWNERS file for AI Chat Bot
+# Defines code owners who will be automatically requested for review when someone opens a pull request
+
+# Default owners for everything in the repo
+* @admin-team
+
+# Core app code
+/lib/core/ @core-team
+/lib/features/ @features-team
+
+# Firebase configuration and functions
+/functions/ @backend-team
+firebase.json @backend-team
+.firebaserc @backend-team
+apphosting.yaml @backend-team
+
+# CI/CD configuration
+/.github/workflows/ @devops-team
+/docs/ci_cd_setup_guide.md @devops-team
+
+# Android and iOS configuration
+/android/ @mobile-team
+/ios/ @mobile-team
+
+# Windows and desktop configuration
+/windows/ @desktop-team
+/linux/ @desktop-team
+/macos/ @desktop-team
