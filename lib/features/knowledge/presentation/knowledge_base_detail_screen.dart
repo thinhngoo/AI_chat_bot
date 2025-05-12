@@ -287,8 +287,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  @override  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_knowledgeBase?.name ?? 'Knowledge Base'),
@@ -303,6 +302,11 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addKnowledgeUnit,
+        tooltip: 'Add Knowledge Unit',
+        child: const Icon(Icons.add),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -338,7 +342,6 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       ),
     );
   }
-
   Widget _buildKnowledgeBaseDetail() {
     AppColors colors = Theme.of(context).brightness == Brightness.dark
         ? AppColors.dark
@@ -347,18 +350,18 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Padding(
-        //   padding: const EdgeInsets.all(16),
-        //   child: ElevatedButton.icon(
-        //     onPressed: _addKnowledgeUnit,
-        //     icon: const Icon(Icons.add),
-        //     label: const Text('Add Knowledge Unit'),
-        //     style: ElevatedButton.styleFrom(
-        //       backgroundColor: const Color(0xFF6366F1), // Indigo color to match the button in the screenshot
-        //       foregroundColor: Colors.white,
-        //     ),
-        //   ),
-        // ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: ElevatedButton.icon(
+            onPressed: _addKnowledgeUnit,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Knowledge Unit'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1), // Indigo color to match the button in the screenshot
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ),
 
         // Knowledge base header card
         Card(
