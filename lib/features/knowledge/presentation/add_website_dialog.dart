@@ -1,5 +1,8 @@
+import 'package:ai_chat_bot/widgets/information.dart';
 import 'package:flutter/material.dart';
 import '../services/knowledge_base_service.dart';
+import '../../../widgets/button.dart';
+import '../../../widgets/text_field.dart';
 
 class AddWebsiteDialog extends StatefulWidget {
   final String knowledgeBaseId;
@@ -38,14 +41,23 @@ class _AddWebsiteDialogState extends State<AddWebsiteDialog> {
     });
 
     try {
+      GlobalSnackBar.show(
+        context: context,
+        message: 'This feature is under maintenance',
+        variant: SnackBarVariant.info,
+      );
+      
+      if (mounted) {
+        Navigator.of(context).pop(true); // Return true to indicate success
+      }
+
+      return;
+
+      // ignore: dead_code
       await _knowledgeBaseService.uploadWebsite(
         widget.knowledgeBaseId,
         _urlController.text.trim(),
       );
-
-      if (mounted) {
-        Navigator.of(context).pop(true); // Return true to indicate success
-      }
     } catch (e) {
       setState(() {
         _error = 'Failed to add website: $e';
@@ -56,9 +68,17 @@ class _AddWebsiteDialogState extends State<AddWebsiteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.onSurface.withAlpha(30),
+          width: 1,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: ConstrainedBox(
@@ -69,64 +89,73 @@ class _AddWebsiteDialogState extends State<AddWebsiteDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Icon(
+                  Icons.language,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 16),
                 Text(
                   'Add Website URL',
-                  style: theme.textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                      ),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Enter the website URL you want to add to your knowledge base.',
-                  style: theme.textTheme.bodyMedium,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
+                      ),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 24),
-                TextFormField(
+                const SizedBox(height: 20),
+                CustomTextField(
                   controller: _urlController,
-                  decoration: const InputDecoration(
-                    labelText: 'Website URL',
-                    hintText: 'https://example.com',
-                    prefixIcon: Icon(Icons.web),
-                  ),
+                  label: 'Website URL',
+                  hintText: 'https://example.com',
+                  prefixIcon: Icons.web,
                   keyboardType: TextInputType.url,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a URL';
-                    }
-                    
-                    // Basic URL validation
-                    if (!value.startsWith('http://') && !value.startsWith('https://')) {
-                      return 'URL must start with http:// or https://';
-                    }
-                    
-                    return null;
-                  },
+                  darkMode: isDarkMode,
+                  errorText: _error,
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Text(
                     _error!,
                     style: TextStyle(
-                      color: theme.colorScheme.error,
+                      color: Theme.of(context).colorScheme.error,
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: 30),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    TextButton(
-                      onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
+                    Expanded(
+                      child: Button(
+                        label: 'Cancel',
+                        onPressed: _isLoading 
+                            ? null 
+                            : () => Navigator.of(context).pop(),
+                        variant: ButtonVariant.ghost,
+                        isDarkMode: isDarkMode,
+                        color: isDarkMode
+                            ? Theme.of(context).colorScheme.onSurface.withAlpha(180)
+                            : Theme.of(context).colorScheme.onSurface.withAlpha(120),
+                      ),
                     ),
-                    const SizedBox(width: 16),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _addWebsite,
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Add'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Button(
+                        label: 'Add',
+                        onPressed: _isLoading ? null : _addWebsite,
+                        variant: ButtonVariant.primary,
+                        isDarkMode: isDarkMode,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),

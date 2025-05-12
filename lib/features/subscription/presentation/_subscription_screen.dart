@@ -281,9 +281,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                   final url = Uri.parse('https://admin.dev.jarvis.cx/pricing/overview');
                                   if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
                                     if (!mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Không thể mở trang quản trị')),
-                                    );
+                                    // ScaffoldMessenger.of(context).showSnackBar(
+                                    //   const SnackBar(content: Text('Không thể mở trang quản trị')),
+                                    // );
                                   }
                                 },
                                 icon: const Icon(Icons.open_in_new),
@@ -393,9 +393,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           final url = Uri.parse('https://admin.dev.jarvis.cx/pricing/overview');
                           if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
                             if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Không thể mở trang quản trị')),
-                            );
+                            // ScaffoldMessenger.of(context).showSnackBar(
+                            //   const SnackBar(content: Text('Không thể mở trang quản trị')),
+                            // );
                           }
                         },
                         style: ElevatedButton.styleFrom(

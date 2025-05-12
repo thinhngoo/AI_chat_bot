@@ -116,7 +116,14 @@ class _PromptListScreenState extends State<PromptListScreen> {
               widget.errorMessage.isEmpty &&
               widget.prompts.isNotEmpty) ...[
             const SizedBox(height: 8),
-            _buildResultsCount(),
+            Padding(
+              padding: const EdgeInsets.only(left: 26.0),
+              child: ResultsCountIndicator(
+                filteredCount: _filteredPrompts.length,
+                totalCount: widget.prompts.length,
+                itemType: 'prompts',
+              ),
+            ),
           ],
 
           // Main content
@@ -212,23 +219,6 @@ class _PromptListScreenState extends State<PromptListScreen> {
     );
   }
 
-  Widget _buildResultsCount() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 26.0),
-      child: Row(
-        children: [
-          Text(
-            'Showing ${_filteredPrompts.length} of ${widget.prompts.length} prompts',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: Theme.of(context).hintColor),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildPromptCard(Prompt prompt) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colors = isDarkMode ? AppColors.dark : AppColors.light;
@@ -264,7 +254,7 @@ class _PromptListScreenState extends State<PromptListScreen> {
                         }
                       },
                     );
-                  } 
+                  }
                   // If it's a public prompt, show it in view-only mode
                   else if (prompt.isPublic) {
                     PromptDrawer.showViewOnly(
@@ -305,19 +295,21 @@ class _PromptListScreenState extends State<PromptListScreen> {
                               if (prompt.description.isNotEmpty) ...[
                                 Text(
                                   prompt.description,
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context).hintColor,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(context).hintColor,
+                                      ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-
                                 const SizedBox(height: 4),
-
                                 Expanded(
                                   child: Text(
                                     prompt.content,
-                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    style:
+                                        Theme.of(context).textTheme.bodyMedium,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -326,7 +318,8 @@ class _PromptListScreenState extends State<PromptListScreen> {
                                 Expanded(
                                   child: Text(
                                     prompt.content,
-                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    style:
+                                        Theme.of(context).textTheme.bodyMedium,
                                     maxLines: 3,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -334,7 +327,6 @@ class _PromptListScreenState extends State<PromptListScreen> {
                             ],
                           ),
                         ),
-                        
                         if (prompt.category.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 8.0),
@@ -343,7 +335,8 @@ class _PromptListScreenState extends State<PromptListScreen> {
                                 Chip(
                                   label: Text(
                                     prompt.category,
-                                    style: Theme.of(context).textTheme.bodySmall,
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
                                   ),
                                   padding: EdgeInsets.zero,
                                   materialTapTargetSize:
@@ -384,12 +377,16 @@ class _PromptListScreenState extends State<PromptListScreen> {
                   child: Container(
                     width: 40,
                     decoration: BoxDecoration(
-                      color: prompt.isFavorite ? colors.yellow : colors.cardForeground.withAlpha(24),
+                      color: prompt.isFavorite
+                          ? colors.yellow
+                          : colors.cardForeground.withAlpha(24),
                     ),
                     child: Center(
                       child: Icon(
                         prompt.isFavorite ? Icons.star : Icons.star_border,
-                        color: prompt.isFavorite ? colors.yellowForeground : colors.yellow,
+                        color: prompt.isFavorite
+                            ? colors.yellowForeground
+                            : colors.yellow,
                         size: 28,
                       ),
                     ),

@@ -69,7 +69,7 @@ class Button extends StatelessWidget {
         break;
       case ButtonSize.medium:
         buttonPadding = const EdgeInsets.symmetric(vertical: 12, horizontal: 16);
-        iconSize = 24.0;
+        iconSize = 20.0;
         fontSize = 14.0;
         spacing = 8.0;
         break;

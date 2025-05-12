@@ -9,6 +9,7 @@ import '../../../core/services/auth/auth_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/button.dart';
 import '../../../widgets/information.dart';
+import '../../../widgets/dialog.dart';
 import 'pro_upgrade_screen.dart';
 
 class SubscriptionInfoScreen extends StatefulWidget {
@@ -71,16 +72,19 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
     _loadSubscriptionData();
     _loadThemePreference();
   }
-
-  Future<void> _loadSubscriptionData() async {
+  final Logger logger = Logger();
+  Future<void> _loadSubscriptionData({bool forceRefresh = false}) async {
     try {
       setState(() {
         _isLoading = true;
         _errorMessage = '';
       });
 
-      final subscription = await _subscriptionService.getCurrentSubscription();
-      final usageStats = await _subscriptionService.getUsageStats();
+      final subscription = await _subscriptionService.getCurrentSubscription(forceRefresh: forceRefresh);
+      final usageStats = await _subscriptionService.getUsageStats(forceRefresh: forceRefresh);
+
+      logger.d('subscription: $subscription');
+      logger.d('usageStats: $usageStats');
 
       if (mounted) {
         setState(() {
@@ -191,7 +195,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
     );
 
     if (result == true) {
-      _loadSubscriptionData();
+      _loadSubscriptionData(forceRefresh: true);
     }
   }
 
@@ -223,27 +227,13 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
   }
 
   Future<void> _cancelSubscription() async {
-    final confirm = await showDialog<bool>(
+    final confirm = await GlobalDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel Subscription'),
-        content: const Text(
-            'Are you sure you want to cancel your subscription? '
-            'You\'ll still have access until the end of your current billing period.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('No, Keep It'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text('Yes, Cancel'),
-          ),
-        ],
-      ),
+      title: 'Cancel Subscription',
+      message: 'Are you sure you want to cancel your subscription? You\'ll still have access until the end of your current billing period.',
+      variant: DialogVariant.warning,
+      confirmLabel: 'Yes, Cancel',
+      cancelLabel: 'No, Keep It',
     );
 
     if (confirm != true) return;
@@ -252,7 +242,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
       final success = await _subscriptionService.cancelSubscription();
 
       if (success && mounted) {
-        _loadSubscriptionData();
+        _loadSubscriptionData(forceRefresh: true);
         GlobalSnackBar.show(
           context: context,
           message: 'Subscription canceled successfully',
@@ -281,7 +271,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
             padding: const EdgeInsets.only(right: 8.0),
             child: IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: _loadSubscriptionData,
+              onPressed: () => _loadSubscriptionData(forceRefresh: true),
               tooltip: 'Refresh',
             ),
           ),
@@ -297,7 +287,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                   variant: InformationVariant.error,
                   message: _errorMessage,
                   buttonText: 'Try Again',
-                  onButtonPressed: _loadSubscriptionData,
+                  onButtonPressed: () => _loadSubscriptionData(forceRefresh: true),
                 )
               : _subscription != null
                   ? _buildSubscriptionInfo()
@@ -313,7 +303,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return RefreshIndicator(
-      onRefresh: _loadSubscriptionData,
+      onRefresh: () => _loadSubscriptionData(forceRefresh: true),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16.0),
@@ -373,7 +363,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
               fontWeight: FontWeight.bold,
             ),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -388,6 +378,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
   }) {
     final isPro = subscription.isPro;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final colors = isDarkMode ? AppColors.dark : AppColors.light;
 
     return Card(
       child: Padding(
@@ -400,7 +391,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                 Icon(
                   isPro ? Icons.diamond : Icons.account_circle,
                   size: 40,
-                  color: isPro ? isDarkMode ? Colors.amberAccent : Colors.amber : Theme.of(context).colorScheme.primary,
+                  color: isPro ? colors.yellow : Theme.of(context).colorScheme.primary,
                 ),
                 
                 const SizedBox(width: 12),
@@ -638,7 +629,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                   value: isPro ? 1 : usageStats.usagePercentage,
                   backgroundColor: Theme.of(context).colorScheme.onSurface.withAlpha(30),
                   valueColor: isPro ? AlwaysStoppedAnimation<Color>(colors.green) : AlwaysStoppedAnimation<Color>(
-                    Color.lerp(colors.green, Theme.of(context).colorScheme.error, usageStats.usagePercentage) ?? Theme.of(context).colorScheme.error,
+                    Color.lerp(colors.green, colors.red, usageStats.usagePercentage) ?? colors.red,
                   ),
                 ),
                 
@@ -728,7 +719,7 @@ class _SubscriptionInfoScreenState extends State<SubscriptionInfoScreen> {
                             value: model.usagePercentage,
                             backgroundColor: Theme.of(context).colorScheme.onSurface.withAlpha(30),
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Color.lerp(colors.green, Theme.of(context).colorScheme.error, model.usagePercentage) ?? Theme.of(context).colorScheme.error,
+                              Color.lerp(colors.green, colors.red, model.usagePercentage) ?? colors.red,
                             ),
                           ),
                         ],

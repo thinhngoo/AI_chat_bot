@@ -7,6 +7,7 @@ import '../services/bot_integration_service.dart';
 import '../services/bot_analytics_service.dart';
 import '../services/bot_webhook_service.dart';
 import '../models/bot_configuration.dart';
+import '../../../widgets/information.dart';
 
 class BotIntegrationScreen extends StatefulWidget {
   final String botId;
@@ -1044,6 +1045,18 @@ class _BotIntegrationScreenState extends State<BotIntegrationScreen> with Single
         ],
         bottom: TabBar(
           controller: _tabController,
+          indicator: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+                width: 3.0,
+              ),
+            ),
+          ),
+          indicatorSize: TabBarIndicatorSize.tab,
+          dividerColor: Theme.of(context).colorScheme.outline.withAlpha(184),
+          labelColor: Theme.of(context).colorScheme.primary,
+          unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withAlpha(184),
           tabs: [
             Tab(
               icon: Icon(_getIconData(_platformSettings['slack']?.icon ?? 'chat_bubble_outline')),
@@ -1061,24 +1074,16 @@ class _BotIntegrationScreenState extends State<BotIntegrationScreen> with Single
         ),
       ),
       body: _isLoading
-        ? const Center(child: CircularProgressIndicator())
+        ? InformationIndicator(
+            variant: InformationVariant.loading,
+            message: 'Loading integration settings...',
+          )
         : _errorMessage.isNotEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Error: $_errorMessage',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _fetchConfigurations,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
+          ? InformationIndicator(
+              variant: InformationVariant.error,
+              message: 'Error: $_errorMessage',
+              buttonText: 'Retry',
+              onButtonPressed: _fetchConfigurations,
             )
           : TabBarView(
               controller: _tabController,

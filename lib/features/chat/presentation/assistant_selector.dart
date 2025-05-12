@@ -452,7 +452,7 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
               ),
               const SizedBox(width: 8),
               if (isCustomBot)
-                Icon(Icons.android, size: 24, color: Theme.of(context).colorScheme.onSurface.withAlpha(204)),
+                Icon(Icons.smart_toy, size: 24, color: Theme.of(context).colorScheme.onSurface.withAlpha(204)),
               if (_isBackgroundRefreshing)
                 Padding(
                   padding: const EdgeInsets.only(left: 4.0),

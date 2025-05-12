@@ -316,7 +316,8 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                   height: 40,
                   alignment: Alignment.center,
                   child: IconButton(
-                    icon: const Icon(Icons.settings_outlined),
+                    icon: Icon(Icons.settings_outlined,
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(180)),
                     onPressed: _navigateToPromptManagement,
                     padding: EdgeInsets.zero,
                     iconSize: 24,

@@ -6,7 +6,7 @@ import '../../../core/services/auth/auth_service.dart';
 import 'package:logger/logger.dart';
 
 class SubscriptionInfoWidget extends StatefulWidget {
-  const SubscriptionInfoWidget({Key? key}) : super(key: key);
+  const SubscriptionInfoWidget({super.key});
 
   @override
   State<SubscriptionInfoWidget> createState() => _SubscriptionInfoWidgetState();

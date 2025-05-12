@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import '../../../core/services/auth/auth_service.dart';
@@ -14,7 +12,6 @@ import '../../../features/prompt/presentation/prompt_selector.dart';
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../features/subscription/services/ad_manager.dart';
 import '../../../features/subscription/services/subscription_service.dart';
-import '../../../widgets/typing_indicator.dart';
 import '../../../widgets/information.dart'
     show
         SnackBarVariant,
@@ -23,6 +20,7 @@ import '../../../widgets/information.dart'
         InformationIndicator;
 import 'assistant_selector.dart';
 import 'chat_history_drawer.dart';
+import '../widgets/chat_zone.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
@@ -941,257 +939,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
 
     return Expanded(
-      child: ListView.builder(
-        controller: _scrollController,
-        reverse: false,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        itemCount: _messages.length,
-        itemBuilder: (context, index) {
-          final message = _messages[index];
-          final isUserMessage = message.query.isNotEmpty;
-          final messageText = isUserMessage ? message.query : message.answer;
-
-          // Display both query and answer for each message
-          if (isUserMessage) {
-            return Padding(
-              // Add padding to the bottom of the message
-              padding: const EdgeInsets.only(bottom: 28.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // User question bubble
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface,
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(20),
-                              topRight: Radius.circular(20),
-                              bottomLeft: Radius.circular(20),
-                              bottomRight: Radius.circular(4),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withAlpha(13),
-                                blurRadius: 5,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: SelectableText(
-                            message.query,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurface,
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // AI answer - simplified, no bubble UI
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8, right: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Only hide the answer if this is the last message and we're currently typing
-                        if (!(_isTyping && index == _messages.length - 1)) ...[
-                          MarkdownBody(
-                            data: message.answer,
-                            selectable: true,
-                            styleSheet: MarkdownStyleSheet(
-                              p: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                height: 1.5,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                              h1: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                              h2: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                              h3: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                              listBullet: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context).hintColor,
-                                height: 1.5,
-                              ),
-                              blockquote: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
-                                fontStyle: FontStyle.italic,
-                                height: 1.5,
-                              ),
-                              blockquoteDecoration: BoxDecoration(
-                                border: Border(
-                                  left: BorderSide(
-                                    color: Theme.of(context).colorScheme.primary.withAlpha(128),
-                                    width: 4.0,
-                                  ),
-                                ),
-                              ),
-                              blockquotePadding: const EdgeInsets.only(left: 16.0),
-                              code: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontFamily: 'monospace',
-                                color: Theme.of(context).colorScheme.onSurface,
-                                backgroundColor: Theme.of(context).colorScheme.surfaceDim,
-                              ),
-                              codeblockDecoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceDim,
-                                borderRadius: BorderRadius.circular(4.0),
-                              ),
-                              codeblockPadding: const EdgeInsets.all(8.0),
-                              tableHead: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                              tableBody: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                              tableBorder: TableBorder.all(
-                                color: Theme.of(context).colorScheme.outline.withAlpha(128),
-                                width: 1.0,
-                              ),
-                              tableCellsPadding: const EdgeInsets.symmetric(
-                                horizontal: 8.0,
-                                vertical: 4.0,
-                              ),
-                              a: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                                decoration: TextDecoration.underline,
-                              ),
-                              listIndent: 24.0,
-                              orderedListAlign: WrapAlignment.start,
-                              unorderedListAlign: WrapAlignment.start,
-                            ),
-                            onTapLink: (text, href, title) {
-                              if (href != null) {
-                                launchUrl(Uri.parse(href), 
-                                  mode: LaunchMode.externalApplication);
-                              }
-                            },
-                          ),
-                          if (message.answer.isNotEmpty)
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: IconButton(
-                                icon: Icon(
-                                  Icons.copy,
-                                  size: 18,
-                                  color: Theme.of(context).hintColor,
-                                ),
-                                tooltip: 'Copy to clipboard',
-                                padding: const EdgeInsets.only(left: 0),
-                                visualDensity: const VisualDensity(
-                                    horizontal: -4.0, vertical: 0),
-                                onPressed: () {
-                                  // Copy message to clipboard
-                                  Clipboard.setData(
-                                      ClipboardData(text: message.answer));
-
-                                  // Show a snackbar confirmation
-                                  GlobalSnackBar.show(
-                                    context: context,
-                                    message: 'Response copied to clipboard',
-                                    variant: SnackBarVariant.success,
-                                    duration: const Duration(seconds: 2),
-                                  );
-                                },
-                              ),
-                            ),
-                        ],
-                        // Show typing indicator for the last message when typing
-                        if (_isTyping && index == _messages.length - 1)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4.0, left: 4.0),
-                            child: TypingIndicator(isTyping: true),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          } else {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 32.0, left: 8, right: 16),
-              child: MarkdownBody(
-                data: messageText,
-                selectable: true,
-                styleSheet: MarkdownStyleSheet(
-                  p: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    height: 1.5,
-                  ),
-                  h1: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  h2: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  h3: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  listBullet: TextStyle(
-                    color: Theme.of(context).hintColor,
-                    height: 1.5,
-                  ),
-                  blockquote: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
-                    fontStyle: FontStyle.italic,
-                    height: 1.5,
-                  ),
-                  blockquoteDecoration: BoxDecoration(
-                    border: Border(
-                      left: BorderSide(
-                        color: Theme.of(context).colorScheme.primary.withAlpha(128),
-                        width: 4.0,
-                      ),
-                    ),
-                  ),
-                  blockquotePadding: const EdgeInsets.only(left: 16.0),
-                  code: TextStyle(
-                    fontFamily: 'monospace',
-                    color: Theme.of(context).colorScheme.onSurface,
-                    backgroundColor: Theme.of(context).colorScheme.surfaceDim,
-                  ),
-                  codeblockDecoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceDim,
-                    borderRadius: BorderRadius.circular(4.0),
-                  ),
-                  codeblockPadding: const EdgeInsets.all(8.0),
-                  a: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    decoration: TextDecoration.underline,
-                  ),
-                  listIndent: 24.0,
-                  orderedListAlign: WrapAlignment.start,
-                  unorderedListAlign: WrapAlignment.start,
-                ),
-                onTapLink: (text, href, title) {
-                  if (href != null) {
-                    launchUrl(Uri.parse(href), 
-                      mode: LaunchMode.externalApplication);
-                  }
-                },
-              ),
-            );
-          }
-        },
+      child: ChatZone(
+        messages: _messages,
+        isTyping: _isTyping,
+        scrollController: _scrollController,
       ),
     );
   }

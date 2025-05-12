@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:math';
+import 'package:ai_chat_bot/widgets/button.dart';
+import 'package:ai_chat_bot/widgets/information.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/knowledge_base_model.dart';
@@ -9,6 +11,7 @@ import 'connect_google_drive_dialog.dart';
 import 'connect_slack_dialog.dart';
 import 'connect_confluence_dialog.dart';
 import 'select_knowledge_source_dialog.dart';
+import '../../../core/constants/app_colors.dart';
 
 class KnowledgeBaseDetailScreen extends StatefulWidget {
   final String knowledgeBaseId;
@@ -19,34 +22,38 @@ class KnowledgeBaseDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<KnowledgeBaseDetailScreen> createState() => _KnowledgeBaseDetailScreenState();
+  State<KnowledgeBaseDetailScreen> createState() =>
+      _KnowledgeBaseDetailScreenState();
 }
 
 class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
   final KnowledgeBaseService _knowledgeBaseService = KnowledgeBaseService();
   bool _isLoading = true;
   KnowledgeBase? _knowledgeBase;
-  String? _error;  // Phương thức helper để định dạng bytes thành chuỗi đọc được
+  String? _error; // Phương thức helper để định dạng bytes thành chuỗi đọc được
   String _formatBytes(int? bytes) {
     print('KnowledgeBaseDetailScreen._formatBytes input: $bytes bytes');
     if (bytes == null || bytes <= 0) {
-      print('KnowledgeBaseDetailScreen._formatBytes returning: 0 B (null or <= 0)');
+      print(
+          'KnowledgeBaseDetailScreen._formatBytes returning: 0 B (null or <= 0)');
       return '0 B';
     }
-    
+
     const suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
     final i = (log(bytes) / log(1024)).floor();
     print('KnowledgeBaseDetailScreen._formatBytes suffixes index: $i');
-    
+
     // If less than 1 KB, show in bytes with no decimal places
     if (i == 0) {
       final result = '$bytes ${suffixes[i]}';
-      print('KnowledgeBaseDetailScreen._formatBytes returning: $result (bytes)');
+      print(
+          'KnowledgeBaseDetailScreen._formatBytes returning: $result (bytes)');
       return result;
     }
-    
+
     // Otherwise show with the specified number of decimal places
-    final result = '${(bytes / pow(1024, i)).toStringAsFixed(1)} ${suffixes[i]}';
+    final result =
+        '${(bytes / pow(1024, i)).toStringAsFixed(1)} ${suffixes[i]}';
     print('KnowledgeBaseDetailScreen._formatBytes returning: $result');
     return result;
   }
@@ -55,7 +62,9 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
   void initState() {
     super.initState();
     _loadKnowledgeBase();
-  }  Future<void> _loadKnowledgeBase() async {
+  }
+
+  Future<void> _loadKnowledgeBase() async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
@@ -64,17 +73,19 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
 
     try {
       // First get the basic knowledge base info
-      final knowledgeBase = await _knowledgeBaseService.getKnowledgeBase(widget.knowledgeBaseId);
-      
+      final knowledgeBase =
+          await _knowledgeBaseService.getKnowledgeBase(widget.knowledgeBaseId);
+
       debugPrint('Knowledge Base loaded: ${knowledgeBase.knowledgeName}');
       debugPrint('Initial sources count: ${knowledgeBase.sources.length}');
       debugPrint('Unit count (from getter): ${knowledgeBase.unitCount}');
-      
+
       // Now explicitly fetch datasources using the new method to ensure we get the latest data
       try {
-        final datasources = await _knowledgeBaseService.getDatasources(widget.knowledgeBaseId);
+        final datasources =
+            await _knowledgeBaseService.getDatasources(widget.knowledgeBaseId);
         debugPrint('Fetched ${datasources.length} datasources directly');
-        
+
         // Create an updated knowledge base with the fresh datasources
         final updatedKnowledgeBase = KnowledgeBase(
           id: knowledgeBase.id,
@@ -88,15 +99,18 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
           updatedAt: knowledgeBase.updatedAt,
           sources: datasources,
         );
-        
+
         // Debug each source
         for (var source in updatedKnowledgeBase.sources) {
-          debugPrint('Source: ${source.name}, fileSize: ${source.fileSize}, type: ${source.type}');
+          debugPrint(
+              'Source: ${source.name}, fileSize: ${source.fileSize}, type: ${source.type}');
         }
-        
+
         // Debug the total size
-        debugPrint('Total size (from getter): ${updatedKnowledgeBase.totalSize}');
-        debugPrint('Total size formatted: ${_formatBytes(updatedKnowledgeBase.totalSize)}');
+        debugPrint(
+            'Total size (from getter): ${updatedKnowledgeBase.totalSize}');
+        debugPrint(
+            'Total size formatted: ${_formatBytes(updatedKnowledgeBase.totalSize)}');
 
         if (!mounted) return;
         setState(() {
@@ -104,8 +118,9 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
           _isLoading = false;
         });
       } catch (datasourceError) {
-        debugPrint('Error fetching datasources: $datasourceError, using original knowledge base');
-        
+        debugPrint(
+            'Error fetching datasources: $datasourceError, using original knowledge base');
+
         // Use the original knowledge base if there was an error fetching datasources
         if (!mounted) return;
         setState(() {
@@ -150,16 +165,16 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       );
     }
   }
-  
+
   Future<void> _addKnowledgeUnit() async {
     // Show the select knowledge source dialog
     final result = await showDialog<String>(
       context: context,
       builder: (context) => const SelectKnowledgeSourceDialog(),
     );
-    
+
     if (result == null) return;
-    
+
     // Handle the selected source type
     switch (result) {
       case 'file':
@@ -183,6 +198,15 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
 
   Future<void> _uploadFile() async {
     try {
+
+      GlobalSnackBar.show(
+        context: context,
+        message: 'This feature is under maintenance',
+        variant: SnackBarVariant.info,
+      );
+
+      return;
+      // ignore: dead_code
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: false,
         type: FileType.any,
@@ -278,20 +302,17 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_knowledgeBase?.name ?? 'Knowledge Base'),
+        centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadKnowledgeBase,
-            tooltip: 'Refresh',
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadKnowledgeBase,
+              tooltip: 'Refresh',
+            ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addKnowledgeUnit,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Knowledge Unit'),
-        backgroundColor: const Color(0xFF6366F1), // Indigo color to match the button in the screenshot
-        foregroundColor: Colors.white,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -326,10 +347,29 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
         ],
       ),
     );
-  }  Widget _buildKnowledgeBaseDetail() {
+  }
+
+  Widget _buildKnowledgeBaseDetail() {
+    AppColors colors = Theme.of(context).brightness == Brightness.dark
+        ? AppColors.dark
+        : AppColors.light;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Padding(
+        //   padding: const EdgeInsets.all(16),
+        //   child: ElevatedButton.icon(
+        //     onPressed: _addKnowledgeUnit,
+        //     icon: const Icon(Icons.add),
+        //     label: const Text('Add Knowledge Unit'),
+        //     style: ElevatedButton.styleFrom(
+        //       backgroundColor: const Color(0xFF6366F1), // Indigo color to match the button in the screenshot
+        //       foregroundColor: Colors.white,
+        //     ),
+        //   ),
+        // ),
+
         // Knowledge base header card
         Card(
           margin: const EdgeInsets.all(16),
@@ -342,125 +382,125 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Top row with status badge and indicators
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Title
-                    Expanded(
-                      child: Text(
-                        _knowledgeBase!.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    // Status badge
+                    _buildStatusBadge(_knowledgeBase!.status),
+
+                    const SizedBox(width: 12),
+
+                    // Unit count
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: colors.green.withAlpha(24),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.description_outlined,
+                            size: 16,
+                            color: colors.green,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_knowledgeBase!.unitCount} ${_knowledgeBase!.unitCount == 1 ? 'unit' : 'units'}',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: colors.green,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                          ),
+                        ],
                       ),
                     ),
-                    // Refresh button
-                    IconButton(
-                      icon: const Icon(Icons.refresh),
-                      tooltip: 'Refresh datasources',
-                      onPressed: _loadKnowledgeBase,
+
+                    const SizedBox(width: 12),
+
+                    // Size
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withAlpha(24),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.data_usage,
+                            size: 16,
+                            color: colors.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatBytes(_knowledgeBase!.totalSize),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: colors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                          ),
+                        ],
+                      ),
                     ),
+
+                    const Spacer(),
+
+                    // Refresh button could be added here if needed
                   ],
                 ),
-                
+
+                const SizedBox(height: 12),
+
+                // Knowledge base name
+                Text(
+                  _knowledgeBase!.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
                 // Description
                 if (_knowledgeBase!.description.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.only(top: 4.0, left: 1.0),
                     child: Text(
                       _knowledgeBase!.description,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).hintColor,
+                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                
-                const SizedBox(height: 16),
-                
-                // Status badge and dates
+
+                const SizedBox(height: 20),
+
+                // Bottom row with dates and action buttons
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildStatusBadge(_knowledgeBase!.status),
-                    const SizedBox(width: 16),
                     Text(
                       'Created: ${_formatDate(_knowledgeBase!.createdAt)}',
-                      style: const TextStyle(fontSize: 12),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).hintColor,
+                          ),
                     ),
-                    const SizedBox(width: 16),
                     Text(
                       'Updated: ${_formatDate(_knowledgeBase!.updatedAt)}',
-                      style: const TextStyle(fontSize: 12),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).hintColor,
+                          ),
                     ),
+
+                    // Action buttons row
                   ],
-                ),
-                
-                const SizedBox(height: 8),
-                
-                // Units count and total size
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.green[50],
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '${_knowledgeBase!.unitCount} ${_knowledgeBase!.unitCount == 1 ? 'unit' : 'units'}',
-                        style: TextStyle(
-                          color: Colors.green[700],
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _formatBytes(_knowledgeBase!.totalSize),
-                        style: TextStyle(
-                          color: Colors.blue[700],
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Action buttons
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildActionButton(
-                        'Upload File',
-                        Icons.upload_file,
-                        _uploadFile,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildActionButton(
-                        'Website URL',
-                        Icons.language,
-                        _addWebsiteSource,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildActionButton(
-                        'Google Drive',
-                        Icons.folder_shared,
-                        _connectGoogleDrive,
-                      ),
-                      // Add more buttons as needed
-                    ],
-                  ),
                 ),
               ],
             ),
@@ -468,74 +508,65 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
         ),
 
         // Data Sources Header
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'Data Sources',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(context).textTheme.titleMedium,
           ),
+        ),
+
+        const SizedBox(height: 4),
+
+        Padding(
+          padding: const EdgeInsets.only(left: 18),
+          child: Text(
+            'Upload from:',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).hintColor,
+                  fontStyle: FontStyle.italic,
+                ),
+          ),
+        ),
+
+        const SizedBox(height: 4),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildActionButton(
+              'File',
+              Icons.upload_file,
+              _uploadFile,
+            ),
+            const SizedBox(width: 8),
+            _buildActionButton(
+              'URL',
+              Icons.language,
+              _addWebsiteSource,
+            ),
+            const SizedBox(width: 8),
+            _buildActionButton(
+              'Drive',
+              Icons.folder_shared,
+              _connectGoogleDrive,
+            ),
+          ],
         ),
 
         // Sources list or empty state
         Expanded(
           child: _knowledgeBase!.sources.isEmpty
-              ? _buildEmptySourcesView()
+              ? InformationIndicator(
+                  message: 'No data sources added yet',
+                  variant: InformationVariant.info,
+                )
               : _buildSourcesList(),
         ),
       ],
     );
   }
-
-  Widget _buildEmptySourcesView() {
-    return Card(
-      margin: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      elevation: 1,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.folder_outlined,
-              size: 64,
-              color: Colors.grey,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No data sources added yet',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Add your first data source using the buttons above',
-              style: TextStyle(
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _uploadFile,
-              icon: const Icon(Icons.upload_file),
-              label: const Text('Upload a File'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+  
   Widget _buildSourcesList() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -592,26 +623,28 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       },
     );
   }
-  Widget _buildActionButton(String label, IconData icon, VoidCallback onPressed) {
-    return OutlinedButton.icon(
+
+  Widget _buildActionButton(
+      String label, IconData icon, VoidCallback onPressed) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    return Button(
       onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        foregroundColor: Colors.black87,
-        side: BorderSide(color: Colors.grey[300]!),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
+      icon: icon,
+      label: label,
+      variant: ButtonVariant.normal,
+      isDarkMode: isDarkMode,
+      size: ButtonSize.medium,
+      fontWeight: FontWeight.bold,
+      width: 120,
+      fullWidth: false,
+      radius: ButtonRadius.small,
     );
   }
 
   Widget _buildStatusBadge(String status) {
     Color color;
     IconData icon;
-    
+
     switch (status.toLowerCase()) {
       case 'active':
         color = Colors.green;
@@ -629,25 +662,32 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
         color = Colors.grey;
         icon = Icons.help;
     }
-    
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          color: color,
-          size: 16,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          status,
-          style: TextStyle(
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withAlpha(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withAlpha(160)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
             color: color,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
+            size: 14,
           ),
-        ),
-      ],
+          const SizedBox(width: 4),
+          Text(
+            status,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -143,17 +143,17 @@ class GlobalSnackBar {
       case SnackBarVariant.error:
         backgroundColor = colors.red;
         foregroundColor = colors.redForeground;
-        iconData = Icons.error_outline;
+        iconData = Icons.error;
         break;
       case SnackBarVariant.warning:
         backgroundColor = colors.yellow;
         foregroundColor = colors.yellowForeground;
-        iconData = Icons.warning_amber_outlined;
+        iconData = Icons.warning_amber;
         break;
       case SnackBarVariant.success:
-        backgroundColor = colors.green;
-        foregroundColor = colors.greenForeground;
-        iconData = Icons.check_circle_outline;
+        backgroundColor = colors.card;
+        foregroundColor = colors.cardForeground;
+        iconData = Icons.check_circle;
         break;
     }
 
@@ -184,7 +184,7 @@ class GlobalSnackBar {
               height: 16,
               child: CircularProgressIndicator(
                 color: foregroundColor,
-                strokeWidth: 2,
+                strokeWidth: 2.5,
               ),
             ),
           const SizedBox(width: 12),
@@ -272,6 +272,29 @@ class DrawerTopIndicator extends StatelessWidget {
           borderRadius: BorderRadius.circular(2),
         ),
       ),
+    );
+  }
+}
+
+class ResultsCountIndicator extends StatelessWidget {
+  final int filteredCount;
+  final int totalCount;
+  final String itemType;
+
+  const ResultsCountIndicator({
+    super.key,
+    required this.filteredCount,
+    required this.totalCount,
+    required this.itemType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text('Showing $filteredCount of $totalCount $itemType',
+            style: Theme.of(context).textTheme.bodySmall),
+      ],
     );
   }
 }
