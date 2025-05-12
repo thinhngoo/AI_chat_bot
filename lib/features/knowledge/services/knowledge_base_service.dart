@@ -510,8 +510,7 @@ class KnowledgeBaseService {  // Using just the base domain without the path
       _log('Error fetching datasources: $e', isError: true);
       rethrow;
     }  }
-  
-  // Upload a local file to a knowledge base
+    // Upload a local file to a knowledge base - Two-step process
   Future<KnowledgeSource> uploadLocalFile(
     String knowledgeBaseId,
     File file,
@@ -520,66 +519,164 @@ class KnowledgeBaseService {  // Using just the base domain without the path
       final token = await _getToken();
       final fileName = path.basename(file.path);
       final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
-      
-      // Use the correct endpoint path format that matches other API calls
-      final endpoint = '$baseUrl$apiPath/$knowledgeBaseId/datasources';
-      _log('Uploading file to knowledge base using endpoint: $endpoint');      // Create multipart form data for the file upload with proper metadata
       final fileSize = await file.length();
-      _log('Preparing to upload file: $fileName, size: $fileSize bytes, type: $mimeType');      // Create a FormData object manually to ensure proper array formatting
-      final formData = FormData();
       
-      // Add the file part
-      formData.files.add(MapEntry(
-        'file',
+      _log('Starting two-step file upload process...');
+      _log('Step 1: Upload file to storage to get file ID');
+      
+      // Step 1: Upload the file to get a file ID
+      final fileUploadEndpoint = '$baseUrl$apiPath/files';
+      _log('Uploading file to: $fileUploadEndpoint');
+      
+      // Create FormData for file upload only
+      final fileFormData = FormData();
+      fileFormData.files.add(MapEntry(
+        'files', // Field name should be "files" based on the curl example
         await MultipartFile.fromFile(
           file.path,
           filename: fileName,
           contentType: MediaType.parse(mimeType),
         )
-      ));      // The datasources field needs to be properly formatted as individual fields
-      // Use 'datasources[]' notation to ensure it's recognized as an array
+      ));
       
-      formData.fields.add(MapEntry('datasources[0][name]', fileName));
-      formData.fields.add(MapEntry('datasources[0][type]', 'file'));
-      formData.fields.add(MapEntry('datasources[0][fileType]', mimeType));
-      formData.fields.add(MapEntry('datasources[0][fileSize]', fileSize.toString()));
-      formData.fields.add(MapEntry('datasources[0][status]', 'active'));// Log the full request details for debugging      _log('Making upload request to: $endpoint');
-      _log('File name: $fileName, MIME type: $mimeType, size: $fileSize bytes');
-      _log('FormData structure: Using datasources[0][field] notation for array elements');
-      _log('Datasources fields: ${formData.fields.toString()}');
+      // Log the request details
+      _log('Uploading file: $fileName, size: $fileSize bytes, type: $mimeType');
       
-      // Upload the file using the correct endpoint
-      final response = await _dio.post(
-        endpoint,
-        data: formData,  // Using formData with the file
-        options: Options(          headers: {
+      // Make the first API call to upload the file
+      final fileUploadResponse = await _dio.post(
+        fileUploadEndpoint,
+        data: fileFormData,
+        options: Options(
+          headers: {
             'Authorization': 'Bearer $token',
-            // Don't explicitly set Content-Type for multipart/form-data
-            // Let Dio handle this automatically with the proper boundary
+            // Let Dio handle Content-Type with proper boundary
           },
         ),
       );
-
-      _log('Upload file response status: ${response.statusCode}');      if (response.statusCode == 201 || response.statusCode == 200) {
-        _log('File uploaded successfully', isError: false);
-        return KnowledgeSource.fromJson(response.data);
-      } else if (response.statusCode == 401) {
+      
+      _log('File upload response status: ${fileUploadResponse.statusCode}');
+      
+      if (!(fileUploadResponse.statusCode == 200 || fileUploadResponse.statusCode == 201)) {
+        _log('Error uploading file: ${fileUploadResponse.data}', isError: true);
+        throw Exception('Failed to upload file: ${fileUploadResponse.statusCode}');
+      }
+        // Extract file ID from the response
+      String? fileId;
+      
+      final responseData = fileUploadResponse.data;
+      _log('Examining file upload response structure: ${responseData.runtimeType}', isError: false);
+      
+      if (responseData is Map) {
+        // Check if response contains a "files" array
+        if (responseData.containsKey('files') && responseData['files'] is List && responseData['files'].isNotEmpty) {
+          final firstFile = responseData['files'][0];
+          if (firstFile is Map && firstFile.containsKey('id')) {
+            fileId = firstFile['id'];
+            _log('Found file ID in files[0].id: $fileId', isError: false);
+          }
+        } 
+        // Direct ID in response (fallback)
+        else if (responseData.containsKey('id')) {
+          fileId = responseData['id'];
+          _log('Found file ID directly in response.id: $fileId', isError: false);
+        } 
+        // Another common field name (fallback)
+        else if (responseData.containsKey('fileId')) {
+          fileId = responseData['fileId'];
+          _log('Found file ID in response.fileId: $fileId', isError: false);
+        }
+      }
+          
+      if (fileId == null) {
+        _log('File uploaded but no file ID received: $responseData', isError: true);
+        throw Exception('File uploaded but no file ID received from API');
+      }
+      
+      _log('File uploaded successfully, received file ID: $fileId');
+      _log('Step 2: Creating datasource with the file ID');
+      
+      // Step 2: Create a datasource with the file ID
+      final datasourceEndpoint = '$baseUrl$apiPath/$knowledgeBaseId/datasources';
+      _log('Creating datasource at: $datasourceEndpoint');
+        // Prepare the JSON payload with the file ID
+      final datasourcePayload = {
+        'datasources': [
+          {
+            'type': 'local_file',
+            'name': fileName,
+            'credentials': {
+              'file': fileId
+            }
+          }
+        ]
+      };
+      
+      _log('Datasource payload: $datasourcePayload');
+      _log('File name: $fileName, File ID: $fileId', isError: false);
+      
+      // Make the second API call to create the datasource
+      final datasourceResponse = await _dio.post(
+        datasourceEndpoint,
+        data: datasourcePayload,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+      
+      _log('Create datasource response status: ${datasourceResponse.statusCode}');
+        if (datasourceResponse.statusCode == 201 || datasourceResponse.statusCode == 200) {
+        _log('Datasource created successfully', isError: false);
+        
+        // Parse the response to get the datasource
+        final responseData = datasourceResponse.data;
+        _log('Datasource response data: $responseData', isError: false);
+        
+        // Handle different response structures
+        dynamic datasource;
+        if (responseData is List && responseData.isNotEmpty) {
+          datasource = responseData.first;
+          _log('Found datasource in response list[0]', isError: false);
+        } else if (responseData is Map) {
+          if (responseData.containsKey('datasources') && responseData['datasources'] is List && responseData['datasources'].isNotEmpty) {
+            datasource = responseData['datasources'][0];
+            _log('Found datasource in response.datasources[0]', isError: false);
+          } else if (responseData.containsKey('datasource')) {
+            datasource = responseData['datasource'];
+            _log('Found datasource in response.datasource', isError: false);
+          } else {
+            // If no nested structure, use the entire response
+            datasource = responseData;
+            _log('Using entire response as datasource', isError: false);
+          }
+        }
+        
+        if (datasource != null) {
+          _log('Parsed datasource: $datasource', isError: false);
+          return KnowledgeSource.fromJson(datasource);
+        } else {
+          _log('Unable to parse datasource from response: $responseData', isError: true);
+          throw Exception('Created datasource but failed to parse the response');
+        }
+      } else if (datasourceResponse.statusCode == 401) {
         _log('Authentication error (401): Token might be expired', isError: true);
-        // Try to refresh token or prompt for re-authentication
-        throw Exception('Authentication error: Please log in again');      } else if (response.statusCode == 404) {
-        _log('Endpoint not found (404): API endpoint for file upload is incorrect', isError: true);
-        throw Exception('API endpoint not found: The files upload endpoint does not exist');
+        throw Exception('Authentication error: Please log in again');
+      } else if (datasourceResponse.statusCode == 404) {
+        _log('Endpoint not found (404): API endpoint for datasource creation is incorrect', isError: true);
+        throw Exception('API endpoint not found: The datasource creation endpoint does not exist');
       } else {
-        _log('Error response (${response.statusCode}): ${response.data}', isError: true);
-        throw Exception('Failed to upload file (Status ${response.statusCode}): ${response.data}');
+        _log('Error response (${datasourceResponse.statusCode}): ${datasourceResponse.data}', isError: true);
+        throw Exception('Failed to create datasource (Status ${datasourceResponse.statusCode}): ${datasourceResponse.data}');
       }    } catch (e) {
       if (e is DioException) {
-        _log('DioException uploading file: ${e.message}', isError: true);
+        _log('DioException in file upload process: ${e.message}', isError: true);
         if (e.response != null) {
           _log('Response status: ${e.response?.statusCode}', isError: true);
           _log('Response data: ${e.response?.data}', isError: true);
           
-          // Enhanced debugging for the "Unexpected field" error
+          // Enhanced debugging
           if (e.response?.statusCode == 400) {
             final data = e.response?.data;
             if (data is Map && data.containsKey('message')) {
@@ -588,48 +685,45 @@ class KnowledgeBaseService {  // Using just the base domain without the path
               
               _log('Bad request (400) details: $details', isError: true);
               
+              // Common error patterns
               if (message.contains('Unexpected field')) {
-                _log('Received "Unexpected field" error. This usually means the API expects a different form field structure.', isError: true);
-                _log('Current form data structure: file field and datasources array with metadata', isError: true);
-              } else if (details != null && details.toString().contains('datasources')) {
-                _log('Issue with datasources field format. API expects specific structure for datasources array.', isError: true);
-                _log('Check if datasources needs to be properly formatted or contains required fields.', isError: true);
+                _log('Received "Unexpected field" error. The API may expect a different field name than "files" or other structure.', isError: true);
+              } else if (details != null && details.toString().contains('credentials')) {
+                _log('Issue with credentials format. API expects specific structure for file credentials.', isError: true);
               }
             }
           }
           
           // Handle specific status codes with more informative messages
           if (e.response?.statusCode == 404) {
-            throw Exception('API endpoint not found (404): The files upload endpoint does not exist');
+            throw Exception('API endpoint not found (404): Check if the files or datasources endpoint exists');
           } else if (e.response?.statusCode == 401) {
             throw Exception('Authentication error (401): Your session has expired. Please log in again');
           } else if (e.response?.statusCode == 403) {
             throw Exception('Access denied (403): You do not have permission to upload files to this knowledge base');
           } else if (e.response?.statusCode == 413) {
             throw Exception('File too large (413): The selected file exceeds the maximum allowed size');
-          } else if (e.response?.statusCode == 400) {
-            // Parse error response for more helpful messages
+          } else if (e.response?.statusCode == 400) {            // Parse error response for more helpful messages
             final data = e.response?.data;
             if (data is Map && data.containsKey('message')) {
-              final message = data['message'];
-              if (message.toString().contains('Unexpected field')) {
-                throw Exception('Bad request (400): API format has changed - check API documentation for correct file upload format');
-              } else {
-                throw Exception('Bad request (400): ${data['message']}');
-              }
+              throw Exception('Bad request (400): ${data['message']}');
             } else {
-              throw Exception('Bad request (400): The knowledge base ID may be invalid or missing');
+              throw Exception('Bad request (400): Check file format or knowledge base ID');
             }
           }
         }
-          // Check DioException type for specific error handling
-        if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.sendTimeout || e.type == DioExceptionType.receiveTimeout) {
+        
+        // Check DioException type for specific error handling
+        if (e.type == DioExceptionType.connectionTimeout || 
+            e.type == DioExceptionType.sendTimeout || 
+            e.type == DioExceptionType.receiveTimeout) {
           throw Exception('Connection timeout: The server took too long to respond');
         } else if (e.type == DioExceptionType.badResponse) {
-          throw Exception('Error uploading file (${e.response?.statusCode}): ${e.response?.data}');
+          throw Exception('Error in API response (${e.response?.statusCode}): ${e.response?.data}');
         } else {
           throw Exception('Network error: ${e.message}');
-        }} else {
+        }
+      } else {
         _log('Error uploading file: $e', isError: true);
         rethrow;
       }
