@@ -4,6 +4,7 @@ import 'package:logger/logger.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/knowledge_data.dart';
 import '../services/bot_service.dart';
+import '../../knowledge/presentation/create_knowledge_base_drawer.dart';
 
 class KnowledgeManagementScreen extends StatefulWidget {
   const KnowledgeManagementScreen({super.key});
@@ -43,73 +44,7 @@ class _KnowledgeManagementScreenState extends State<KnowledgeManagementScreen>
   
   // New dialog for creating knowledge base
   void _showCreateKnowledgeBaseDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create a Knowledge Base'),
-        content: SizedBox(
-          width: 500,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Knowledge Base Name Field
-              const Text(
-                'Knowledge Base Name',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  hintText: 'Enter a unique name for your knowledge base',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const Text(
-                '0/50 characters',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-                textAlign: TextAlign.end,
-              ),
-              const SizedBox(height: 16),
-              
-              // Description Field
-              const Text(
-                'Description',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                  hintText: 'Briefly describe the purpose of this knowledge base (e.g., Jarvis AI\'s knowledge base,...)',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-              const Text(
-                '0/500 characters',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-                textAlign: TextAlign.end,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _createKnowledgeBase();
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
-    );
+    CreateKnowledgeBaseDrawer.show(context, _fetchKnowledgeBases);
   }
 
   @override
@@ -160,53 +95,6 @@ class _KnowledgeManagementScreenState extends State<KnowledgeManagementScreen>
         _errorMessage = e.toString();
         _isLoading = false;
       });
-    }
-  }
-
-  // Create a new knowledge base
-  Future<void> _createKnowledgeBase() async {
-    if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a name for the knowledge base'))
-      );
-      return;
-    }
-    
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-      
-      final newKnowledgeBase = await _botService.createKnowledgeBase(
-        name: _nameController.text,
-        description: _descriptionController.text,
-      );
-      
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Knowledge base "${newKnowledgeBase.name}" created successfully'))
-      );
-      
-      // Clear form fields
-      _nameController.clear();
-      _descriptionController.clear();
-      
-      // Refresh the list
-      _fetchKnowledgeBases();
-      
-    } catch (e) {
-      _logger.e('Error creating knowledge base: $e');
-      
-      if (!mounted) return;
-      
-      setState(() {
-        _isLoading = false;
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error creating knowledge base: $e'))
-      );
     }
   }
 
@@ -1075,7 +963,7 @@ class _KnowledgeManagementScreenState extends State<KnowledgeManagementScreen>
                                     ElevatedButton.icon(
                                       onPressed: () {
                                         if (_nameController.text.isNotEmpty) {
-                                          _createKnowledgeBase();
+                                          _showCreateKnowledgeBaseDialog();
                                         } else {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             const SnackBar(content: Text('Please enter a name for the knowledge base'))

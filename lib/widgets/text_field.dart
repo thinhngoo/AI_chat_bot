@@ -228,7 +228,7 @@ class FloatingLabelTextField extends StatelessWidget {
               counterText: '',
               hintText: prefixIcon == null ? hintText : null,
               hintStyle: TextStyle(
-                color: colors.muted,
+                color: colors.muted.withAlpha(180),
               ),
               labelText: label,
               labelStyle: TextStyle(
@@ -262,6 +262,127 @@ class FloatingLabelTextField extends StatelessWidget {
             ),
             onChanged: onChanged,
             onSubmitted: onSubmitted,
+          ),
+        ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 4),
+            child: Text(
+              errorText!,
+              style: TextStyle(
+                color: colors.red,
+                fontSize: 12,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// A styled dropdown that matches the FloatingLabelTextField design
+class StyledDropdown<T> extends StatelessWidget {
+  final String label;
+  final String hintText;
+  final T? value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?>? onChanged;
+  final bool darkMode;
+  final String? errorText;
+  final bool enabled;
+  final IconData? prefixIcon;
+
+  const StyledDropdown({
+    super.key,
+    required this.label,
+    required this.hintText,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.darkMode = false,
+    this.errorText,
+    this.enabled = true,
+    this.prefixIcon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final AppColors colors = darkMode ? AppColors.dark : AppColors.light;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: colors.input,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: DropdownButtonFormField<T>(
+            value: value,
+            items: items,
+            onChanged: enabled ? onChanged : null,
+            decoration: InputDecoration(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: errorText != null ? colors.red : colors.border,
+                  width: 1,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: colors.ring,
+                  width: 1.5,
+                ),
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: colors.border.withAlpha(100),
+                  width: 1,
+                ),
+              ),
+              labelText: label,
+              labelStyle: TextStyle(
+                color: colors.muted,
+              ),
+              floatingLabelStyle: TextStyle(
+                color: colors.foreground,
+              ),
+              floatingLabelBehavior: FloatingLabelBehavior.auto,
+              hintText: hintText,
+              hintStyle: TextStyle(
+                color: colors.muted.withAlpha(180),
+              ),
+              filled: false,
+              prefixIcon: prefixIcon != null
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 12, right: 8),
+                      child: Icon(
+                        prefixIcon,
+                        color: colors.muted,
+                      ),
+                    )
+                  : null,
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 40,
+                minHeight: 40,
+              ),
+            ),
+            icon: Icon(
+              Icons.arrow_drop_down,
+              color: colors.muted,
+            ),
+            dropdownColor: colors.card,
+            style: TextStyle(
+              color: colors.inputForeground,
+            ),
+            isExpanded: true,
           ),
         ),
         if (errorText != null)

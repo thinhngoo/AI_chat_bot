@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/knowledge_base_service.dart';
+import '../../../widgets/button.dart';
+import '../../../widgets/text_field.dart';
 
 class ConnectGoogleDriveDialog extends StatefulWidget {
   final String knowledgeBaseId;
@@ -84,9 +86,17 @@ class _ConnectGoogleDriveDialogState extends State<ConnectGoogleDriveDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.onSurface.withAlpha(30),
+          width: 1,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: ConstrainedBox(
@@ -97,95 +107,145 @@ class _ConnectGoogleDriveDialogState extends State<ConnectGoogleDriveDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Icon(
+                  Icons.folder_shared,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                const SizedBox(height: 16),
                 Text(
                   'Connect Google Drive',
-                  style: theme.textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                      ),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Connect your Google Drive to import documents.',
-                  style: theme.textTheme.bodyMedium,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
+                      ),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+                
                 if (_googleUser == null) ...[
-                  Center(
-                    child: ElevatedButton.icon(
-                      onPressed: _isConnecting ? null : _signInWithGoogle,
-                      icon: const Icon(Icons.login),
-                      label: _isConnecting
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Sign in with Google'),
-                    ),
+                  const SizedBox(height: 12),
+                  Button(
+                    label: 'Sign in with Google',
+                    icon: Icons.login,
+                    onPressed: _isConnecting ? null : _signInWithGoogle,
+                    variant: ButtonVariant.primary,
+                    isDarkMode: isDarkMode,
+                    fontWeight: FontWeight.bold,
                   ),
                 ] else ...[
-                  ListTile(
-                    leading: CircleAvatar(
-                      backgroundImage: _googleUser?.photoUrl != null
-                          ? NetworkImage(_googleUser!.photoUrl!)
-                          : null,
-                      child: _googleUser?.photoUrl == null
-                          ? Text(_googleUser!.displayName![0])
-                          : null,
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(30),
+                      ),
                     ),
-                    title: Text(_googleUser!.displayName ?? 'Google User'),
-                    subtitle: Text(_googleUser!.email),
-                    trailing: TextButton(
-                      onPressed: () {
-                        _googleSignIn.signOut();
-                        setState(() {
-                          _googleUser = null;
-                        });
-                      },
-                      child: const Text('Change'),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundImage: _googleUser?.photoUrl != null
+                              ? NetworkImage(_googleUser!.photoUrl!)
+                              : null,
+                          child: _googleUser?.photoUrl == null
+                              ? Text(_googleUser!.displayName![0])
+                              : null,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _googleUser!.displayName ?? 'Google User',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                _googleUser!.email,
+                                style: TextStyle(
+                                  color: Theme.of(context).hintColor,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Button(
+                          label: 'Change',
+                          onPressed: () {
+                            _googleSignIn.signOut();
+                            setState(() {
+                              _googleUser = null;
+                            });
+                          },
+                          variant: ButtonVariant.ghost,
+                          isDarkMode: isDarkMode,
+                          size: ButtonSize.small,
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
+                  const SizedBox(height: 20),
+                  CustomTextField(
                     controller: _fileIdController,
-                    decoration: const InputDecoration(
-                      labelText: 'Google Drive File/Folder ID',
-                      hintText: 'Enter the ID from the Drive URL',
-                      prefixIcon: Icon(Icons.folder_shared),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a file or folder ID';
-                      }
-                      return null;
-                    },
+                    label: 'Google Drive File/Folder ID',
+                    hintText: 'Enter the ID from the Drive URL',
+                    prefixIcon: Icons.folder_shared,
+                    darkMode: isDarkMode,
+                    errorText: _error,
                   ),
                 ],
-                if (_error != null) ...[
+                
+                if (_error != null && _googleUser != null) ...[
                   const SizedBox(height: 16),
                   Text(
                     _error!,
                     style: TextStyle(
-                      color: theme.colorScheme.error,
+                      color: Theme.of(context).colorScheme.error,
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
+                
+                const SizedBox(height: 30),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    TextButton(
-                      onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
+                    Expanded(
+                      child: Button(
+                        label: 'Cancel',
+                        onPressed: _isLoading 
+                            ? null 
+                            : () => Navigator.of(context).pop(),
+                        variant: ButtonVariant.ghost,
+                        isDarkMode: isDarkMode,
+                        color: isDarkMode
+                            ? Theme.of(context).colorScheme.onSurface.withAlpha(180)
+                            : Theme.of(context).colorScheme.onSurface.withAlpha(120),
+                      ),
                     ),
-                    const SizedBox(width: 16),
-                    ElevatedButton(
-                      onPressed: (_isLoading || _googleUser == null) ? null : _connectGoogleDrive,
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Connect'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Button(
+                        label: 'Connect',
+                        onPressed: (_isLoading || _googleUser == null) 
+                            ? null 
+                            : _connectGoogleDrive,
+                        variant: ButtonVariant.primary,
+                        isDarkMode: isDarkMode,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),

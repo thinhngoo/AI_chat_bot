@@ -193,16 +193,21 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
       );
 
       if (success && mounted) {
+        // Refresh subscription data to ensure cache is updated
+        await _subscriptionService.getCurrentSubscription(forceRefresh: true);
+        
         // Show success dialog
-        await GlobalDialog.show(
-          context: context,
-          title: 'Subscription Activated',
-          message: 'Your Pro subscription has been activated successfully! '
-                'You now have unlimited tokens and access to all premium features.',
-          variant: DialogVariant.success,
-          confirmLabel: 'OK',
-          barrierDismissible: false,
-        );
+        if (mounted) {
+          await GlobalDialog.show(
+            context: context,
+            title: 'Subscription Activated',
+            message: 'Your Pro subscription has been activated successfully! '
+                  'You now have unlimited tokens and access to all premium features.',
+            variant: DialogVariant.success,
+            confirmLabel: 'OK',
+            barrierDismissible: false,
+          );
+        }
 
         // Return to previous screen
         if (mounted) {
@@ -341,9 +346,11 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Upgrade to Pro'),
+        centerTitle: true,
       ),
       body: _isLoading
           ? InformationIndicator(
@@ -356,7 +363,9 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildPricingCard(),
-                    const SizedBox(height: 40),
+
+                    if (_currentSubscription != null)
+                      const SizedBox(height: 40),
 
                     _buildPaymentForm(),
                     const SizedBox(height: 32),
@@ -398,10 +407,8 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                       fontWeight: FontWeight.bold,
                     ),
 
-                    const SizedBox(height: 16),
-                    
                     Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.only(top: 16, bottom: 32),
                         child: Text(
                           'By upgrading, you agree to our Terms of Service and Privacy Policy. '
                           'Subscriptions will automatically renew unless canceled at least 24 hours '
@@ -412,8 +419,6 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                                   ),
                           textAlign: TextAlign.center,
                         )),
-
-                    const SizedBox(height: 20),
                   ],
                 ),
               ),

@@ -6,6 +6,10 @@ import 'bot_detail_screen.dart';
 import 'create_bot_screen.dart';
 import 'bot_preview_screen.dart';
 import 'bot_sharing_screen.dart';
+import '../../../widgets/text_field.dart';
+import '../../../widgets/information.dart';
+import '../../../widgets/button.dart';
+import '../../../widgets/dialog.dart';
 
 class BotListScreen extends StatefulWidget {
   const BotListScreen({super.key});
@@ -31,30 +35,30 @@ class _BotListScreenState extends State<BotListScreen>
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize the animation controller properly
     _refreshIconController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
-    
+
     // First try to fetch from cache (forceRefresh: false), then do a background refresh
     _initialFetch();
   }
-  
+
   // Two-phase loading strategy: Quick load from cache, then refresh in background
   Future<void> _initialFetch() async {
     try {
       // Phase 1: Load from cache if available (fast)
       final cachedBots = await _botService.getBots(forceRefresh: false);
-      
+
       if (mounted) {
         setState(() {
           _bots = cachedBots;
           // Keep _isLoading true for the background refresh
         });
       }
-      
+
       // Phase 2: Then refresh from network in background (accurate)
       _fetchBots(forceRefresh: true);
     } catch (e) {
@@ -70,6 +74,7 @@ class _BotListScreenState extends State<BotListScreen>
     _searchController.dispose();
     super.dispose();
   }
+
   Future<void> _fetchBots({bool forceRefresh = true}) async {
     try {
       setState(() {
@@ -97,11 +102,10 @@ class _BotListScreenState extends State<BotListScreen>
           _refreshIconController.stop();
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        GlobalSnackBar.show(
+          context: context,
+          message: 'Error: ${e.toString()}',
+          variant: SnackBarVariant.error,
         );
       }
     }
@@ -121,19 +125,16 @@ class _BotListScreenState extends State<BotListScreen>
           _isLoading = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Bot "${bot.name}" deleted successfully'),
-            backgroundColor: Colors.green,
-            action: SnackBarAction(
-              label: 'UNDO',
-              textColor: Colors.white,
-              onPressed: () {
-                // In a real app, you might want to restore the deleted bot
-                _fetchBots();
-              },
-            ),
-          ),
+        GlobalSnackBar.show(
+          context: context,
+          message: 'Bot "${bot.name}" deleted successfully',
+          variant: SnackBarVariant.success,
+          // Add undo action
+          // actionLabel: 'Undo',
+          // onActionPressed: () {
+          //   // In a real app, you might want to restore the deleted bot
+          //   _fetchBots();
+          // },
         );
       }
     } catch (e) {
@@ -144,11 +145,10 @@ class _BotListScreenState extends State<BotListScreen>
           _isLoading = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error deleting bot: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        GlobalSnackBar.show(
+          context: context,
+          message: 'Error deleting bot: ${e.toString()}',
+          variant: SnackBarVariant.error,
         );
       }
     }
@@ -187,21 +187,34 @@ class _BotListScreenState extends State<BotListScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
         title: Text('Bot Management'),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: RotationTransition(
-              turns: _refreshIconController,
-              child: const Icon(Icons.refresh),
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: IconButton(
+            icon: Icon(
+              Icons.refresh,
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
             ),
             onPressed: _isLoading ? null : _fetchBots,
             tooltip: 'Refresh',
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: IconButton(
+              icon: Icon(
+                Icons.add_circle_outline,
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
+              ),
+              tooltip: 'Create new bot',
+              onPressed: _createBot,
+            ),
           ),
         ],
       ),
@@ -209,30 +222,24 @@ class _BotListScreenState extends State<BotListScreen>
         children: [
           // Search bar
           Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
+            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 12.0),
+            child: CustomTextField(
               controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search bots...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                filled: true,                fillColor: isDarkMode
-                    ? Colors.grey.shade800.withAlpha(127) // Changed from withOpacity(0.5) to withAlpha(127) - 0.5*255=127
-                    : Colors.grey.shade50,
-              ),
+              label: 'Search',
+              hintText: 'Search bots...',
+              prefixIcon: Icons.search,
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                      },
+                    )
+                  : null,
+              darkMode: isDarkMode,
               onChanged: (value) {
                 setState(() {
                   _searchQuery = value;
@@ -244,28 +251,29 @@ class _BotListScreenState extends State<BotListScreen>
           // Stats summary
           if (!_isLoading && _errorMessage.isEmpty && _bots.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding:
+                  const EdgeInsets.only(left: 26.0, right: 20.0, bottom: 8.0),
               child: Row(
                 children: [
-                  Text(
-                    'Showing ${_filteredBots.length} of ${_bots.length} bots',                    style: TextStyle(
-                      color: theme.colorScheme.onSurface.withAlpha(178), // Changed from withOpacity(0.7) to withAlpha(178) - 0.7*255=178
-                      fontWeight: FontWeight.w500,
-                    ),
+                  ResultsCountIndicator(
+                    filteredCount: _filteredBots.length,
+                    totalCount: _bots.length,
+                    itemType: 'bots',
                   ),
                   const Spacer(),
-                  Chip(
-                    label: Text(
-                      '${_bots.where((bot) => bot.isPublished).length} published',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    backgroundColor: theme.colorScheme.primary.withAlpha(25), // Changed from withOpacity(0.1) to withAlpha(25) - 0.1*255=25
-                    avatar: CircleAvatar(
-                      backgroundColor: theme.colorScheme.primary,
-                      radius: 10,
-                      child: const Icon(Icons.public,
-                          size: 12, color: Colors.white),
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.public,
+                        size: 20,
+                        color: Theme.of(context).hintColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${_bots.where((bot) => bot.isPublished).length} published',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -274,108 +282,24 @@ class _BotListScreenState extends State<BotListScreen>
           // Main content
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? InformationIndicator(
+                    message: 'Loading...',
+                    variant: InformationVariant.loading,
+                  )
                 : _errorMessage.isNotEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              color: Colors.red,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Error: $_errorMessage',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: _fetchBots,
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Retry'),
-                            ),
-                          ],
-                        ),
+                    ? InformationIndicator(
+                        message: _errorMessage,
+                        variant: InformationVariant.error,
                       )
                     : _bots.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.adb,
-                                  size: 72,                                  color: theme.colorScheme.primary
-                                      .withAlpha(127), // Changed from withOpacity(0.5) to withAlpha(127) - 0.5*255=127
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'No bots found',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Create your first bot to get started',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                ElevatedButton.icon(
-                                  onPressed: _createBot,
-                                  icon: const Icon(Icons.add),
-                                  label: const Text('Create Bot'),
-                                  style: ElevatedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 24,
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                        ? InformationIndicator(
+                            message: 'No bots yet\nCreate one to get started',
+                            variant: InformationVariant.info,
                           )
                         : _filteredBots.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(
-                                      Icons.search_off,
-                                      color: Colors.grey,
-                                      size: 64,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    const Text(
-                                      'No matching bots found',
-                                      style: TextStyle(fontSize: 18),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Try a different search term',
-                                      style: TextStyle(                                        fontSize: 16,
-                                        color: theme.colorScheme.onSurface
-                                            .withAlpha(178), // Changed from withOpacity(0.7) to withAlpha(178) - 0.7*255=178
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    OutlinedButton(
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        setState(() {
-                                          _searchQuery = '';
-                                        });
-                                      },
-                                      child: const Text('Clear Search'),
-                                    ),
-                                  ],
-                                ),
+                            ? InformationIndicator(
+                                message: 'No matching bots found',
+                                variant: InformationVariant.info,
                               )
                             : RefreshIndicator(
                                 onRefresh: _fetchBots,
@@ -389,7 +313,6 @@ class _BotListScreenState extends State<BotListScreen>
                                       bot: bot,
                                       onEdit: () => _editBot(bot),
                                       onDelete: () => _confirmDelete(bot),
-                                      theme: theme,
                                       isDarkMode: isDarkMode,
                                     );
                                   },
@@ -398,38 +321,18 @@ class _BotListScreenState extends State<BotListScreen>
           ),
         ],
       ),
-      floatingActionButton: !_isLoading && _errorMessage.isEmpty
-          ? FloatingActionButton.extended(
-              onPressed: _createBot,
-              icon: const Icon(Icons.add),
-              label: const Text('Create Bot'),
-              tooltip: 'Create a new bot',
-            )
-          : null,
     );
   }
 
   Future<void> _confirmDelete(AIBot bot) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await GlobalDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Delete'),
-        content: Text(
-          'Are you sure you want to delete "${bot.name}"?\n'
-          'This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('CANCEL'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('DELETE'),
-          ),
-        ],
-      ),
+      title: 'Confirm Delete',
+      message:
+          'Are you sure you want to delete "${bot.name}"?\nThis action cannot be undone.',
+      variant: DialogVariant.warning,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
     );
 
     if (confirmed == true) {
@@ -443,7 +346,6 @@ class BotCard extends StatelessWidget {
   final AIBot bot;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final ThemeData theme;
   final bool isDarkMode;
 
   const BotCard({
@@ -451,7 +353,6 @@ class BotCard extends StatelessWidget {
     required this.bot,
     required this.onEdit,
     required this.onDelete,
-    required this.theme,
     required this.isDarkMode,
   });
 
@@ -473,28 +374,52 @@ class BotCard extends StatelessWidget {
                 // Bot icon
                 Container(
                   width: 40,
-                  height: 40,                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withAlpha(25), // Changed from withOpacity(0.1) to withAlpha(25) - 0.1*255=25
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withAlpha(25),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(
                     child: Icon(
                       Icons.smart_toy,
                       size: 24,
-                      color: theme.colorScheme.primary,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                 ),
-                
-                // Spacer to push actions to the right
+
                 const Spacer(),
-                
+
                 // Action buttons
                 Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: [                    // Share button
+                  children: [
+                    // Preview button
                     IconButton(
-                      icon: const Icon(Icons.share_outlined),
+                      icon: Icon(Icons.visibility,
+                          color: Theme.of(context).hintColor),
+                      onPressed: () {
+                        // Navigate to bot preview screen
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => BotPreviewScreen(
+                              botId: bot.id,
+                              botName: bot.name,
+                            ),
+                          ),
+                        );
+                      },
+                      tooltip: 'Preview',
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 24,
+                    ),
+
+                    const SizedBox(width: 4),
+
+                    // Share button
+                    IconButton(
+                      icon: Icon(Icons.share_outlined,
+                          color: Theme.of(context).hintColor),
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -507,88 +432,95 @@ class BotCard extends StatelessWidget {
                       },
                       tooltip: 'Share',
                       visualDensity: VisualDensity.compact,
-                      iconSize: 20,
+                      iconSize: 24,
                     ),
-                    
-                    // Favorite button
-                    IconButton(
-                      icon: const Icon(Icons.star_border_outlined),
-                      onPressed: () {
-                        // Implement favorite functionality
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Added to favorites')),
-                        );
-                      },
-                      tooltip: 'Add to favorites',
-                      visualDensity: VisualDensity.compact,
-                      iconSize: 20,
-                    ),
-                    
+
+                    const SizedBox(width: 4),
+
                     // Delete button
                     IconButton(
-                      icon: const Icon(Icons.delete_outline),
+                      icon: Icon(Icons.delete_outline,
+                          color: Theme.of(context).colorScheme.error),
                       onPressed: onDelete,
                       tooltip: 'Delete',
                       visualDensity: VisualDensity.compact,
-                      iconSize: 20,
+                      iconSize: 24,
                     ),
                   ],
                 ),
               ],
             ),
-            
+
+            const SizedBox(height: 6),
+
             // Bot name displayed as a separate row for better visibility
-            Padding(
-              padding: const EdgeInsets.only(top: 12.0, bottom: 8.0),
-              child: Text(
-                bot.name,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ),
-            
-            // Action buttons row at the bottom
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Edit button
-                OutlinedButton.icon(
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  label: const Text('Edit'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
+                Text(
+                  bot.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0, left: 1.0),
+                  child: Text(
+                    bot.description,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).hintColor,
+                        ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                
-                // Chat Now button (primary action)
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // Navigate to bot preview/chat screen
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => BotPreviewScreen(
-                          botId: bot.id,
-                          botName: bot.name,
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // Action buttons row at the bottom
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Button(
+                    label: 'Edit',
+                    icon: Icons.edit,
+                    onPressed: onEdit,
+                    variant: ButtonVariant.ghost,
+                    size: ButtonSize.medium,
+                    isDarkMode: isDarkMode,
+                    fullWidth: true,
+                    color: isDarkMode
+                        ? Theme.of(context).colorScheme.onSurface.withAlpha(180)
+                        : Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withAlpha(160),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Button(
+                    label: 'Chat',
+                    icon: Icons.chat_bubble,
+                    onPressed: () {
+                      // Navigate to bot preview/chat screen
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => BotPreviewScreen(
+                            botId: bot.id,
+                            botName: bot.name,
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.chat_bubble_outline, size: 16),
-                  label: const Text('Chat Now'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
+                      );
+                    },
+                    variant: ButtonVariant.primary,
+                    size: ButtonSize.medium,
+                    isDarkMode: isDarkMode,
+                    fullWidth: true,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],

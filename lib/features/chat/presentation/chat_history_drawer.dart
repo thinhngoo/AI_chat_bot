@@ -8,6 +8,7 @@ import '../../../widgets/information.dart'
         InformationIndicator;
 import '../../../widgets/text_field.dart';
 import '../../../widgets/dialog.dart';
+import '../../../widgets/information.dart';
 import '../services/chat_service.dart';
 import '../models/conversation_message.dart';
 
@@ -140,14 +141,6 @@ class ChatHistoryDrawer extends StatelessWidget {
                   .top, // Safe area padding for status bar
               left: 8,
               right: 8,
-            ),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: Theme.of(context).colorScheme.outline,
-                  width: 1,
-                ),
-              ),
             ),
             child: Row(
               children: [

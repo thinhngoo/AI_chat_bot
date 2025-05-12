@@ -252,8 +252,6 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Prompt Management'),
@@ -276,15 +274,15 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
           indicator: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: theme.colorScheme.primary,
+                color: Theme.of(context).colorScheme.primary,
                 width: 3.0,
               ),
             ),
           ),
           indicatorSize: TabBarIndicatorSize.tab,
-          dividerColor: theme.colorScheme.outline.withAlpha(184),
-          labelColor: theme.colorScheme.primary,
-          unselectedLabelColor: theme.colorScheme.onSurface.withAlpha(184),
+          dividerColor: Theme.of(context).colorScheme.outline.withAlpha(184),
+          labelColor: Theme.of(context).colorScheme.primary,
+          unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withAlpha(184),
           tabs: const [
             Tab(text: 'Public'),
             Tab(text: 'Private'),
@@ -324,7 +322,7 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
             onDelete: _handleDeletePrompt,
             onEdit: _handleEditPrompt,
             emptyMessage:
-                'No private prompts yet\nCreate one with the + button',
+                'No private prompts yet\nCreate one to get started',
             availableCategories: _availableCategories,
             onPromptToggleFavorite: _handleToggleFavorite,
           ),

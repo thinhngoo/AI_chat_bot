@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:logger/logger.dart';
-import '../../../core/services/auth/auth_service.dart';
 import '../models/ai_bot.dart';
 import 'bot_service.dart' as legacy;
 import 'bot_service_optimized.dart' as improved;
@@ -12,7 +11,6 @@ class BotServiceWrapper {
   factory BotServiceWrapper() => _instance;
 
   final Logger _logger = Logger();
-  final AuthService _authService = AuthService();
   
   // Service instances
   late final legacy.BotService _legacyService;

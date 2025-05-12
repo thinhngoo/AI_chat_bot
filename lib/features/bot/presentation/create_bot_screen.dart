@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../../../core/utils/validators/input_validator.dart';
 import '../services/bot_service.dart';
+import '../../../widgets/text_field.dart';
+import '../../../widgets/information.dart';
+import '../../../widgets/button.dart';
 
 class CreateBotScreen extends StatefulWidget {
   const CreateBotScreen({super.key});
@@ -21,6 +24,11 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
   String _selectedModel = 'gpt-4o-mini';
   bool _isLoading = false;
   
+  // Error states
+  String? _nameError;
+  String? _descriptionError;
+  String? _promptError;
+  
   final List<Map<String, String>> _availableModels = [
     {'id': 'gpt-4o-mini', 'name': 'GPT-4o mini'},
     {'id': 'gpt-4o', 'name': 'GPT-4o'},
@@ -39,7 +47,28 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
   }
   
   Future<void> _createBot() async {
-    if (!_formKey.currentState!.validate()) return;
+    // Validate form using InputValidator
+    bool isValid = true;
+    
+    setState(() {
+      // Reset errors
+      _nameError = null;
+      _descriptionError = null;
+      _promptError = null;
+      
+      // Validate name
+      final nameValidation = InputValidator.validateMinLength(
+        _nameController.text, 
+        2, 
+        'Bot name'
+      );
+      if (nameValidation != null) {
+        _nameError = nameValidation;
+        isValid = false;
+      }
+    });
+    
+    if (!isValid) return;
     
     setState(() {
       _isLoading = true;
@@ -55,11 +84,10 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
       
       if (!mounted) return;
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Bot created successfully'),
-          backgroundColor: Colors.green,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Bot created successfully',
+        variant: SnackBarVariant.success,
       );
       
       Navigator.of(context).pop();
@@ -68,11 +96,10 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
       
       if (!mounted) return;
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to create bot: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Failed to create bot: ${e.toString()}',
+        variant: SnackBarVariant.error,
       );
     } finally {
       if (mounted) {
@@ -85,9 +112,12 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create AI Bot'),
+        centerTitle: true,
       ),
       body: Form(
         key: _formKey,
@@ -96,23 +126,21 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
+              FloatingLabelTextField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Bot Name',
-                  hintText: 'Enter a name for your bot',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => InputValidator.validateRequired(value, 'bot name'),
+                label: 'Bot Name',
+                hintText: 'Enter a name for your bot',
+                darkMode: isDarkMode,
+                errorText: _nameError,
               ),
               const SizedBox(height: 16),
               
-              DropdownButtonFormField<String>(
+              StyledDropdown<String>(
+                label: 'AI Model',
+                hintText: 'Select an AI model',
                 value: _selectedModel,
-                decoration: const InputDecoration(
-                  labelText: 'AI Model',
-                  border: OutlineInputBorder(),
-                ),
+                darkMode: isDarkMode,
+                prefixIcon: Icons.smart_toy,
                 items: _availableModels.map((model) {
                   return DropdownMenuItem<String>(
                     value: model['id'],
@@ -126,85 +154,74 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                     });
                   }
                 },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select an AI model';
-                  }
-                  return null;
-                },
+                errorText: _selectedModel.isEmpty ? 'Please select an AI model' : null,
               ),
               const SizedBox(height: 16),
               
-              TextFormField(
+              FloatingLabelTextField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  hintText: 'Describe what this bot does',
-                  border: OutlineInputBorder(),
-                ),
+                label: 'Description',
+                hintText: 'Describe what this bot does',
                 maxLines: 2,
-                validator: (value) => InputValidator.validateRequired(value, 'description'),
+                darkMode: isDarkMode,
+                errorText: _descriptionError,
               ),
               const SizedBox(height: 16),
               
-              TextFormField(
+              FloatingLabelTextField(
                 controller: _promptController,
-                decoration: const InputDecoration(
-                  labelText: 'Initial Prompt',
-                  hintText: 'Enter instructions for the bot',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 6,
-                validator: (value) => InputValidator.validateRequired(value, 'initial prompt'),
+                label: 'Initial Prompt',
+                hintText: 'Examples:\n• You are a helpful customer service agent for a tech company...\n• You are an expert in JavaScript programming...\n• You are a travel guide that helps people plan trips to Vietnam...',
+                maxLines: 8,
+                keyboardType: TextInputType.multiline,
+                darkMode: isDarkMode,
+                errorText: _promptError,
               ),
+              
               const SizedBox(height: 32),
               
-              Card(
-                color: Colors.teal.withAlpha(26),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Prompt Examples:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        '• You are a helpful customer service agent for a tech company...',
-                      ),
-                      Text(
-                        '• You are an expert in JavaScript programming...',
-                      ),
-                      Text(
-                        '• You are a travel guide that helps people plan trips to Vietnam...',
-                      ),
-                    ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Button(
+                    label: 'Cancel',
+                    onPressed: () => Navigator.of(context).pop(),
+                    variant: ButtonVariant.ghost,
+                    isDarkMode: isDarkMode,
+                    fullWidth: false,
+                    size: ButtonSize.medium,
+                    width: 100,
+                    color: isDarkMode
+                        ? Theme.of(context).colorScheme.onSurface
+                        : Theme.of(context).colorScheme.onSurface.withAlpha(204),
                   ),
-                ),
-              ),
-              
-              const SizedBox(height: 32),
-              
-              ElevatedButton(
-                onPressed: _isLoading ? null : _createBot,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text(
-                        'Create Bot',
-                        style: TextStyle(fontSize: 16),
-                      ),
+                  const SizedBox(width: 8),
+                  _isLoading
+                      ? SizedBox(
+                          height: 40,
+                          width: 100,
+                          child: Center(
+                            child: SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                color: Theme.of(context).hintColor,
+                                strokeWidth: 2.5,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Button(
+                          label: 'Create',
+                          onPressed: _createBot,
+                          variant: ButtonVariant.primary,
+                          isDarkMode: isDarkMode,
+                          fullWidth: false,
+                          size: ButtonSize.medium,
+                          fontWeight: FontWeight.bold,
+                          width: 100,
+                        ),
+                ],
               ),
             ],
           ),

@@ -496,7 +496,7 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
               ),
               const SizedBox(width: 8),
               if (isCustomBot)
-                Icon(Icons.android,
+                Icon(Icons.smart_toy,
                     size: 24, color: colors.foreground.withAlpha(204)),
               // Show a small refresh indicator in the main selector when background refreshing
               if (_isBackgroundRefreshing)
