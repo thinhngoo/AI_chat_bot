@@ -195,18 +195,8 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       // Add more cases as needed
     }
   }
-
   Future<void> _uploadFile() async {
     try {
-
-      GlobalSnackBar.show(
-        context: context,
-        message: 'This feature is under maintenance',
-        variant: SnackBarVariant.info,
-      );
-
-      return;
-      // ignore: dead_code
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: false,
         type: FileType.any,
