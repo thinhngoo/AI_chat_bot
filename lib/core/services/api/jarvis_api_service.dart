@@ -65,7 +65,7 @@ class JarvisApiService {
             final errorCode = errorJson['code'];
             
             if (errorCode == 'USER_EMAIL_ALREADY_EXISTS') {
-              throw 'Email đã được sử dụng. Vui lòng sử dụng email khác.';
+              throw 'Email is already in use. Please use a different email.';
             }
             
             if (errorJson.containsKey('error')) {
@@ -120,7 +120,7 @@ class JarvisApiService {
             final errorCode = errorJson['code'];
             
             if (errorCode == 'EMAIL_PASSWORD_MISMATCH') {
-              throw 'Email hoặc mật khẩu không đúng. Vui lòng thử lại.';
+              throw 'Email or password is incorrect. Please try again.';
             }
             
             if (errorJson.containsKey('error')) {

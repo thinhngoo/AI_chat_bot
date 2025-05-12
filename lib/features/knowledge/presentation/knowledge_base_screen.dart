@@ -230,7 +230,7 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
           // Search section
           Padding(
             padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 12.0),
-            child: CustomTextField(
+            child: CommonTextField(
               controller: _searchController,
               label: 'Search',
               hintText: 'Search knowledge bases...',

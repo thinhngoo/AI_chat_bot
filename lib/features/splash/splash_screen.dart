@@ -4,10 +4,9 @@ import 'package:logger/logger.dart';
 import '../../core/services/auth/auth_service.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/main_screen.dart';
-import '../../core/constants/app_colors.dart';
-import '../auth/presentation/widgets/auth_background.dart';
 import '../../features/bot/services/bot_service_wrapper.dart';
 import '../../features/subscription/services/subscription_service_wrapper.dart';
+import '../auth/presentation/widgets/auth_background.dart';
 
 class SplashScreen extends StatefulWidget {
   final Function toggleTheme;
@@ -161,8 +160,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   
   @override
   Widget build(BuildContext context) {
-    final AppColors colors = AppColors.dark;
-
     return AuthBackground(
       child: Center(
         child: Column(
@@ -170,11 +167,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           children: [
             Text(
               'AI Chat Bot',
-              style: TextStyle(
-                fontSize: 40,
-                fontWeight: FontWeight.bold,
-                color: colors.foreground,
-                fontFamily: 'Geist',
+              style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                fontFamily: 'monospace',
+                wordSpacing: -4,
               ),
             ),
           ],

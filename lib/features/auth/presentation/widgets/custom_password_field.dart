@@ -30,7 +30,7 @@ class _CustomPasswordFieldState extends State<CustomPasswordField> {
 
   @override
   Widget build(BuildContext context) {
-    return CustomTextField(
+    return CommonTextField(
       controller: widget.controller,
       label: widget.label,
       hintText: widget.hintText,

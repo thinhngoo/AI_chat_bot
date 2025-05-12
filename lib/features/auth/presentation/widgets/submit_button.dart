@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 
-/// Submit button with loading state
 class SubmitButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
@@ -38,7 +37,7 @@ class SubmitButton extends StatelessWidget {
                 height: 24,
                 child: CircularProgressIndicator(
                   color: colors.buttonForeground,
-                  strokeWidth: 2,
+                  strokeWidth: 2.5,
                 ),
               )
             : Text(

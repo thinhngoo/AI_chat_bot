@@ -171,7 +171,7 @@ class _PromptListScreenState extends State<PromptListScreen> {
 
   Widget _buildSearchBar(bool isDarkMode) {
     return Expanded(
-      child: CustomTextField(
+      child: CommonTextField(
         controller: _searchController,
         label: 'Search',
         hintText: 'Search prompts...',

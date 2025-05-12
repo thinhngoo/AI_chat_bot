@@ -198,7 +198,7 @@ class _ConnectGoogleDriveDialogState extends State<ConnectGoogleDriveDialog> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  CustomTextField(
+                  CommonTextField(
                     controller: _fileIdController,
                     label: 'Google Drive File/Folder ID',
                     hintText: 'Enter the ID from the Drive URL',

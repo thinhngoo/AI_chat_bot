@@ -95,7 +95,7 @@ class DarkColors implements AppColors {
   @override
   final Color redForeground = const Color(0xFFFFFFFF);
   @override
-  final Color green = Colors.green;
+  final Color green = Colors.greenAccent;
   @override
   final Color greenForeground = const Color(0xFFFFFFFF);
   @override

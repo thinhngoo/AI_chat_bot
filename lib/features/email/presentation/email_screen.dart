@@ -235,7 +235,7 @@ class _EmailScreenState extends State<EmailScreen> {
 
                   const SizedBox(height: 8),
                   
-                  CustomTextField(
+                  CommonTextField(
                     controller: _originalEmailController,
                     label: 'Email Content',
                     hintText: 'Paste the email you want to respond to...',

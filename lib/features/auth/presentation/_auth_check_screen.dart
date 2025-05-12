@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/constants/app_colors.dart';
-import 'widgets/auth_widgets.dart';
-import 'login_page.dart';
 import '../../main_screen.dart';
+import 'login_page.dart';
+import 'widgets/auth_widgets.dart';
 
 class AuthCheckScreen extends StatefulWidget {
   final Function toggleTheme;

@@ -16,21 +16,17 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
-  // ===== CONTROLLERS =====
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
-  // ===== SERVICES =====
   final AuthService _authService = AuthService();
   final Logger _logger = Logger();
 
-  // ===== STATE VARIABLES =====
   bool _isLoading = false;
   bool _isSuccess = false;
-
   String? _nameErrorMessage;
   String? _emailErrorMessage;
   String? _passwordErrorMessage;
@@ -39,6 +35,15 @@ class _SignupPageState extends State<SignupPage> {
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   Future<void> _signup() async {
@@ -91,7 +96,7 @@ class _SignupPageState extends State<SignupPage> {
           _isLoading = false;
         });
       } else if (errorMsg.contains('weak-password') ||
-          errorMsg.contains('mật khẩu')) {
+          errorMsg.contains('password')) {
         setState(() {
           _passwordErrorMessage =
               'Password is too weak. Please choose a stronger password.';
@@ -177,41 +182,39 @@ class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     return AuthBackground(
-      child: SafeArea(
-        child: _isSuccess
-            ? Center(child: _buildSuccessCard())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24.0, 40.0, 24.0, 40.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AppTitleWithDescription(
-                      title: 'AI Chat Bot',
-                      description: 'Start your journey',
-                    ),
-                    const SizedBox(height: 40),
-                    _buildSignupForm(),
-                    const SizedBox(height: 20),
-                    AuthLinkWidget(
-                      questionText: 'Already have an account?',
-                      linkText: 'Login now',
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginPage(),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 30),
-                    TermsAndPrivacyLinks(
-                      introText: 'By signing up, you agree to our',
-                    ),
-                  ],
-                ),
+      child: _isSuccess
+          ? Center(child: _buildSuccessCard())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24.0, 48.0, 24.0, 60.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AppTitleWithDescription(
+                    title: 'AI Chat Bot',
+                    description: 'Start your journey',
+                  ),
+                  const SizedBox(height: 40),
+                  _buildSignupForm(),
+                  const SizedBox(height: 20),
+                  AuthLinkWidget(
+                    questionText: 'Already have an account?',
+                    linkText: 'Login now',
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LoginPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 30),
+                  TermsAndPrivacyLinks(
+                    introText: 'By signing up, you agree to our',
+                  ),
+                ],
               ),
-      ),
+            ),
     );
   }
 
@@ -222,7 +225,7 @@ class _SignupPageState extends State<SignupPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          CustomTextField(
+          CommonTextField(
             controller: _nameController,
             label: 'Full Name',
             hintText: 'Enter your full name',
@@ -232,7 +235,7 @@ class _SignupPageState extends State<SignupPage> {
             darkMode: true,
           ),
           const SizedBox(height: 16),
-          CustomTextField(
+          CommonTextField(
             controller: _emailController,
             label: 'Email',
             hintText: 'Enter your email',
@@ -292,7 +295,6 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildSuccessCard() {
-    final theme = Theme.of(context);
     final AppColors colors = AppColors.dark;
 
     return Container(
@@ -308,7 +310,7 @@ class _SignupPageState extends State<SignupPage> {
           const SizedBox(height: 16),
           Text(
             'Welcome!',
-            style: theme.textTheme.displayMedium?.copyWith(
+            style: Theme.of(context).textTheme.displayMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: colors.foreground,
             ),
@@ -316,8 +318,8 @@ class _SignupPageState extends State<SignupPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Account ${_emailController.text.isEmpty ? '@thinhNgo deptrai' : _emailController.text} has been created successfully.',
-            style: theme.textTheme.bodyMedium?.copyWith(
+            'Account ${_emailController.text} has been created successfully.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: colors.muted,
             ),
             textAlign: TextAlign.center,
@@ -337,15 +339,6 @@ class _SignupPageState extends State<SignupPage> {
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
   }
 }
 
@@ -469,7 +462,6 @@ class _PasswordRequirementWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final AppColors colors = AppColors.dark;
 
     final requirements = [
@@ -505,7 +497,7 @@ class _PasswordRequirementWidget extends StatelessWidget {
         if (showTitle) ...[
           Text(
             'Password Requirements:',
-            style: theme.textTheme.bodyMedium?.copyWith(
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: colors.muted,
             ),
@@ -523,7 +515,7 @@ class _PasswordRequirementWidget extends StatelessWidget {
                           req['text'] as String,
                           req['isMet'] as bool,
                           colors,
-                          theme,
+                          Theme.of(context),
                         ))
                     .toList(),
               ),
@@ -536,7 +528,7 @@ class _PasswordRequirementWidget extends StatelessWidget {
                           req['text'] as String,
                           req['isMet'] as bool,
                           colors,
-                          theme,
+                          Theme.of(context),
                         ))
                     .toList(),
               ),
