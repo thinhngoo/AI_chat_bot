@@ -16,7 +16,10 @@ class ConnectSlackDialog extends StatefulWidget {
 class _ConnectSlackDialogState extends State<ConnectSlackDialog> {
   final _formKey = GlobalKey<FormState>();
   final _channelIdController = TextEditingController();
+  final _tokenController = TextEditingController();
+  final _workspaceIdController = TextEditingController();
   bool _isLoading = false;
+  bool _showAdvancedOptions = false;
   String? _error;
 
   final KnowledgeBaseService _knowledgeBaseService = KnowledgeBaseService();
@@ -24,6 +27,8 @@ class _ConnectSlackDialogState extends State<ConnectSlackDialog> {
   @override
   void dispose() {
     _channelIdController.dispose();
+    _tokenController.dispose();
+    _workspaceIdController.dispose();
     super.dispose();
   }
 
@@ -38,9 +43,11 @@ class _ConnectSlackDialogState extends State<ConnectSlackDialog> {
     });
 
     try {
-      await _knowledgeBaseService.connectSlack(
+      await _knowledgeBaseService.loadDataFromSlack(
         widget.knowledgeBaseId,
         _channelIdController.text.trim(),
+        token: _tokenController.text.isNotEmpty ? _tokenController.text.trim() : null,
+        workspaceId: _workspaceIdController.text.isNotEmpty ? _workspaceIdController.text.trim() : null,
       );
 
       if (mounted) {
@@ -78,8 +85,7 @@ class _ConnectSlackDialogState extends State<ConnectSlackDialog> {
                   'Connect a Slack channel to import conversations to your knowledge base.',
                   style: theme.textTheme.bodyMedium,
                 ),
-                const SizedBox(height: 24),
-                TextFormField(
+                const SizedBox(height: 24),                TextFormField(
                   controller: _channelIdController,
                   decoration: const InputDecoration(
                     labelText: 'Slack Channel ID',
@@ -98,6 +104,54 @@ class _ConnectSlackDialogState extends State<ConnectSlackDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
+                
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _showAdvancedOptions = !_showAdvancedOptions;
+                    });
+                  },
+                  child: Row(
+                    children: [
+                      Icon(
+                        _showAdvancedOptions ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Advanced Options',
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                if (_showAdvancedOptions) ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _tokenController,
+                    decoration: const InputDecoration(
+                      labelText: 'Slack API Token (Optional)',
+                      hintText: 'xoxb-...',
+                      prefixIcon: Icon(Icons.vpn_key),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _workspaceIdController,
+                    decoration: const InputDecoration(
+                      labelText: 'Workspace ID (Optional)',
+                      hintText: 'T0123456789',
+                      prefixIcon: Icon(Icons.business),
+                    ),
+                  ),
+                ],
+                
+                const SizedBox(height: 16),
                 Text(
                   'How to find your Slack Channel ID:',
                   style: theme.textTheme.titleSmall,
@@ -109,6 +163,40 @@ class _ConnectSlackDialogState extends State<ConnectSlackDialog> {
                   '3. The channel ID is in the URL after the "/C" part',
                   style: theme.textTheme.bodyMedium,
                 ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _showAdvancedOptions,
+                      onChanged: (value) {
+                        setState(() {
+                          _showAdvancedOptions = value ?? false;
+                        });
+                      },
+                    ),
+                    const Text('Show advanced options'),
+                  ],
+                ),
+                if (_showAdvancedOptions) ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _tokenController,
+                    decoration: const InputDecoration(
+                      labelText: 'Slack Token',
+                      hintText: 'xoxb-1234567890-abcdef',
+                      prefixIcon: Icon(Icons.lock),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _workspaceIdController,
+                    decoration: const InputDecoration(
+                      labelText: 'Workspace ID',
+                      hintText: 'T0123456789',
+                      prefixIcon: Icon(Icons.business),
+                    ),
+                  ),
+                ],
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Text(

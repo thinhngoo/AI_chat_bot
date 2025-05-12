@@ -16,7 +16,11 @@ class ConnectConfluenceDialog extends StatefulWidget {
 class _ConnectConfluenceDialogState extends State<ConnectConfluenceDialog> {
   final _formKey = GlobalKey<FormState>();
   final _spaceKeyController = TextEditingController();
+  final _baseUrlController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _apiTokenController = TextEditingController();
   bool _isLoading = false;
+  bool _showAdvancedOptions = false;
   String? _error;
 
   final KnowledgeBaseService _knowledgeBaseService = KnowledgeBaseService();
@@ -24,6 +28,9 @@ class _ConnectConfluenceDialogState extends State<ConnectConfluenceDialog> {
   @override
   void dispose() {
     _spaceKeyController.dispose();
+    _baseUrlController.dispose();
+    _usernameController.dispose();
+    _apiTokenController.dispose();
     super.dispose();
   }
 
@@ -38,9 +45,12 @@ class _ConnectConfluenceDialogState extends State<ConnectConfluenceDialog> {
     });
 
     try {
-      await _knowledgeBaseService.connectConfluence(
+      await _knowledgeBaseService.loadDataFromConfluence(
         widget.knowledgeBaseId,
         _spaceKeyController.text.trim(),
+        baseUrl: _baseUrlController.text.isNotEmpty ? _baseUrlController.text.trim() : null,
+        username: _usernameController.text.isNotEmpty ? _usernameController.text.trim() : null,
+        apiToken: _apiTokenController.text.isNotEmpty ? _apiTokenController.text.trim() : null,
       );
 
       if (mounted) {
@@ -78,8 +88,7 @@ class _ConnectConfluenceDialogState extends State<ConnectConfluenceDialog> {
                   'Connect a Confluence space to import documentation to your knowledge base.',
                   style: theme.textTheme.bodyMedium,
                 ),
-                const SizedBox(height: 24),
-                TextFormField(
+                const SizedBox(height: 24),                TextFormField(
                   controller: _spaceKeyController,
                   decoration: const InputDecoration(
                     labelText: 'Confluence Space Key',
@@ -92,6 +101,102 @@ class _ConnectConfluenceDialogState extends State<ConnectConfluenceDialog> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+                
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _showAdvancedOptions = !_showAdvancedOptions;
+                    });
+                  },
+                  child: Row(
+                    children: [
+                      Icon(
+                        _showAdvancedOptions ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Advanced Authentication',
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                if (_showAdvancedOptions) ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _baseUrlController,
+                    decoration: const InputDecoration(
+                      labelText: 'Confluence Base URL (Optional)',
+                      hintText: 'https://yourcompany.atlassian.net',
+                      prefixIcon: Icon(Icons.link),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _usernameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Username (Optional)',
+                      hintText: 'your.email@example.com',
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _apiTokenController,
+                    decoration: const InputDecoration(
+                      labelText: 'API Token (Optional)',
+                      hintText: 'Enter your Confluence API token',
+                      prefixIcon: Icon(Icons.vpn_key),
+                    ),
+                    obscureText: true,
+                  ),
+                ],
+                
+                const SizedBox(height: 16),
+                if (_showAdvancedOptions) ...[
+                  TextFormField(
+                    controller: _baseUrlController,
+                    decoration: const InputDecoration(
+                      labelText: 'Base URL',
+                      hintText: 'https://your-domain.atlassian.net',
+                      prefixIcon: Icon(Icons.link),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _usernameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      hintText: 'your-email@example.com',
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _apiTokenController,
+                    decoration: const InputDecoration(
+                      labelText: 'API Token',
+                      hintText: 'Your API token',
+                      prefixIcon: Icon(Icons.vpn_key),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _showAdvancedOptions = !_showAdvancedOptions;
+                    });
+                  },
+                  child: Text(_showAdvancedOptions ? 'Hide Advanced Options' : 'Show Advanced Options'),
                 ),
                 const SizedBox(height: 16),
                 Text(
