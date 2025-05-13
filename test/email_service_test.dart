@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
-import 'package:logger/logger.dart';
 import 'package:ai_chat_bot/features/email/services/email_service.dart';
 import 'package:ai_chat_bot/features/email/models/email_model.dart';
 import 'package:ai_chat_bot/core/services/auth/auth_service.dart';

@@ -794,14 +794,14 @@ class KnowledgeBaseService {  // Using just the base domain without the path
       _log('Error connecting Google Drive: $e', isError: true);
       rethrow;
     }
-  }
-  // Connect to Slack (Legacy method - forwards to enhanced implementation)
+  }  // Connect to Slack (Legacy method - forwards to enhanced implementation)
   Future<KnowledgeSource> connectSlack(
     String knowledgeBaseId,
-    String channelId,
+    String botToken,
+    {String? name}
   ) async {
     _log('Using legacy connectSlack method - forwarding to enhanced implementation');
-    return loadDataFromSlack(knowledgeBaseId, channelId);
+    return loadDataFromSlack(knowledgeBaseId, botToken: botToken, name: name ?? 'Slack Import');
   }
   // Connect to Confluence (Legacy method - forwards to enhanced implementation)
   Future<KnowledgeSource> connectConfluence(
@@ -1075,12 +1075,10 @@ class KnowledgeBaseService {  // Using just the base domain without the path
       rethrow;
     }
   }
-
   // Connect to Slack - Enhanced implementation
   Future<KnowledgeSource> loadDataFromSlack(
     String knowledgeBaseId,
-    String channelId,
-    {String? token, String? botToken, String? workspaceId}
+    {required String botToken, required String name}
   ) async {
     try {
       _log('Starting Slack data loading process...');
@@ -1091,30 +1089,13 @@ class KnowledgeBaseService {  // Using just the base domain without the path
         'datasources': [
           {
             'type': 'slack',
-            'name': 'Slack Channel: $channelId',
+            'name': name,
             'credentials': {
-              'channelId': channelId
+              'botToken': botToken
             }
           }
         ]
       };
-      
-      // Add optional parameters if provided
-      if (token != null) {
-        final Map<String, dynamic> credentials = 
-            (payload['datasources'] as List<dynamic>)[0]['credentials'] as Map<String, dynamic>;
-        credentials['token'] = token;
-      }
-      if (botToken != null) {
-        final Map<String, dynamic> credentials = 
-            (payload['datasources'] as List<dynamic>)[0]['credentials'] as Map<String, dynamic>;
-        credentials['botToken'] = botToken;
-      }
-      if (workspaceId != null) {
-        final Map<String, dynamic> credentials = 
-            (payload['datasources'] as List<dynamic>)[0]['credentials'] as Map<String, dynamic>;
-        credentials['workspaceId'] = workspaceId;
-      }
 
       _log('Slack payload: $payload');
       
@@ -1233,6 +1214,7 @@ void main() async {
   
   print('\nTesting loadDataFromSlack...');
   try {
+    // Example with default name format
     final payload = {
       'datasources': [
         {
@@ -1244,8 +1226,23 @@ void main() async {
         }
       ]
     };
-    print('Example Slack payload:');
+    print('Example Slack payload with default name:');
     print(payload);
+    
+    // Example with custom name
+    final customNamePayload = {
+      'datasources': [
+        {
+          'type': 'slack',
+          'name': 'Vinh',
+          'credentials': {
+            'channelId': 'C123456'
+          }
+        }
+      ]
+    };
+    print('Example Slack payload with custom name:');
+    print(customNamePayload);
     
     print('\nTesting loadDataFromConfluence...');
     final confluencePayload = {

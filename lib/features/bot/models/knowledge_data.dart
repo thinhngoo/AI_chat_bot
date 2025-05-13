@@ -20,15 +20,14 @@ class KnowledgeData {
   });
 
   String get typeDisplayName => type.displayName;
-
   factory KnowledgeData.fromJson(Map<String, dynamic> json) {
     return KnowledgeData(
       id: json['id'] ?? '',
-      name: json['name'] ?? '',
+      name: json['knowledgeName'] ?? json['name'] ?? '',
       description: json['description'] ?? '',
       type: _parseKnowledgeType(json['type']),
       source: json['source'] ?? '',
-      documentCount: json['documentCount'] ?? 0,
+      documentCount: json['documentCount'] ?? json['unitCount'] ?? 0,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt']) 
           : DateTime.now(),
