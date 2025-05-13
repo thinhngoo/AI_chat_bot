@@ -1,19 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
-import '../../../widgets/information.dart'
-    show
-        SnackBarVariant,
-        GlobalSnackBar,
-        InformationVariant,
-        InformationIndicator;
+import '../services/chat_service.dart';
+import '../models/conversation_message.dart';
 import '../../../widgets/text_field.dart';
 import '../../../widgets/dialog.dart';
 import '../../../widgets/information.dart';
-import '../services/chat_service.dart';
-import '../models/conversation_message.dart';
 
-class ChatHistoryDrawer extends StatelessWidget {
-  // ===== STATE VARIABLES =====
+class ChatHistoryDrawer extends StatefulWidget {
   final String selectedAssistantId;
   final String? currentConversationId;
   final Function() onNewChat;
@@ -29,7 +22,9 @@ class ChatHistoryDrawer extends StatelessWidget {
     required this.onDeleteConversation,
   });
 
-  /// Fetches conversation history from the server
+  @override
+  State<ChatHistoryDrawer> createState() => _ChatHistoryDrawerState();
+
   static Future<List<ConversationMessage>> fetchConversationHistory(
       String? conversationId, String assistantId,
       {required Logger logger}) async {
@@ -70,6 +65,24 @@ class ChatHistoryDrawer extends StatelessWidget {
       rethrow; // Re-throw to let caller handle it
     }
   }
+}
+
+class _ChatHistoryDrawerState extends State<ChatHistoryDrawer> {
+  late TextEditingController searchController;
+  int filteredCount = 0;
+  int totalCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
 
   void _showDeleteConfirmation(
       BuildContext context, String conversationId) async {
@@ -81,30 +94,15 @@ class ChatHistoryDrawer extends StatelessWidget {
       confirmLabel: 'Delete',
       cancelLabel: 'Cancel',
       onConfirm: () async {
+        GlobalSnackBar.show(
+          context: context,
+          message: 'This feature is not available yet',
+          variant: SnackBarVariant.info,
+        );
+
         try {
           // Delete conversation API call would go here
           // await ChatService().deleteConversation(conversationId);
-
-          // For now, just refresh the UI
-          if (conversationId == currentConversationId) {
-            onNewChat();
-          }
-
-          // Store context in variable to capture when button was pressed
-          final BuildContext contextCaptured = context;
-
-          GlobalSnackBar.show(
-            context: context,
-            message: 'Conversation deleted',
-            variant: SnackBarVariant.success,
-          );
-
-          // Check if widget is still in tree before navigating
-          if (contextCaptured.mounted) {
-            // Close and reopen drawer to refresh
-            Navigator.pop(contextCaptured);
-            Scaffold.of(contextCaptured).openDrawer();
-          }
         } catch (e) {
           GlobalSnackBar.show(
             context: context,
@@ -120,14 +118,13 @@ class ChatHistoryDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
-    final TextEditingController searchController = TextEditingController();
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Drawer(
-      width: screenWidth, // Make drawer use the full screen width
+      width: screenWidth,
       backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.zero), // Remove default rounded corners
+          borderRadius: BorderRadius.zero),
       child: Column(
         children: [
           Container(
@@ -144,7 +141,6 @@ class ChatHistoryDrawer extends StatelessWidget {
             ),
             child: Row(
               children: [
-                // Title
                 const SizedBox(width: 40),
                 const Spacer(),
                 Text('Chat History',
@@ -158,7 +154,7 @@ class ChatHistoryDrawer extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: CommonTextField(
@@ -172,17 +168,32 @@ class ChatHistoryDrawer extends StatelessWidget {
               },
             ),
           ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 26.0),
+            child: ResultsCountIndicator(
+              filteredCount: filteredCount,
+              totalCount: totalCount,
+              itemType: 'conversations',
+            ),
+          ),
           const SizedBox(height: 12),
           Expanded(
             child: ChatHistoryList(
-              selectedAssistantId: selectedAssistantId,
-              currentConversationId: currentConversationId,
-              onConversationSelected: onConversationSelected,
+              selectedAssistantId: widget.selectedAssistantId,
+              currentConversationId: widget.currentConversationId,
+              onConversationSelected: widget.onConversationSelected,
               onDeleteConversation: (conversationId) {
                 _showDeleteConfirmation(context, conversationId);
               },
               isDarkMode: isDarkMode,
               searchController: searchController,
+              onCountsChanged: (filtered, total) {
+                setState(() {
+                  filteredCount = filtered;
+                  totalCount = total;
+                });
+              },
             ),
           ),
         ],
@@ -198,6 +209,7 @@ class ChatHistoryList extends StatefulWidget {
   final bool isDarkMode;
   final Function(String) onConversationSelected;
   final Function(String) onDeleteConversation;
+  final Function(int, int) onCountsChanged;
   final TextEditingController searchController;
 
   const ChatHistoryList({
@@ -208,6 +220,7 @@ class ChatHistoryList extends StatefulWidget {
     required this.onDeleteConversation,
     required this.isDarkMode,
     required this.searchController,
+    required this.onCountsChanged,
   });
 
   @override
@@ -242,6 +255,21 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(ChatHistoryList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload if the selected assistant changes
+    if (oldWidget.selectedAssistantId != widget.selectedAssistantId) {
+      _loadConversations();
+    }
+
+    // Update listener if the controller changed
+    if (oldWidget.searchController != widget.searchController) {
+      oldWidget.searchController.removeListener(_onSearchChanged);
+      widget.searchController.addListener(_onSearchChanged);
+    }
+  }
+
   void _onSearchChanged() {
     setState(() {
       _searchQuery = widget.searchController.text.toLowerCase();
@@ -264,21 +292,11 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
             firstMessage.contains(_searchQuery);
       }).toList();
     }
-  }
-
-  @override
-  void didUpdateWidget(ChatHistoryList oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Reload if the selected assistant changes
-    if (oldWidget.selectedAssistantId != widget.selectedAssistantId) {
-      _loadConversations();
-    }
-
-    // Update listener if the controller changed
-    if (oldWidget.searchController != widget.searchController) {
-      oldWidget.searchController.removeListener(_onSearchChanged);
-      widget.searchController.addListener(_onSearchChanged);
-    }
+    
+    // Update counts in parent widget
+    final filteredCount = _filteredConversations?.length ?? 0;
+    final totalCount = _conversations?.length ?? 0;
+    widget.onCountsChanged(filteredCount, totalCount);
   }
 
   // Load conversations with optimized approach using cache
@@ -310,6 +328,9 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
         setState(() {
           _errorMessage = e.toString();
           _isLoading = false;
+          
+          // Update counts in parent widget even in error case
+          widget.onCountsChanged(0, 0);
         });
       }
     }
@@ -418,7 +439,7 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
 
     if (_errorMessage != null) {
       return InformationIndicator(
-        message: _errorMessage!,
+        message: '_errorMessage!',
         variant: InformationVariant.error,
         buttonText: 'Retry',
         onButtonPressed: _loadConversations,
@@ -450,7 +471,7 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: _filteredConversations?.length ?? 0,
-        padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 32.0),
+        padding: const EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 32.0),
         itemBuilder: (context, index) {
           final conversation = _filteredConversations![index];
           final conversationId = conversation['id'] as String;
@@ -497,8 +518,8 @@ class _ChatHistoryListState extends State<ChatHistoryList> {
                       ),
                 ),
                 trailing: IconButton(
-                  icon: Icon(Icons.delete_outline,
-                      color: Theme.of(context).hintColor),
+                  icon: Icon(Icons.delete_outline),
+                  color: Theme.of(context).colorScheme.error.withAlpha(204),
                   onPressed: () {
                     widget.onDeleteConversation(conversationId);
                   },

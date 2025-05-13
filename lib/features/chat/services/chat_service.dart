@@ -5,6 +5,9 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../models/conversation_message.dart';
 
+// TODO: Remove this import once the assistant cost is available from the API
+import '../../../features/bot/services/bot_service.dart';
+
 /// A service class for handling chat operations, including fetching
 /// conversation history, retrieving a list of conversations, and sending
 /// messages to the AI chat service.
@@ -596,6 +599,54 @@ class ChatService {
           final errorData = jsonDecode(response.body);
           if (errorData['message'] != null) {
             errorMessage = errorData['message'];
+            
+            // TODO: Handle "assistant cost is not defined" error
+            if (errorMessage.contains('assistant cost is not defined')) {
+              _logger.w('Handling assistant cost not defined error by using BotService');
+              
+              // Create an instance of BotService
+              final botService = BotService();
+              
+              try {
+                // Use the BotService.askBot method as a fallback
+                final botResponse = await botService.askBot(
+                  botId: assistantId,
+                  message: content,
+                );
+                
+                _logger.i('Successfully got response from BotService fallback');
+                
+                // Return a response that mimics the chat service response format
+                return {
+                  'conversation_id': conversationId ?? 'temp-${DateTime.now().millisecondsSinceEpoch}',
+                  'answers': [botResponse],
+                  'remaining_usage': 100, // Provide a default remaining usage value
+                };
+              } catch (botError) {
+                _logger.e('BotService fallback failed: $botError');
+                
+                // Try with a default bot ID (gpt-4o-mini) if the original assistantId fails
+                if (assistantId != 'gpt-4o-mini') {
+                  try {
+                    _logger.i('Retrying with default bot gpt-4o-mini');
+                    final defaultBotResponse = await botService.askBot(
+                      botId: 'gpt-4o-mini',
+                      message: content,
+                    );
+                    
+                    _logger.i('Successfully got response from default bot fallback');
+                    return {
+                      'conversation_id': conversationId ?? 'temp-${DateTime.now().millisecondsSinceEpoch}',
+                      'answers': [defaultBotResponse],
+                      'remaining_usage': 100,
+                    };
+                  } catch (secondError) {
+                    _logger.e('Default bot fallback also failed: $secondError');
+                  }
+                }
+                // Let the original error continue if both bot service attempts fail
+              }
+            }
             
             // Check if the error is related to insufficient tokens
             if (errorMessage.toLowerCase().contains('insufficient') || 

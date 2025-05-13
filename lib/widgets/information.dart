@@ -148,7 +148,7 @@ class GlobalSnackBar {
       case SnackBarVariant.warning:
         backgroundColor = colors.yellow;
         foregroundColor = colors.yellowForeground;
-        iconData = Icons.warning_amber;
+        iconData = Icons.warning;
         break;
       case SnackBarVariant.success:
         backgroundColor = colors.card;
@@ -293,7 +293,9 @@ class ResultsCountIndicator extends StatelessWidget {
     return Row(
       children: [
         Text('Showing $filteredCount of $totalCount $itemType',
-            style: Theme.of(context).textTheme.bodySmall),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).hintColor,
+                )),
       ],
     );
   }

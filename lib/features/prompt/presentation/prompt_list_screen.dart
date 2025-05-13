@@ -95,7 +95,6 @@ class _PromptListScreenState extends State<PromptListScreen> {
           : () async {},
       child: Column(
         children: [
-          // Search and filter bar
           const SizedBox(height: 16),
 
           Padding(
