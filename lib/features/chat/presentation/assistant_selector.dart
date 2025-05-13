@@ -264,6 +264,7 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                                       'Your Bots',
                                       style: Theme.of(context).textTheme.headlineMedium,
                                     ),
+                                    const SizedBox(height: 8),
                                   ],
                                 ),
                               ),
@@ -312,7 +313,7 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12.0),
+                          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 20),
                           child: Center(
                             child: Button(
                               label: 'Manage Bots',
@@ -399,7 +400,7 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
             ),
             if (isCustomBot)
               Icon(Icons.smart_toy, color: Theme.of(context).hintColor, size: 16),
-            const SizedBox(width: 1),
+            const SizedBox(width: 4),
             if (selected)
               Icon(Icons.check, color: Theme.of(context).colorScheme.primary, size: 20),
           ],

@@ -43,12 +43,12 @@ class _ConnectSlackDialogState extends State<ConnectSlackDialog> {
     });
 
     try {
-      await _knowledgeBaseService.loadDataFromSlack(
-        widget.knowledgeBaseId,
-        _channelIdController.text.trim(),
-        token: _tokenController.text.isNotEmpty ? _tokenController.text.trim() : null,
-        workspaceId: _workspaceIdController.text.isNotEmpty ? _workspaceIdController.text.trim() : null,
-      );
+    //   await _knowledgeBaseService.loadDataFromSlack(
+    //     widget.knowledgeBaseId,
+    //     _channelIdController.text.trim(),
+    //     token: _tokenController.text.isNotEmpty ? _tokenController.text.trim() : null,
+    //     workspaceId: _workspaceIdController.text.isNotEmpty ? _workspaceIdController.text.trim() : null,
+    //   );
 
       if (mounted) {
         Navigator.of(context).pop(true); // Return true to indicate success
