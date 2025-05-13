@@ -112,10 +112,9 @@ class GlobalDialog {
                             onCancel?.call();
                           },
                           isDarkMode: isDarkMode,
+                          radius: ButtonRadius.small,
                           variant: ButtonVariant.ghost,
-                          color: isDarkMode
-                              ? colors.foreground.withAlpha(180)
-                              : colors.foreground.withAlpha(120),
+                          color: colors.foreground.withAlpha(180),
                         ),
                       ),
                     if (cancelLabel != null && confirmLabel != null)
@@ -129,6 +128,7 @@ class GlobalDialog {
                             onConfirm?.call();
                           },
                           isDarkMode: isDarkMode,
+                          radius: ButtonRadius.small,
                           color: themeColor,
                           variant: buttonVariant,
                           fontWeight: FontWeight.bold,
@@ -311,9 +311,8 @@ class GlobalInputDialog {
                             },
                             isDarkMode: isDarkMode,
                             variant: ButtonVariant.ghost,
-                            color: isDarkMode
-                                ? colors.foreground.withAlpha(180)
-                                : colors.foreground.withAlpha(120),
+                            radius: ButtonRadius.small,
+                            color: colors.foreground.withAlpha(180),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -334,6 +333,7 @@ class GlobalInputDialog {
                               Navigator.of(dialogContext).pop(textController.text);
                             },
                             isDarkMode: isDarkMode,
+                            radius: ButtonRadius.small,
                             color: themeColor,
                             variant: buttonVariant,
                             fontWeight: FontWeight.bold,

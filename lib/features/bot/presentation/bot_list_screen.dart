@@ -20,30 +20,27 @@ class BotListScreen extends StatefulWidget {
 
 class _BotListScreenState extends State<BotListScreen>
     with SingleTickerProviderStateMixin {
-  final Logger _logger = Logger();
   final BotService _botService = BotService();
+  final Logger _logger = Logger();
 
   bool _isLoading = true;
   String _errorMessage = '';
   List<AIBot> _bots = [];
   String _searchQuery = '';
 
-  // Animation controller for refresh indicator
-  late AnimationController _refreshIconController;
-
   final TextEditingController _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
-
-    // Initialize the animation controller properly
-    _refreshIconController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-
     // First try to fetch from cache (forceRefresh: false), then do a background refresh
     _initialFetch();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   // Two-phase loading strategy: Quick load from cache, then refresh in background
@@ -68,19 +65,11 @@ class _BotListScreenState extends State<BotListScreen>
     }
   }
 
-  @override
-  void dispose() {
-    _refreshIconController.dispose();
-    _searchController.dispose();
-    super.dispose();
-  }
-
   Future<void> _fetchBots({bool forceRefresh = true}) async {
     try {
       setState(() {
         _errorMessage = '';
         _isLoading = true;
-        _refreshIconController.repeat();
       });
 
       final bots = await _botService.getBots(forceRefresh: forceRefresh);
@@ -89,7 +78,6 @@ class _BotListScreenState extends State<BotListScreen>
         setState(() {
           _bots = bots;
           _isLoading = false;
-          _refreshIconController.stop();
         });
       }
     } catch (e) {
@@ -99,7 +87,6 @@ class _BotListScreenState extends State<BotListScreen>
         setState(() {
           _errorMessage = e.toString();
           _isLoading = false;
-          _refreshIconController.stop();
         });
 
         GlobalSnackBar.show(
@@ -196,10 +183,8 @@ class _BotListScreenState extends State<BotListScreen>
         leading: Padding(
           padding: const EdgeInsets.all(8.0),
           child: IconButton(
-            icon: Icon(
-              Icons.refresh,
-              color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
-            ),
+            icon: Icon(Icons.refresh),
+            color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
             onPressed: _isLoading ? null : _fetchBots,
             tooltip: 'Refresh',
           ),
@@ -208,10 +193,8 @@ class _BotListScreenState extends State<BotListScreen>
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: IconButton(
-              icon: Icon(
-                Icons.add_circle_outline,
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
-              ),
+              icon: Icon(Icons.add_circle_outline),
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
               tooltip: 'Create new bot',
               onPressed: _createBot,
             ),
@@ -220,9 +203,8 @@ class _BotListScreenState extends State<BotListScreen>
       ),
       body: Column(
         children: [
-          // Search bar
           Padding(
-            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 12.0),
+            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
             child: CommonTextField(
               controller: _searchController,
               label: 'Search',
@@ -251,8 +233,7 @@ class _BotListScreenState extends State<BotListScreen>
           // Stats summary
           if (!_isLoading && _errorMessage.isEmpty && _bots.isNotEmpty)
             Padding(
-              padding:
-                  const EdgeInsets.only(left: 26.0, right: 20.0, bottom: 8.0),
+              padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 16.0),
               child: Row(
                 children: [
                   ResultsCountIndicator(
@@ -271,7 +252,9 @@ class _BotListScreenState extends State<BotListScreen>
                       const SizedBox(width: 6),
                       Text(
                         '${_bots.where((bot) => bot.isPublished).length} published',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).hintColor,
+                            ),
                       ),
                     ],
                   ),
@@ -304,7 +287,8 @@ class _BotListScreenState extends State<BotListScreen>
                             : RefreshIndicator(
                                 onRefresh: _fetchBots,
                                 child: ListView.builder(
-                                  padding: const EdgeInsets.all(16.0),
+                                  padding: const EdgeInsets.fromLTRB(
+                                      16.0, 0.0, 16.0, 20.0),
                                   itemCount: _filteredBots.length,
                                   itemBuilder: (context, index) {
                                     final bot = _filteredBots[index];
@@ -341,7 +325,6 @@ class _BotListScreenState extends State<BotListScreen>
   }
 }
 
-// Separate card widget for cleaner code
 class BotCard extends StatelessWidget {
   final AIBot bot;
   final VoidCallback onEdit;
@@ -360,8 +343,6 @@ class BotCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -392,12 +373,11 @@ class BotCard extends StatelessWidget {
 
                 // Action buttons
                 Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Preview button
                     IconButton(
-                      icon: Icon(Icons.visibility,
-                          color: Theme.of(context).hintColor),
+                      icon: Icon(Icons.visibility),
+                      color: Theme.of(context).hintColor,
                       onPressed: () {
                         // Navigate to bot preview screen
                         Navigator.of(context).push(
@@ -405,21 +385,21 @@ class BotCard extends StatelessWidget {
                             builder: (context) => BotPreviewScreen(
                               botId: bot.id,
                               botName: bot.name,
+                              mode: BotScreenMode.preview,
                             ),
                           ),
                         );
                       },
                       tooltip: 'Preview',
                       visualDensity: VisualDensity.compact,
-                      iconSize: 24,
                     ),
 
                     const SizedBox(width: 4),
 
                     // Share button
                     IconButton(
-                      icon: Icon(Icons.share_outlined,
-                          color: Theme.of(context).hintColor),
+                      icon: Icon(Icons.share_outlined),
+                      color: Theme.of(context).hintColor,
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -432,19 +412,17 @@ class BotCard extends StatelessWidget {
                       },
                       tooltip: 'Share',
                       visualDensity: VisualDensity.compact,
-                      iconSize: 24,
                     ),
 
                     const SizedBox(width: 4),
 
                     // Delete button
                     IconButton(
-                      icon: Icon(Icons.delete_outline,
-                          color: Theme.of(context).colorScheme.error),
+                      icon: Icon(Icons.delete_outline),
+                      color: Theme.of(context).colorScheme.error,
                       onPressed: onDelete,
                       tooltip: 'Delete',
                       visualDensity: VisualDensity.compact,
-                      iconSize: 24,
                     ),
                   ],
                 ),
@@ -483,45 +461,41 @@ class BotCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Expanded(
-                  child: Button(
-                    label: 'Edit',
-                    icon: Icons.edit,
-                    onPressed: onEdit,
-                    variant: ButtonVariant.ghost,
-                    size: ButtonSize.medium,
-                    isDarkMode: isDarkMode,
-                    fullWidth: true,
-                    color: isDarkMode
-                        ? Theme.of(context).colorScheme.onSurface.withAlpha(180)
-                        : Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withAlpha(160),
-                  ),
+                Button(
+                  label: 'Edit',
+                  icon: Icons.edit,
+                  onPressed: onEdit,
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.medium,
+                  radius: ButtonRadius.small,
+                  isDarkMode: isDarkMode,
+                  fullWidth: false,
+                  color: isDarkMode
+                      ? Theme.of(context).colorScheme.onSurface.withAlpha(180)
+                      : Theme.of(context).colorScheme.onSurface.withAlpha(160),
                 ),
                 const SizedBox(width: 16),
-                Expanded(
-                  child: Button(
-                    label: 'Chat',
-                    icon: Icons.chat_bubble,
-                    onPressed: () {
-                      // Navigate to bot preview/chat screen
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => BotPreviewScreen(
-                            botId: bot.id,
-                            botName: bot.name,
-                          ),
+                Button(
+                  label: 'Chat',
+                  icon: Icons.chat_bubble,
+                  onPressed: () {
+                    // Navigate to bot preview/chat screen
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => BotPreviewScreen(
+                          botId: bot.id,
+                          botName: bot.name,
+                          mode: BotScreenMode.chat,
                         ),
-                      );
-                    },
-                    variant: ButtonVariant.primary,
-                    size: ButtonSize.medium,
-                    isDarkMode: isDarkMode,
-                    fullWidth: true,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      ),
+                    );
+                  },
+                  variant: ButtonVariant.primary,
+                  size: ButtonSize.medium,
+                  radius: ButtonRadius.small,
+                  isDarkMode: isDarkMode,
+                  fullWidth: false,
+                  fontWeight: FontWeight.bold,
                 ),
               ],
             ),

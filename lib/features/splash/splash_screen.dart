@@ -170,6 +170,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               style: Theme.of(context).textTheme.displayLarge?.copyWith(
                 fontFamily: 'monospace',
                 wordSpacing: -4,
+                color: Colors.white,
               ),
             ),
           ],

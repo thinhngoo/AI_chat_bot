@@ -24,17 +24,18 @@ class BotDetailScreen extends StatefulWidget {
   State<BotDetailScreen> createState() => _BotDetailScreenState();
 }
 
-class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProviderStateMixin {
+class _BotDetailScreenState extends State<BotDetailScreen>
+    with SingleTickerProviderStateMixin {
   final Logger _logger = Logger();
   final BotService _botService = BotService();
 
-  late TabController _tabController;
   bool _isLoading = true;
+  bool _isLoadingKnowledge = false;
   String _errorMessage = '';
   AIBot? _bot;
   List<KnowledgeData> _knowledgeBases = [];
-  bool _isLoadingKnowledge = false;
 
+  late TabController _tabController;
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _promptController = TextEditingController();
@@ -112,9 +113,9 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
 
       // Get imported knowledge bases for this specific bot
       final importedKnowledgeBases = await _botService.getImportedKnowledge(
-        botId: widget.botId,
-        limit: 50 // Get a reasonable limit of imported knowledge bases
-      );
+          botId: widget.botId,
+          limit: 50 // Get a reasonable limit of imported knowledge bases
+          );
 
       // Extract IDs of imported knowledge bases
       final importedIds = importedKnowledgeBases.map((kb) => kb.id).toList();
@@ -132,7 +133,8 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
             updatedAt: _bot!.updatedAt,
             isPublished: _bot!.isPublished,
             connectedPlatforms: _bot!.connectedPlatforms,
-            knowledgeBaseIds: importedIds, // Update with the actual imported knowledge base IDs
+            knowledgeBaseIds:
+                importedIds, // Update with the actual imported knowledge base IDs
           );
 
           // Store the knowledge bases for display
@@ -157,18 +159,19 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
     final confirmed = await GlobalDialog.show(
       context: context,
       title: 'Remove Knowledge',
-      message: 'Are you sure you want to remove "${knowledge.name}" from this bot?\n\nThis will not delete the knowledge base itself.',
+      message:
+          'Are you sure you want to remove "${knowledge.name}" from this bot?\n\nThis will not delete the knowledge base itself.',
       variant: DialogVariant.warning,
       confirmLabel: 'Remove',
       cancelLabel: 'Cancel',
     );
-    
+
     if (confirmed != true) return;
-    
+
     try {
       setState(() {
         _isLoadingKnowledge = true;
-      });      
+      });
       await _botService.removeKnowledge(
         botId: widget.botId,
         knowledgeBaseId: knowledge.id,
@@ -177,9 +180,10 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
       if (!mounted) return;
       GlobalSnackBar.show(
         context: context,
-        message: 'Removed "${knowledge.name}" from bot',
-        variant: SnackBarVariant.warning,
-        actionLabel: 'UNDO',
+        message:
+            'Removed "${knowledge.name.isNotEmpty ? knowledge.name : 'Untitled'}" from bot',
+        variant: SnackBarVariant.info,
+        actionLabel: 'Undo',
         onActionPressed: () {
           _addKnowledgeBack(knowledge);
         },
@@ -209,17 +213,18 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
       await _botService.importKnowledge(
         botId: widget.botId,
         knowledgeBaseIds: [knowledge.id],
-      );      
+      );
       // Refresh knowledge bases
       _fetchKnowledgeBases();
 
       if (!mounted) return;
       GlobalSnackBar.show(
         context: context,
-        message: 'Added "${knowledge.name}" back to bot',
+        message:
+            'Added "${knowledge.name.isNotEmpty ? knowledge.name : 'Untitled'}" back to bot',
         variant: SnackBarVariant.success,
       );
-    } catch (e) {      
+    } catch (e) {
       _logger.e('Error adding knowledge base back: $e');
 
       if (!mounted) return;
@@ -278,26 +283,31 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colors = isDarkMode ? AppColors.dark : AppColors.light;
-    
-    return Scaffold(      
+
+    return Scaffold(
       appBar: AppBar(
-        title: Text(_bot?.name ?? 'Bot Details'),
+        title: Text(_bot?.name ?? 'Bot Details',
+            overflow: TextOverflow.ellipsis, maxLines: 1),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.integration_instructions),
-            tooltip: 'Integrations',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => BotIntegrationScreen(
-                    botId: widget.botId,
-                    botName: _bot?.name ?? 'Bot',
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: IconButton(
+              icon: const Icon(Icons.add_link),
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
+              tooltip: 'Integrations',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BotIntegrationScreen(
+                      botId: widget.botId,
+                      botName: _bot?.name ?? 'Bot',
+                    ),
                   ),
-                ),
-              ).then((_) => _fetchBotDetails());
-            },
+                ).then((_) => _fetchBotDetails());
+              },
+            ),
           ),
         ],
         bottom: TabBar(
@@ -313,7 +323,8 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
           indicatorSize: TabBarIndicatorSize.tab,
           dividerColor: Theme.of(context).colorScheme.outline.withAlpha(184),
           labelColor: Theme.of(context).colorScheme.primary,
-          unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withAlpha(184),
+          unselectedLabelColor:
+              Theme.of(context).colorScheme.onSurface.withAlpha(184),
           tabs: const [
             Tab(text: 'Details'),
             Tab(text: 'Knowledge'),
@@ -340,293 +351,10 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
                     _buildDetailsTab(isDarkMode),
 
                     // Knowledge Tab with list of knowledge bases
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Knowledge Base',
-                                style: Theme.of(context).textTheme.headlineMedium,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Bot has ${_bot?.knowledgeBaseIds.length ?? 0} knowledge bases',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).hintColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // List of knowledge bases
-                        _isLoadingKnowledge
-                            ? Expanded(
-                                child: InformationIndicator(
-                                  variant: InformationVariant.loading,
-                                  message: 'Loading knowledge bases...',
-                                ),
-                              )
-                            : _knowledgeBases.isEmpty
-                                ? Expanded(
-                                    child: InformationIndicator(
-                                      variant: InformationVariant.info,
-                                      message: 'No knowledge bases added yet\nAdd knowledge to enhance your bot',
-                                      buttonText: 'Add Knowledge',
-                                      onButtonPressed: () {
-                                        if (_bot != null) {
-                                          _navigateToKnowledgeScreen();
-                                        }
-                                      },
-                                    ),
-                                  )
-                                : Expanded(
-                                    child: Column(
-                                      children: [
-                                        // Knowledge list
-                                        Expanded(
-                                          child: ListView.builder(
-                                            itemCount: _knowledgeBases.length,
-                                            padding: const EdgeInsets.all(8.0),
-                                            itemBuilder: (context, index) {
-                                              final knowledge = _knowledgeBases[index];
-                                              return Padding(
-                                                padding: const EdgeInsets.only(bottom: 16.0),
-                                                child: Card(
-                                                  margin: EdgeInsets.zero,
-                                                  elevation: 1,
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: InkWell(
-                                                    borderRadius: BorderRadius.circular(12),
-                                                    onTap: () {
-                                                      // Navigate to knowledge detail screen (not implemented in this example)
-                                                    },
-                                                    child: Padding(
-                                                      padding: const EdgeInsets.all(16.0),
-                                                      child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                                        children: [
-                                                          // Top row with badges and actions
-                                                          Row(
-                                                            crossAxisAlignment: CrossAxisAlignment.center,
-                                                            children: [
-                                                              // Status badge
-                                                              Container(
-                                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                                decoration: BoxDecoration(
-                                                                  color: Theme.of(context).colorScheme.primary.withAlpha(12),
-                                                                  borderRadius: BorderRadius.circular(16),
-                                                                  border: Border.all(
-                                                                    color: Theme.of(context).colorScheme.primary.withAlpha(160),
-                                                                  ),
-                                                                ),
-                                                                child: Row(
-                                                                  mainAxisSize: MainAxisSize.min,
-                                                                  children: [
-                                                                    Icon(
-                                                                      Icons.check_circle,
-                                                                      color: Theme.of(context).colorScheme.primary,
-                                                                      size: 14,
-                                                                    ),
-                                                                    const SizedBox(width: 4),
-                                                                    Text(
-                                                                      'Active',
-                                                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                                        color: Theme.of(context).colorScheme.primary,
-                                                                        fontWeight: FontWeight.bold,
-                                                                      ),
-                                                                    ),
-                                                                  ],
-                                                                ),
-                                                              ),
-                                                              
-                                                              const SizedBox(width: 12),
-                                                              
-                                                              // Document count
-                                                              Container(
-                                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                                decoration: BoxDecoration(
-                                                                  color: Colors.green.withAlpha(24),
-                                                                  borderRadius: BorderRadius.circular(4),
-                                                                ),
-                                                                child: Row(
-                                                                  children: [
-                                                                    Icon(
-                                                                      Icons.description_outlined,
-                                                                      size: 16,
-                                                                      color: colors.green,
-                                                                    ),
-                                                                    const SizedBox(width: 4),
-                                                                    Text(
-                                                                      '${knowledge.documentCount} ${knowledge.documentCount == 1 ? 'document' : 'documents'}',
-                                                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                                        color: colors.green,
-                                                                        fontWeight: FontWeight.w600,
-                                                                      ),
-                                                                    ),
-                                                                  ],
-                                                                ),
-                                                              ),
-
-                                                              const Spacer(),
-                                                              
-                                                              IconButton(
-                                                                icon: Icon(Icons.delete_outline),
-                                                                onPressed: () => _removeKnowledgeBase(knowledge),
-                                                                color: colors.red,
-                                                                tooltip: 'Remove',
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          
-                                                          const SizedBox(height: 12),
-                                                          
-                                                          // Name and description
-                                                          Text(
-                                                            knowledge.name.isNotEmpty ? knowledge.name : 'Untitled',
-                                                            style: Theme.of(context).textTheme.titleMedium,
-                                                            maxLines: 1,
-                                                            overflow: TextOverflow.ellipsis,
-                                                          ),
-                                                          
-                                                          if (knowledge.description.isNotEmpty)
-                                                            Padding(
-                                                              padding: const EdgeInsets.only(top: 4.0, left: 1.0),
-                                                              child: Text(
-                                                                knowledge.description,
-                                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                                  color: Theme.of(context).hintColor,
-                                                                ),
-                                                                maxLines: 2,
-                                                                overflow: TextOverflow.ellipsis,
-                                                              ),
-                                                            ),
-                                                          
-                                                          const SizedBox(height: 20),
-                                                          
-                                                          // Bottom row with date and actions
-                                                          Row(
-                                                            crossAxisAlignment: CrossAxisAlignment.end,
-                                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                            children: [
-                                                              Text(
-                                                                'Updated: ${_formatDate(knowledge.updatedAt)}',
-                                                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                                  color: Theme.of(context).hintColor,
-                                                                ),
-                                                              ),
-                                                              
-                                                              Button(
-                                                                label: 'Details',
-                                                                icon: Icons.arrow_forward,
-                                                                onPressed: () {
-                                                                  // Navigate to knowledge detail
-                                                                },
-                                                                variant: ButtonVariant.primary,
-                                                                size: ButtonSize.medium,
-                                                                isDarkMode: Theme.of(context).brightness == Brightness.dark,
-                                                                width: 120,
-                                                                fullWidth: false,
-                                                                fontWeight: FontWeight.bold,
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-
-                                        // Add more knowledge button
-                                        Padding(
-                                          padding: const EdgeInsets.all(16.0),
-                                          child: Button(
-                                            label: 'Add More Knowledge',
-                                            onPressed: () => _navigateToKnowledgeScreen(),
-                                            variant: ButtonVariant.primary,
-                                            isDarkMode: isDarkMode,
-                                            icon: Icons.add,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                      ],
-                    ),
+                    _buildKnowledgeTab(isDarkMode),
 
                     // Publish Tab
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.public,
-                            size: 60,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Connected platforms: ${_bot?.connectedPlatforms.length ?? 0}',
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                          const SizedBox(height: 24),
-                          Button(
-                            label: 'Basic Publishing',
-                            onPressed: () {
-                              if (_bot != null) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => BotPublishScreen(
-                                      botId: _bot!.id,
-                                      botName: _bot!.name,
-                                    ),
-                                  ),
-                                ).then((_) => _fetchBotDetails());
-                              }
-                            },
-                            variant: ButtonVariant.primary,
-                            icon: Icons.share,
-                            isDarkMode: isDarkMode,
-                            fullWidth: false,
-                            width: 260,
-                          ),
-                          const SizedBox(height: 16),
-                          Button(
-                            label: 'Advanced Integrations',
-                            onPressed: () {
-                              if (_bot != null) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => BotIntegrationScreen(
-                                      botId: _bot!.id,
-                                      botName: _bot!.name,
-                                    ),
-                                  ),
-                                ).then((_) => _fetchBotDetails());
-                              }
-                            },
-                            variant: ButtonVariant.ghost,
-                            icon: Icons.integration_instructions,
-                            isDarkMode: isDarkMode,
-                            fullWidth: false,
-                            width: 260,
-                          ),
-                        ],
-                      ),
-                    ),
+                    _buildPublishTab(isDarkMode),
                   ],
                 ),
     );
@@ -638,14 +366,11 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-
           Text(
             'Update Bot Details',
-            style: Theme.of(context).textTheme.headlineMedium,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-
           const SizedBox(height: 24),
-
           FloatingLabelTextField(
             controller: _nameController,
             label: 'Bot Name',
@@ -653,9 +378,7 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
             enabled: !_isSaving,
             darkMode: isDarkMode,
           ),
-
           const SizedBox(height: 16),
-
           StyledDropdown<String>(
             label: 'AI Model',
             hintText: 'Select an AI model',
@@ -678,7 +401,6 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
             },
           ),
           const SizedBox(height: 16),
-
           FloatingLabelTextField(
             controller: _descriptionController,
             label: 'Description',
@@ -688,7 +410,6 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
             darkMode: isDarkMode,
           ),
           const SizedBox(height: 16),
-
           FloatingLabelTextField(
             controller: _promptController,
             label: 'Prompt Instructions',
@@ -697,8 +418,7 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
             enabled: !_isSaving,
             darkMode: isDarkMode,
           ),
-          const SizedBox(height: 32),
-
+          const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -710,38 +430,318 @@ class _BotDetailScreenState extends State<BotDetailScreen> with SingleTickerProv
                 fullWidth: false,
                 size: ButtonSize.medium,
                 width: 100,
+                radius: ButtonRadius.small,
                 color: isDarkMode
                     ? Theme.of(context).colorScheme.onSurface
                     : Theme.of(context).colorScheme.onSurface.withAlpha(204),
               ),
               const SizedBox(width: 8),
-              _isSaving
-                  ? SizedBox(
-                      height: 40,
-                      width: 100,
-                      child: Center(
-                        child: SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            color: Theme.of(context).hintColor,
-                            strokeWidth: 2.5,
+              Button(
+                label: 'Save',
+                icon: Icons.save,
+                onPressed: _saveChanges,
+                variant: ButtonVariant.primary,
+                isDarkMode: isDarkMode,
+                fullWidth: false,
+                size: ButtonSize.medium,
+                fontWeight: FontWeight.bold,
+                width: 100,
+                radius: ButtonRadius.small,
+                isLoading: _isSaving,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKnowledgeTab(bool isDarkMode) {
+    final colors = isDarkMode ? AppColors.dark : AppColors.light;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Knowledge Base',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Bot has ${_bot?.knowledgeBaseIds.length ?? 0} knowledge bases',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).hintColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // List of knowledge bases
+        _isLoadingKnowledge
+            ? Expanded(
+                child: InformationIndicator(
+                  variant: InformationVariant.loading,
+                  message: 'Loading knowledge bases...',
+                ),
+              )
+            : _knowledgeBases.isEmpty
+                ? Expanded(
+                    child: InformationIndicator(
+                      variant: InformationVariant.info,
+                      message: 'No knowledge bases added yet\nAdd knowledge to enhance your bot',
+                      buttonText: 'Add Knowledge',
+                      onButtonPressed: () {
+                        if (_bot != null) {
+                          _navigateToKnowledgeScreen();
+                        }
+                      },
+                    ),
+                  )
+                : Expanded(
+                    child: Column(
+                      children: [
+                        // Knowledge list
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: _knowledgeBases.length,
+                            padding: const EdgeInsets.all(8.0),
+                            itemBuilder: (context, index) {
+                              final knowledge = _knowledgeBases[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16.0),
+                                child: Card(
+                                  margin: EdgeInsets.zero,
+                                  elevation: 1,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: () {
+                                      // Navigate to knowledge detail screen (not implemented in this example)
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Top row with badges and actions
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                            children: [
+                                              // Status badge
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context).colorScheme.primary.withAlpha(12),
+                                                  borderRadius: BorderRadius.circular(16),
+                                                  border: Border.all(
+                                                    color: Theme.of(context).colorScheme.primary.withAlpha(160),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.check_circle,
+                                                      color: Theme.of(context).colorScheme.primary,
+                                                      size: 14,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      'Active',
+                                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                        color: Theme.of(context).colorScheme.primary,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              const SizedBox(width: 12),
+
+                                              // Document count
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.green.withAlpha(24),
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.description_outlined,
+                                                      size: 16,
+                                                      color: colors.green,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      '${knowledge.documentCount} ${knowledge.documentCount == 1 ? 'document' : 'documents'}',
+                                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                        color: colors.green,
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              const Spacer(),
+
+                                              IconButton(
+                                                icon: Icon(Icons.delete_outline),
+                                                onPressed: () => _removeKnowledgeBase(knowledge),
+                                                color: colors.red,
+                                                tooltip: 'Remove',
+                                              ),
+                                            ],
+                                          ),
+
+                                          const SizedBox(height: 12),
+
+                                          // Name and description
+                                          Text(
+                                            knowledge.name.isNotEmpty ? knowledge.name : 'Untitled',
+                                            style: Theme.of(context).textTheme.titleMedium,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+
+                                          if (knowledge.description.isNotEmpty)
+                                            Padding(
+                                              padding: const EdgeInsets.only(top: 4.0, left: 1.0),
+                                              child: Text(
+                                                knowledge.description,
+                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                  color: Theme.of(context).hintColor,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+
+                                          const SizedBox(height: 20),
+
+                                          // Bottom row with date and actions
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                'Updated: ${_formatDate(knowledge.updatedAt)}',
+                                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                  color: Theme.of(context).hintColor,
+                                                ),
+                                              ),
+                                              Button(
+                                                label: 'Details',
+                                                icon: Icons.arrow_forward,
+                                                onPressed: () {
+                                                  // Navigate to knowledge detail
+                                                },
+                                                variant: ButtonVariant.primary,
+                                                size: ButtonSize.medium,
+                                                isDarkMode: Theme.of(context).brightness == Brightness.dark,
+                                                width: 120,
+                                                fullWidth: false,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
-                      ),
-                    )
-                  : Button(
-                      label: 'Save',
-                      icon: Icons.save,
-                      onPressed: _saveChanges,
-                      variant: ButtonVariant.primary,
-                      isDarkMode: isDarkMode,
-                      fullWidth: false,
-                      size: ButtonSize.medium,
-                      fontWeight: FontWeight.bold,
-                      width: 100,
+
+                        // Add more knowledge button
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Button(
+                            label: 'Add More Knowledge',
+                            onPressed: () => _navigateToKnowledgeScreen(),
+                            variant: ButtonVariant.primary,
+                            isDarkMode: isDarkMode,
+                            icon: Icons.add,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-            ],
+                  ),
+      ],
+    );
+  }
+
+  Widget _buildPublishTab(bool isDarkMode) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.public,
+            size: 60,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Connected platforms: ${_bot?.connectedPlatforms.length ?? 0}',
+            style: const TextStyle(fontSize: 18),
+          ),
+          const SizedBox(height: 24),
+          Button(
+            label: 'Basic Publishing',
+            onPressed: () {
+              if (_bot != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BotPublishScreen(
+                      botId: _bot!.id,
+                      botName: _bot!.name,
+                    ),
+                  ),
+                ).then((_) => _fetchBotDetails());
+              }
+            },
+            variant: ButtonVariant.primary,
+            icon: Icons.share,
+            isDarkMode: isDarkMode,
+            fullWidth: false,
+            width: 260,
+          ),
+          const SizedBox(height: 16),
+          Button(
+            label: 'Advanced Integrations',
+            onPressed: () {
+              if (_bot != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BotIntegrationScreen(
+                      botId: _bot!.id,
+                      botName: _bot!.name,
+                    ),
+                  ),
+                ).then((_) => _fetchBotDetails());
+              }
+            },
+            variant: ButtonVariant.ghost,
+            icon: Icons.integration_instructions,
+            isDarkMode: isDarkMode,
+            fullWidth: false,
+            width: 260,
           ),
         ],
       ),
