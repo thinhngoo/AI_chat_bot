@@ -1,18 +1,15 @@
-import 'package:ai_chat_bot/core/constants/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../services/prompt_service.dart';
 import '../models/prompt.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/category_constants.dart';
 import '../../../widgets/information.dart';
 import '../../../widgets/dialog.dart';
 import '../../../widgets/text_field.dart';
 import '../../../widgets/button.dart';
 
-enum PromptDrawerMode {
-  create,
-  edit,
-  view
-}
+enum PromptDrawerMode { create, edit, view }
 
 class PromptDrawer extends StatefulWidget {
   final Function(String content)? onPromptCreated;
@@ -107,7 +104,7 @@ class _PromptDrawerState extends State<PromptDrawer> {
   String? _nameError;
   String? _promptError;
   bool _isPublic = false;
-  
+
   bool get _isEditMode => widget.mode == PromptDrawerMode.edit;
   bool get _isViewOnly => widget.mode == PromptDrawerMode.view;
   bool get _isCreateMode => widget.mode == PromptDrawerMode.create;
@@ -345,7 +342,7 @@ class _PromptDrawerState extends State<PromptDrawer> {
         );
 
         Navigator.pop(context);
-        
+
         // Call onPromptCreated callback to notify parent about the deletion
         if (widget.onPromptCreated != null) {
           widget.onPromptCreated!('');
@@ -417,9 +414,12 @@ class _PromptDrawerState extends State<PromptDrawer> {
             child: Row(
               children: [
                 Icon(
-                  Icons.category,
+                  CategoryConstants.getCategoryIcon(_categoryController.text),
                   size: 20,
-                  color: Theme.of(context).hintColor,
+                  color: CategoryConstants.getCategoryColor(
+                    _categoryController.text,
+                    darkMode: isDarkMode,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -433,16 +433,49 @@ class _PromptDrawerState extends State<PromptDrawer> {
           ),
         ] else ...[
           // Category dropdown
-          // FloatingLabelTextField(
-          //   controller: _categoryController,
-          //   label: 'Category',
-          //   hintText: 'Enter custom category',
-          //   onSubmitted: (_) => _savePrompt(),
-          //   enabled: !_isSaving && !_isViewOnly,
-          //   darkMode: isDarkMode,
-          //   readOnly: _isViewOnly,
-          // ),
-          // const SizedBox(height: 16),
+          StyledDropdown<String>(
+            label: 'Category',
+            hintText: 'Select a category',
+            value: _categoryController.text.isEmpty
+                ? 'other'
+                : _categoryController.text,
+            onChanged: (String? newValue) {
+              setState(() {
+                _categoryController.text = newValue ?? 'other';
+              });
+            },
+            darkMode: isDarkMode,
+            enabled: !_isSaving && !_isViewOnly,
+            items: CategoryConstants.categories
+                .map<DropdownMenuItem<String>>((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Row(
+                  children: [
+                    Icon(
+                      CategoryConstants.getCategoryIcon(value),
+                      size: 16,
+                      color: CategoryConstants.getCategoryColor(
+                        value,
+                        darkMode: isDarkMode,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      value.substring(0, 1).toUpperCase() +
+                          value.substring(1),
+                      style: TextStyle(
+                        color: isDarkMode
+                            ? Colors.white
+                            : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
 
           Padding(
             padding: const EdgeInsets.only(left: 8.0),
@@ -615,6 +648,7 @@ class _PromptDrawerState extends State<PromptDrawer> {
                 fullWidth: false,
                 size: ButtonSize.medium,
                 fontWeight: FontWeight.bold,
+                radius: ButtonRadius.small,
                 width: 100,
               ),
             ],
@@ -629,6 +663,7 @@ class _PromptDrawerState extends State<PromptDrawer> {
               isDarkMode: isDarkMode,
               fullWidth: false,
               size: ButtonSize.medium,
+              radius: ButtonRadius.small,
               width: 100,
               color: isDarkMode
                   ? Theme.of(context).colorScheme.onSurface
@@ -636,31 +671,18 @@ class _PromptDrawerState extends State<PromptDrawer> {
             ),
             if (!_isViewOnly) ...[
               const SizedBox(width: 8),
-              _isSaving
-                  ? SizedBox(
-                      height: 40,
-                      width: 100,
-                      child: Center(
-                        child: SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            color: Theme.of(context).hintColor,
-                            strokeWidth: 2.5,
-                          ),
-                        ),
-                      ),
-                    )
-                  : Button(
-                      label: _isEditMode ? 'Update' : 'Create',
-                      onPressed: _savePrompt,
-                      variant: ButtonVariant.primary,
-                      isDarkMode: isDarkMode,
-                      fullWidth: false,
-                      size: ButtonSize.medium,
-                      fontWeight: FontWeight.bold,
-                      width: 100,
-                    ),
+              Button(
+                label: _isEditMode ? 'Update' : 'Create',
+                onPressed: _savePrompt,
+                icon: _isEditMode ? Icons.edit : Icons.add,
+                variant: ButtonVariant.primary,
+                isDarkMode: isDarkMode,
+                fullWidth: false,
+                size: ButtonSize.medium,
+                fontWeight: FontWeight.bold,
+                radius: ButtonRadius.small,
+                isLoading: _isSaving,
+              ),
             ],
           ],
         ),
@@ -673,8 +695,8 @@ class _PromptDrawerState extends State<PromptDrawer> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colors = isDarkMode ? AppColors.dark : AppColors.light;
     final double screenWidth = MediaQuery.of(context).size.width;
-    final double screenHeight = MediaQuery.of(context).size.height *
-        (_isViewOnly ? 0.65 : 0.8);
+    final double screenHeight =
+        MediaQuery.of(context).size.height * (_isViewOnly ? 0.68 : 0.9);
 
     return Container(
       width: screenWidth,
@@ -742,7 +764,8 @@ class _PromptDrawerState extends State<PromptDrawer> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Invisible spacer to balance the public/private icon on left side
-                    if ((_isEditMode || _isViewOnly) && !_isCreateMode) const SizedBox(width: 24),
+                    if ((_isEditMode || _isViewOnly) && !_isCreateMode)
+                      const SizedBox(width: 24),
 
                     // Close button
                     IconButton(

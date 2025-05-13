@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/constants/category_constants.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../models/prompt.dart';
 
@@ -130,8 +131,8 @@ class PromptService {
       
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}');
 
-      // Use a simple fixed category to avoid potential issues
-      final validCategory = 'other';
+      // Validate the category against the list of available categories
+      String validCategory = _validateAndFormatCategory(category);
 
       final body = jsonEncode({
         'title': title,
@@ -169,22 +170,20 @@ class PromptService {
     }
   }
   
-  // Helper method to map UI categories to valid API enum values - will be used in future API integration
-  // ignore: unused_element
-  String _mapCategoryToAPIValue(String category) {
-    // Based on API documentation, expected values might be like:
-    // GENERAL, PROGRAMMING, WRITING, etc. (all uppercase with no spaces)
-    switch(category.toLowerCase()) {
-      case 'general': return 'GENERAL';
-      case 'programming': return 'PROGRAMMING';
-      case 'writing': return 'WRITING';
-      case 'business': return 'BUSINESS';
-      case 'education': return 'EDUCATION';
-      case 'health': return 'HEALTH';
-      case 'entertainment': return 'ENTERTAINMENT';
-      case 'other': return 'OTHER';
-      default: return 'OTHER'; // Default fallback
+  // Helper method to validate and format the category
+  String _validateAndFormatCategory(String category) {
+    if (category.isEmpty) return 'other';
+    
+    // Convert to lowercase for case-insensitive comparison
+    final categoryLower = category.toLowerCase();
+    
+    // Check if the category is in our predefined list
+    if (CategoryConstants.categories.contains(categoryLower)) {
+      return categoryLower;
     }
+    
+    // Return default category if not found
+    return 'other';
   }
   
   // Update an existing prompt
@@ -214,8 +213,8 @@ class PromptService {
       
       final uri = Uri.parse('$_baseUrl${ApiConstants.promptsEndpoint}/$promptId');
       
-      // Use a simple fixed category to avoid potential issues
-      final String validCategory = 'other';
+      // Validate the category against the list of available categories
+      String validCategory = _validateAndFormatCategory(category);
 
       final body = jsonEncode({
         'title': title,
@@ -462,21 +461,13 @@ class PromptService {
         return List<String>.from(data['categories']);
       } else {
         _logger.e('Failed to fetch categories: ${response.body}');
-        return []; // Return empty list instead of throwing
+        // Return our predefined categories instead of empty list
+        return CategoryConstants.categories;
       }
     } catch (e) {
       _logger.e('Error fetching categories: $e');
-      // Return default categories in case of error
-      return [
-        'General',
-        'Programming',
-        'Writing',
-        'Business',
-        'Education',
-        'Health',
-        'Entertainment',
-        'Other',
-      ];
+      // Return predefined categories in case of error
+      return CategoryConstants.categories;
     }
   }
   
@@ -489,6 +480,19 @@ class PromptService {
       );
     } catch (e) {
       _logger.e('Error searching prompts: $e');
+      return [];
+    }
+  }
+  
+  // Search prompts by category
+  Future<List<Prompt>> getPromptsByCategory(String category) async {
+    try {
+      return await getPrompts(
+        category: category,
+        limit: 20,
+      );
+    } catch (e) {
+      _logger.e('Error fetching prompts by category: $e');
       return [];
     }
   }

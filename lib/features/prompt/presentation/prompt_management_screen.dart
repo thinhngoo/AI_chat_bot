@@ -4,8 +4,10 @@ import '../models/prompt.dart';
 import '../services/prompt_service.dart';
 import 'prompt_list_screen.dart';
 import 'prompt_drawer.dart';
+import 'category_management_screen.dart';
 import '../../../widgets/information.dart';
 import '../../../widgets/dialog.dart';
+import '../../../core/constants/category_constants.dart';
 
 class PromptManagementScreen extends StatefulWidget {
   const PromptManagementScreen({super.key});
@@ -77,8 +79,8 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
         _errorMessage = '';
       });
 
-      // Fetch categories first
-      _availableCategories = await _promptService.getPromptCategories();
+      // Get available categories
+      _availableCategories = CategoryConstants.categories;
 
       // Fetch prompts based on the active tab
       switch (_tabController.index) {
@@ -254,11 +256,19 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Prompt Management'),
+        title: const Text('Prompt'),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: Icon(
+              Icons.category,
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
+            ),
+            tooltip: 'Manage Categories',
+            onPressed: _navigateToCategoryManagement,
+          ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            padding: const EdgeInsets.only(right: 8.0),
             child: IconButton(
               icon: Icon(
                 Icons.add_circle_outline,
@@ -650,5 +660,67 @@ class _PromptManagementScreenState extends State<PromptManagementScreen>
         }
       },
     );
+  }
+
+  void _navigateToCategoryManagement() async {
+    final selectedCategory = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (context) => const CategoryManagementScreen(),
+      ),
+    );
+
+    // If a category was selected, fetch prompts for that category
+    if (selectedCategory != null && selectedCategory.isNotEmpty) {
+      try {
+        setState(() {
+          _isLoading = true;
+          _errorMessage = '';
+        });
+
+        final categoryPrompts = await _promptService.getPromptsByCategory(selectedCategory);
+        
+        if (!mounted) return;
+
+        // We'll show these prompts in the current tab
+        setState(() {
+          switch (_tabController.index) {
+            case 0: // Public tab
+              _publicPrompts = categoryPrompts.where((p) => p.isPublic).toList();
+              _publicPromptsLoaded = true;
+              break;
+            case 1: // Private tab
+              _privatePrompts = categoryPrompts.where((p) => !p.isPublic).toList();
+              _privatePromptsLoaded = true;
+              break;
+            case 2: // Favorites tab
+              _favoritePrompts = categoryPrompts.where((p) => p.isFavorite).toList();
+              _favoritePromptsLoaded = true;
+              break;
+          }
+          _isLoading = false;
+        });
+
+        GlobalSnackBar.show(
+          context: context,
+          message: 'Showing prompts in category: ${selectedCategory.substring(0, 1).toUpperCase() + selectedCategory.substring(1)}',
+          variant: SnackBarVariant.info,
+        );
+      } catch (e) {
+        _logger.e('Error fetching prompts for category: $e');
+
+        if (!mounted) return;
+
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to load prompts for selected category';
+        });
+
+        GlobalSnackBar.show(
+          context: context,
+          message: 'Error: ${e.toString()}',
+          variant: SnackBarVariant.error,
+        );
+      }
+    }
   }
 }
