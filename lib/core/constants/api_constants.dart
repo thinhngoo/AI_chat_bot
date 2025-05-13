@@ -20,10 +20,11 @@ class ApiConstants {
   // AI Chat endpoints
   static const String aiChatConversations = '/api/v1/ai-chat/conversations';
   static const String aiChatConversationMessages = '/api/v1/ai-chat/conversations/{conversationId}/messages';
-  
   // Email Composition endpoints
   static const String emailSuggestReply = '/api/v1/email/suggest-reply';
   static const String emailComposeResponse = '/api/v1/email/compose-response';
+  static const String aiEmail = '/api/v1/ai-email';
+  static const String aiEmailReplyIdeas = '/api/v1/ai-email/reply-ideas';
   
   // Assistant Management endpoints (renamed from Bot to Assistant for consistency with API)
   static const String assistantsEndpoint = '/kb-core/v1/ai-assistant';

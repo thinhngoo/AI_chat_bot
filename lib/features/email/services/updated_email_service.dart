@@ -15,7 +15,7 @@ class EmailService {
     
     try {
       // Generate API URL
-      final url = Uri.parse('${ApiConstants.jarvisApiUrl}/api/v1/ai-email/reply-ideas');
+      final url = Uri.parse('${ApiConstants.jarvisApiUrl}${ApiConstants.aiEmailReplyIdeas}');
       
       // Get user token
       final token = await _authService.getToken();
@@ -117,7 +117,7 @@ class EmailService {
     
     try {
       // Generate API URL
-      final url = Uri.parse('${ApiConstants.jarvisApiUrl}/api/v1/ai-email');
+      final url = Uri.parse('${ApiConstants.jarvisApiUrl}${ApiConstants.aiEmail}');
       
       // Get user token
       final token = await _authService.getToken();
@@ -240,7 +240,7 @@ class EmailService {
     
     try {
       // Generate API URL
-      final url = Uri.parse('${ApiConstants.jarvisApiUrl}/api/v1/ai-email');
+      final url = Uri.parse('${ApiConstants.jarvisApiUrl}${ApiConstants.aiEmail}');
       
       // Get user token
       final token = await _authService.getToken();
@@ -280,28 +280,6 @@ class EmailService {
         case EmailActionType.positive:
           mainIdea = 'Make this email more positive and upbeat';
           style['tone'] = 'positive';
-          break;
-        case EmailActionType.thanks:
-          mainIdea = 'Add more appreciation to this email';
-          style['tone'] = 'grateful';
-          break;
-        case EmailActionType.sorry:
-          mainIdea = 'Make this email more apologetic';
-          style['tone'] = 'apologetic';
-          break;
-        case EmailActionType.followUp:
-          mainIdea = 'Turn this into a follow-up email';
-          break;
-        case EmailActionType.requestInfo:
-          mainIdea = 'Request more information in this email';
-          break;
-        case EmailActionType.negative:
-          mainIdea = 'Make this email more serious';
-          style['tone'] = 'serious';
-          break;
-        case EmailActionType.urgent:
-          mainIdea = 'Make this email more urgent';
-          style['tone'] = 'urgent';
           break;
         default:
           mainIdea = 'Improve this email';
@@ -461,6 +439,7 @@ Best regards,
 [Your Name]
 ''';
         
+      // Add cases for other email types with mock responses
       default:
         return '''
 Dear [Recipient],
@@ -541,52 +520,6 @@ $originalBody
 I would greatly appreciate your prompt attention to this matter. If possible, please respond by the end of today.
 
 Thank you for your immediate assistance.
-''';
-      
-      case EmailActionType.thanks:
-        return '''Thank you for your message.
-
-$originalBody
-
-I appreciate your attention to this matter.
-''';
-        
-      case EmailActionType.sorry:
-        return '''I sincerely apologize for any inconvenience.
-
-$originalBody
-
-Once again, I am very sorry for the situation and will work to ensure it does not happen again.
-''';
-        
-      case EmailActionType.followUp:
-        return '''I'm following up on our previous conversation.
-
-$originalBody
-
-Looking forward to your response at your earliest convenience.
-''';
-        
-      case EmailActionType.requestInfo:
-        return '''$originalBody
-
-Could you please provide more details about this matter? The additional information would help me address your request more effectively.
-''';
-        
-      case EmailActionType.positive:
-        return '''Great news!
-
-$originalBody
-
-This is certainly a positive development, and I look forward to our continued collaboration.
-''';
-        
-      case EmailActionType.negative:
-        return '''Important notice:
-
-$originalBody
-
-This is a matter that requires serious attention, and I hope we can address it promptly.
 ''';
         
       default:
