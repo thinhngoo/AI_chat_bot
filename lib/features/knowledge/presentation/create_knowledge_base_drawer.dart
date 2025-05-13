@@ -33,7 +33,8 @@ class CreateKnowledgeBaseDrawer extends StatefulWidget {
   }
 
   @override
-  State<CreateKnowledgeBaseDrawer> createState() => _CreateKnowledgeBaseDrawerState();
+  State<CreateKnowledgeBaseDrawer> createState() =>
+      _CreateKnowledgeBaseDrawerState();
 }
 
 class _CreateKnowledgeBaseDrawerState extends State<CreateKnowledgeBaseDrawer> {
@@ -43,10 +44,10 @@ class _CreateKnowledgeBaseDrawerState extends State<CreateKnowledgeBaseDrawer> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
-  
+
   bool _isSaving = false;
   String? _nameError;
-  
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -116,6 +117,81 @@ class _CreateKnowledgeBaseDrawerState extends State<CreateKnowledgeBaseDrawer> {
     }
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double screenHeight = MediaQuery.of(context).size.height * 0.6;
+
+    return Container(
+      width: screenWidth,
+      height: screenHeight,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Column(
+        children: [
+          // Indicator bar
+          const DrawerTopIndicator(),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(vertical: 6.0, horizontal: 10.0),
+            child: Row(
+              children: [
+                // Left side spacer
+                const SizedBox(width: 48),
+
+                // Centered title
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      'Create Knowledge Base',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                ),
+
+                // Close button
+                IconButton(
+                  icon: const Icon(Icons.close, size: 24),
+                  color: Theme.of(context).hintColor,
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          // Content area
+          Expanded(
+            child: Stack(
+              children: [
+                // Scrollable form area
+                SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(
+                      16, 16, 16, 80), // Add bottom padding for buttons
+                  child: Form(
+                    key: _formKey,
+                    child: _buildForm(context),
+                  ),
+                ),
+                // Fixed bottom action buttons
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
+                    child: _buildActionButtons(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildForm(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
@@ -142,7 +218,6 @@ class _CreateKnowledgeBaseDrawerState extends State<CreateKnowledgeBaseDrawer> {
           darkMode: isDarkMode,
         ),
         const SizedBox(height: 16),
-        
         Padding(
           padding: const EdgeInsets.only(left: 8.0),
           child: Row(
@@ -163,9 +238,7 @@ class _CreateKnowledgeBaseDrawerState extends State<CreateKnowledgeBaseDrawer> {
             ],
           ),
         ),
-
         const SizedBox(height: 8),
-
         Padding(
           padding: const EdgeInsets.only(left: 8.0),
           child: Row(
@@ -203,111 +276,26 @@ class _CreateKnowledgeBaseDrawerState extends State<CreateKnowledgeBaseDrawer> {
           isDarkMode: isDarkMode,
           fullWidth: false,
           size: ButtonSize.medium,
+          radius: ButtonRadius.small,
           width: 100,
           color: isDarkMode
               ? Theme.of(context).colorScheme.onSurface
               : Theme.of(context).colorScheme.onSurface.withAlpha(204),
         ),
         const SizedBox(width: 8),
-        _isSaving
-            ? SizedBox(
-                height: 40,
-                width: 100,
-                child: Center(
-                  child: SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      color: Theme.of(context).hintColor,
-                      strokeWidth: 2.5,
-                    ),
-                  ),
-                ),
-              )
-            : Button(
-                label: 'Create',
-                onPressed: _createKnowledgeBase,
-                variant: ButtonVariant.primary,
-                isDarkMode: isDarkMode,
-                fullWidth: false,
-                size: ButtonSize.medium,
-                fontWeight: FontWeight.bold,
-                width: 100,
-              ),
+        Button(
+          label: 'Create',
+          icon: Icons.add,
+          onPressed: _createKnowledgeBase,
+          variant: ButtonVariant.primary,
+          isDarkMode: isDarkMode,
+          fullWidth: false,
+          size: ButtonSize.medium,
+          radius: ButtonRadius.small,
+          fontWeight: FontWeight.bold,
+          isLoading: _isSaving,
+        ),
       ],
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final double screenHeight = MediaQuery.of(context).size.height * 0.6;
-
-    return Container(
-      width: screenWidth,
-      height: screenHeight,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: Column(
-        children: [
-          // Indicator bar
-          const DrawerTopIndicator(),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 10.0),
-            child: Row(
-              children: [
-                // Left side spacer
-                const SizedBox(width: 48),
-
-                // Centered title
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      'Create Knowledge Base',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                ),
-
-                // Close button
-                IconButton(
-                  icon: const Icon(Icons.close, size: 24),
-                  color: Theme.of(context).hintColor,
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          ),
-          // Content area
-          Expanded(
-            child: Stack(
-              children: [
-                // Scrollable form area
-                SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 80), // Add bottom padding for buttons
-                  child: Form(
-                    key: _formKey,
-                    child: _buildForm(context),
-                  ),
-                ),
-                // Fixed bottom action buttons
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 16),
-                    child: _buildActionButtons(context),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-} 
+}

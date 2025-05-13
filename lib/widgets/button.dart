@@ -34,7 +34,8 @@ class Button extends StatelessWidget {
   final Color? color;
   final int ghostAlpha;
   final double? width;
-
+  final bool? isLoading;
+  
   const Button({
     super.key,
     required this.label,
@@ -46,10 +47,11 @@ class Button extends StatelessWidget {
     this.fontWeight = FontWeight.normal,
     this.size = ButtonSize.medium,
     this.radius = ButtonRadius.large,
-    this.elevation = 2.0,
+    this.elevation = 1.0,
     this.color,
     this.ghostAlpha = 20,
     this.width,
+    this.isLoading = false,
   });
 
   @override
@@ -117,24 +119,48 @@ class Button extends StatelessWidget {
         break;
     }
 
-    final Widget buttonChild = Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (icon != null) ...[
-          Icon(icon, size: iconSize, color: variant == ButtonVariant.ghost ? foreground : null),
-          SizedBox(width: spacing),
-        ],
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: fontSize,
-            fontWeight: fontWeight,
-            color: variant == ButtonVariant.ghost ? foreground : null,
-          ),
+    final Widget buttonChild;
+    
+    if (isLoading == true) {
+      buttonChild = SizedBox(
+        height: iconSize,
+        width: iconSize,
+        child: CircularProgressIndicator(
+          color: foreground,
+          strokeWidth: 2.5,
         ),
-      ],
-    );
+      );
+    } else if (icon != null) {
+      buttonChild = Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon, 
+            size: iconSize, 
+            color: variant == ButtonVariant.ghost ? foreground : null
+          ),
+          SizedBox(width: spacing),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+              color: variant == ButtonVariant.ghost ? foreground : null,
+            ),
+          ),
+        ],
+      );
+    } else {
+      buttonChild = Text(
+        label,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          color: variant == ButtonVariant.ghost ? foreground : null,
+        ),
+      );
+    }
 
     final ButtonStyle buttonStyle = variant == ButtonVariant.ghost
         ? TextButton.styleFrom(
@@ -166,16 +192,19 @@ class Button extends StatelessWidget {
           buttonWidth = width;
         }
 
+        // Disable onPressed when isLoading is true
+        final VoidCallback? effectiveOnPressed = isLoading == true ? null : onPressed;
+
         return SizedBox(
           width: buttonWidth,
           child: variant == ButtonVariant.ghost
               ? TextButton(
-                  onPressed: onPressed,
+                  onPressed: effectiveOnPressed,
                   style: buttonStyle,
                   child: buttonChild,
                 )
               : ElevatedButton(
-                  onPressed: onPressed,
+                  onPressed: effectiveOnPressed,
                   style: buttonStyle,
                   child: buttonChild,
                 ),

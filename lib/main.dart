@@ -259,6 +259,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
       ),
 
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: colors.input,
+        foregroundColor: colors.inputForeground,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(
+            color: colors.border.withAlpha(120),
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: 1,
+      ),
+
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: colors.cardForeground.withAlpha(128),

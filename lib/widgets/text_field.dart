@@ -19,6 +19,7 @@ class CommonTextField extends StatelessWidget {
   final bool readOnly;
   final bool enabled;
   final bool obscureText;
+  final bool autofocus;
 
   const CommonTextField({
     super.key,
@@ -39,6 +40,7 @@ class CommonTextField extends StatelessWidget {
     this.readOnly = false,
     this.enabled = true,
     this.obscureText = false,
+    this.autofocus = false,
   });
 
   @override
@@ -63,6 +65,7 @@ class CommonTextField extends StatelessWidget {
             readOnly: readOnly,
             enabled: enabled,
             obscureText: obscureText,
+            autofocus: autofocus,
             style: TextStyle(
               color: colors.inputForeground,
             ),
@@ -153,6 +156,7 @@ class FloatingLabelTextField extends StatelessWidget {
   final bool enabled;
   final FocusNode? focusNode;
   final bool obscureText;
+  final bool autofocus;
 
   const FloatingLabelTextField({
     super.key,
@@ -174,6 +178,7 @@ class FloatingLabelTextField extends StatelessWidget {
     this.enabled = true,
     this.focusNode,
     this.obscureText = false,
+    this.autofocus = false,
   });
 
   @override
@@ -200,6 +205,7 @@ class FloatingLabelTextField extends StatelessWidget {
             enabled: enabled,
             focusNode: focusNode,
             obscureText: obscureText,
+            autofocus: autofocus,
             style: TextStyle(
               color: colors.inputForeground,
             ),

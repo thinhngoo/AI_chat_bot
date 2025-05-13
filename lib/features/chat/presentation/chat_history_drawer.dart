@@ -160,7 +160,7 @@ class _ChatHistoryDrawerState extends State<ChatHistoryDrawer> {
             child: CommonTextField(
               controller: searchController,
               label: 'Search',
-              hintText: 'Search conversations',
+              hintText: 'Search conversations...',
               prefixIcon: Icons.search,
               darkMode: isDarkMode,
               onChanged: (value) {
@@ -170,7 +170,7 @@ class _ChatHistoryDrawerState extends State<ChatHistoryDrawer> {
           ),
           const SizedBox(height: 8),
           Padding(
-            padding: const EdgeInsets.only(left: 26.0),
+            padding: const EdgeInsets.only(left: 20.0),
             child: ResultsCountIndicator(
               filteredCount: filteredCount,
               totalCount: totalCount,
