@@ -151,7 +151,7 @@ class ChatZone extends StatelessWidget {
         if (isUserMessage) {
           return Padding(
             // Add padding to the bottom of the message
-            padding: const EdgeInsets.only(bottom: 28.0),
+            padding: const EdgeInsets.only(bottom: 20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -188,7 +188,7 @@ class ChatZone extends StatelessWidget {
 
                 // AI answer - simplified, no bubble UI
                 Padding(
-                  padding: const EdgeInsets.only(left: 8, right: 16),
+                  padding: const EdgeInsets.only(right: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -238,7 +238,7 @@ class ChatZone extends StatelessWidget {
           );
         } else {
           return Padding(
-            padding: const EdgeInsets.only(bottom: 32.0, left: 8, right: 16),
+            padding: const EdgeInsets.only(bottom: 20.0, right: 16),
             child: buildMarkdownBody(context, message.answer),
           );
         }

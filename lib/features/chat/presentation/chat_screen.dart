@@ -1,13 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:convert';
+import '../analytics/chat_analytics.dart';
+import '../models/conversation_message.dart';
 import '../../../core/services/auth/auth_service.dart';
 import '../../../core/services/analytics/analytics_service.dart';
 import '../services/chat_service.dart';
-import '../models/conversation_message.dart';
 import '../../../features/bot/services/bot_service.dart';
-import '../analytics/chat_analytics.dart';
 import '../../../features/prompt/presentation/prompt_selector.dart';
 import '../../../features/subscription/widgets/ad_banner_widget.dart';
 import '../../../features/subscription/services/ad_manager.dart';
@@ -61,16 +61,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
-  late AnimationController _sendButtonController;  @override
+  late AnimationController _sendButtonController;
+  @override
   void initState() {
     super.initState();
-    
+
     // Initialize chat analytics helper
     _chatAnalytics = ChatAnalytics(_analytics);
-    
+
     // Clear the chat cache to ensure we're not showing a previous user's conversations
     _chatService.clearCache();
-    
+
     _fetchConversationHistory();
     _checkSubscriptionStatus();
 
@@ -81,7 +82,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     // Listen for changes in the message text to detect slash commands
     _messageController.addListener(_handleMessageChanged);
-    
+
     // Log screen view for analytics
     _analytics.logScreenView(
       screenName: 'ChatScreen',
@@ -100,7 +101,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   // ===== SUBSCRIPTION & INITIALIZATION METHODS =====
-  
+
   Future<void> _checkSubscriptionStatus() async {
     try {
       final subscription = await _subscriptionService.getCurrentSubscription();
@@ -161,16 +162,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             'You have run out of tokens. Please upgrade your subscription to continue using the AI chat.',
         variant: SnackBarVariant.error,
         duration: const Duration(seconds: 10),
-        actionLabel: 'Upgrade',        onActionPressed: () {
+        actionLabel: 'Upgrade',
+        onActionPressed: () {
           // Navigate to subscription screen
           _navigateToSubscriptionScreen();
-          
+
           // Track subscription event in analytics
           _analytics.logSubscriptionEvent(
             action: 'upgrade_button_clicked',
             plan: 'from_insufficient_tokens',
           );
-          
+
           _logger.i(
               'User clicked upgrade button after seeing insufficient tokens error');
         },
@@ -179,7 +181,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   // ===== CONVERSATION HISTORY METHODS =====
-  
+
   Future<void> _fetchConversationHistory() async {
     try {
       setState(() {
@@ -266,11 +268,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       }
     }
   }
+
   Future<void> _loadConversation(String conversationId) async {
     // Track conversation load time
     final startTime = DateTime.now().millisecondsSinceEpoch;
     bool isSuccess = false;
-    
+
     try {
       setState(() {
         _isLoading = true;
@@ -290,7 +293,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           _messages = messages;
           _isLoading = false;
         });
-        isSuccess = true;      }
+        isSuccess = true;
+      }
     } catch (e) {
       _logger.e('Error loading conversation: $e');
       isSuccess = false;
@@ -320,7 +324,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   // ===== MESSAGING & TEXT INPUT METHODS =====
-  
+
   void _handleMessageChanged() {
     final text = _messageController.text;
 
@@ -338,6 +342,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       });
     }
   }
+
   void _handlePromptSelected(String content) {
     setState(() {
       _messageController.text = content;
@@ -383,7 +388,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   // ===== MESSAGE SENDING METHODS =====
-  
+
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
@@ -443,20 +448,22 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _handleGenericSendError(e, message);
     }
   }
+
   Future<void> _sendMessageToCustomBot(String message) async {
-    try {      // Log message sent to analytics
+    try {
+      // Log message sent to analytics
       _chatAnalytics.logMessageSent(
         modelId: _selectedAssistantId,
         isCustomBot: true,
         conversationId: _currentConversationId,
         message: message,
       );
-      
+
       // Set typing indicator to true
       setState(() {
         _isTyping = true;
       });
-      
+
       final botResponse = await _botService.askBot(
         botId: _selectedAssistantId,
         message: message,
@@ -486,7 +493,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       }
     } catch (e) {
       _logger.e('Error sending message to custom bot: $e');
-        // Log error to analytics
+      // Log error to analytics
       _chatAnalytics.logMessageError(
         errorType: 'custom_bot_error',
         errorMessage: e.toString(),
@@ -519,9 +526,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       }
     }
   }
+
   Future<void> _sendMessageToAIModel(String message) async {
     _logger.i('Sending message with conversation ID: $_currentConversationId');
-      // Log message sent event for analytics
+    // Log message sent event for analytics
     _chatAnalytics.logMessageSent(
       modelId: _selectedAssistantId,
       isCustomBot: false,
@@ -548,7 +556,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _handleSuccessfulAIResponse(response, message);
     } catch (e) {
       _logger.e('Error sending message (first attempt): $e');
-        // Log error to analytics
+      // Log error to analytics
       _chatAnalytics.logMessageError(
         errorType: 'ai_model_error',
         errorMessage: e.toString(),
@@ -632,9 +640,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
 
-  void _handleSuccessfulAIResponse(Map<String, dynamic> response, String message) {
+  void _handleSuccessfulAIResponse(
+      Map<String, dynamic> response, String message) {
     if (!mounted) return;
-    
+
     String answer = '';
     String? newConversationId = _currentConversationId;
     int? remainingUsage;
@@ -664,8 +673,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               onActionPressed: () {
                 // Navigate to subscription screen
                 _navigateToSubscriptionScreen();
-                _logger.i(
-                    'User clicked upgrade button from low tokens warning');
+                _logger
+                    .i('User clicked upgrade button from low tokens warning');
               },
             );
           }
@@ -773,8 +782,45 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
+  // === OTHER METHODS ===
+
+  void _selectAssistant(String assistantId) {
+    if (assistantId != _selectedAssistantId) {
+      _logger.i('Switching model from $_selectedAssistantId to $assistantId');
+      // Track model change in analytics
+      _chatAnalytics.logModelSwitched(
+        fromModel: _selectedAssistantId,
+        toModel: assistantId,
+      );
+
+      setState(() {
+        _selectedAssistantId = assistantId;
+
+        // Reset conversation ID when changing models to avoid thinking state problems
+        _currentConversationId = null;
+
+        // Remove any messages with empty answers that might be in the typing state
+        _messages =
+            _messages.where((message) => message.answer.isNotEmpty).toList();
+
+        // Reset loading states
+        _isSending = false;
+        _isTyping = false;
+        _sendButtonController.reverse();
+      });
+
+      // Show a small confirmation
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Switched to ${_getModelDisplayName(assistantId)}',
+        variant: SnackBarVariant.info,
+        duration: const Duration(seconds: 1),
+      );
+    }
+  }
+
   // ===== UI BUILDING METHODS =====
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -784,7 +830,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           builder: (context) => Padding(
             padding: const EdgeInsets.all(8.0),
             child: IconButton(
-              icon: Icon(Icons.menu, color: Theme.of(context).colorScheme.onSurface.withAlpha(204)),
+              icon: Icon(Icons.menu,
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(178)),
               tooltip: 'Chat History',
               onPressed: () {
                 Scaffold.of(context).openDrawer();
@@ -793,58 +840,23 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           ),
         ),
         title: AssistantSelector(
-          selectedAssistantId: _selectedAssistantId,          onSelect: (id) {
-            if (id != _selectedAssistantId) {
-              _logger.i('Switching model from $_selectedAssistantId to $id');
-                // Track model change in analytics
-              _chatAnalytics.logModelSwitched(
-                fromModel: _selectedAssistantId,
-                toModel: id,
-              );
-              
-              setState(() {
-                _selectedAssistantId = id;
-
-                // Reset conversation ID when changing models to avoid thinking state problems
-                _currentConversationId = null;
-
-                // Remove any messages with empty answers that might be in the typing state
-                _messages = _messages
-                    .where((message) => message.answer.isNotEmpty)
-                    .toList();
-
-                // Reset loading states
-                _isSending = false;
-                _isTyping = false;
-                _sendButtonController.reverse();
-              });
-
-              // Show a small confirmation
-              GlobalSnackBar.show(
-                context: context,
-                message: 'Switched to ${_getModelDisplayName(id)}',
-                variant: SnackBarVariant.info,
-                duration: const Duration(seconds: 1),
-              );
-            }
-          },
+          selectedAssistantId: _selectedAssistantId,
+          onSelect: _selectAssistant,
         ),
         centerTitle: true,
         actions: [
-          // New chat button
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            padding: const EdgeInsets.only(right: 8.0),
             child: IconButton(
-              icon: Icon(
-                Icons.edit_document,
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
-              ),
-              tooltip: 'New conversation',              onPressed: () {
+              icon: Icon(Icons.edit_document),
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
+              tooltip: 'New conversation',
+              onPressed: () {
                 setState(() {
                   _currentConversationId = null;
                   _messages = [];
                 });
-                
+
                 // Track new chat creation
                 _chatAnalytics.logNewChat(modelId: _selectedAssistantId);
               },
@@ -858,9 +870,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           children: [
             // Show ad banner for free users
             if (!_isPro) const AdBannerWidget(),
-
             _buildChatMessages(),
-
             _buildMessageInputArea(),
           ],
         ),
@@ -927,9 +937,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     'Free users have limited messages. Upgrade for unlimited access.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).hintColor,
-                      fontStyle: FontStyle.italic,
-                    ),
+                          color: Theme.of(context).hintColor,
+                          fontStyle: FontStyle.italic,
+                        ),
                   ),
                 ),
             ],
@@ -960,7 +970,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(13),
+            color: Colors.black.withAlpha(12),
             blurRadius: 5,
             offset: const Offset(0, -1),
           ),
@@ -970,7 +980,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       child: SafeArea(
         child: Column(
           children: [
-            // Message text field row
             TextField(
               controller: _messageController,
               focusNode: _messageFocusNode,
@@ -982,7 +991,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               decoration: InputDecoration(
                 fillColor: Theme.of(context).colorScheme.surfaceDim,
                 filled: true,
-                hintText: 'Type a message or / for prompts...',
+                hintText: 'Ask anything, press \'/\' for prompts...',
                 border: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 contentPadding:
@@ -1085,8 +1094,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                               : Icon(
                                   Icons.arrow_upward,
                                   color: isDisabled
-                                      ? Theme.of(context).hintColor.withAlpha(128)
-                                      : Theme.of(context).colorScheme.surfaceDim,
+                                      ? Theme.of(context)
+                                          .hintColor
+                                          .withAlpha(128)
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .surfaceDim,
                                   size: 24,
                                 ),
                         ),

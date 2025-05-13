@@ -47,6 +47,23 @@ class _MainScreenState extends State<MainScreen> {
     ];
   }
 
+  IconData _getIconForIndex(int index) {
+    switch (index) {
+      case 0:
+        return Icons.email;
+      case 1:
+        return Icons.smart_toy;
+      case 2:
+        return Icons.chat_bubble;
+      case 3:
+        return Icons.book;
+      case 4:
+        return Icons.person;
+      default:
+        return Icons.circle;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -56,7 +73,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: Container(
         height: 72, // Fixed height for the nav bar
-        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           border: Border(
@@ -77,32 +94,8 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  IconData _getIconForIndex(int index) {
-    switch (index) {
-      case 0:
-        return Icons.email;
-      case 1:
-        return Icons.smart_toy;
-      case 2:
-        return Icons.chat_bubble;
-      case 3:
-        return Icons.book;
-      case 4:
-        return Icons.person;
-      default:
-        return Icons.circle;
-    }
-  }
-
   Widget _buildNavItem(IconData icon, String label, int index) {
     final isSelected = _currentIndex == index;
-
-    Color iconColor = isSelected
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).hintColor;
-
-    // Fixed size for square items
-    const double itemSize = 60;
 
     return Expanded(
       child: Tooltip(
@@ -115,7 +108,7 @@ class _MainScreenState extends State<MainScreen> {
           },
           child: Center(
             child: Container(
-              height: itemSize,
+              height: 60,
               width: double.infinity,
               decoration: isSelected
                   ? BoxDecoration(
@@ -130,7 +123,9 @@ class _MainScreenState extends State<MainScreen> {
                 children: [
                   Icon(
                     icon,
-                    color: iconColor,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).hintColor,
                     size: 24,
                   ),
                   if (isSelected) ...[
