@@ -10,71 +10,73 @@ class SelectKnowledgeSourceDialog extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: const EdgeInsets.only(top: 8, bottom: 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.only(left: 24, right: 24, bottom: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Select Knowledge Source',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+            Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  children: [
+                    SizedBox(width: 40),
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          'Select Source',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  CloseButton(),
-                ],
-              ),
-            ),
-            
+                    CloseButton(),
+                  ],
+                )),
+            // const SizedBox(height: 16),
+
             // List of source options
             Flexible(
               child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildSourceOption(
                       context: context,
                       icon: Icons.insert_drive_file,
-                      iconColor: Colors.blue,
+                      iconColor: Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withAlpha(120),
                       title: 'Local files',
                       description: 'Upload pdf, docx, ...',
                       value: 'file',
                     ),
-                    const Divider(height: 1),
-                    
-                    _buildSourceOptionWithImage(
+                    _buildSourceOption(
                       context: context,
                       imagePath: 'assets/images/slack_logo.png',
                       title: 'Slack',
                       description: 'Connect to Slack workspace',
                       value: 'slack',
                     ),
-                    const Divider(height: 1),
-                    
-                    _buildSourceOptionWithImage(
+                    _buildSourceOption(
                       context: context,
                       imagePath: 'assets/images/confluence_logo.png',
                       title: 'Confluence',
                       description: 'Connect to Confluence',
                       value: 'confluence',
                     ),
-                    const Divider(height: 1),
-                    
-                    _buildSourceOptionWithImage(
+                    _buildSourceOption(
                       context: context,
                       imagePath: 'assets/images/notion_logo.png',
                       title: 'Notion',
                       description: 'Connect to Notion workspace',
                       value: 'notion',
                     ),
-                    const Divider(height: 1),
-                    
                     _buildSourceOption(
                       context: context,
                       icon: Icons.discord,
@@ -83,49 +85,23 @@ class SelectKnowledgeSourceDialog extends StatelessWidget {
                       description: 'Connect to Discord server',
                       value: 'discord',
                     ),
-                    const Divider(height: 1),
-                    
                     _buildSourceOption(
                       context: context,
                       icon: Icons.language,
-                      iconColor: Colors.purple,
+                      iconColor: Colors.blue,
                       title: 'Website',
                       description: 'Connect Website to get data',
                       value: 'website',
-                      badge: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        child: Text(
-                          'Coming soon',
-                          style: TextStyle(
-                            color: Colors.white, 
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                      badgeColor: Colors.grey,
+                      isDeveloped: false,
                     ),
-                    const Divider(height: 1),
-                    
-                    _buildSourceOptionWithImage(
+                    _buildSourceOption(
                       context: context,
                       imagePath: 'assets/images/google_logo.png',
                       title: 'Google Drive',
                       description: 'Connect to Google Drive',
                       value: 'google_drive',
-                      badge: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        child: Text(
-                          'Coming soon',
-                          style: TextStyle(
-                            color: Colors.white, 
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                      badgeColor: Colors.grey,
+                      isDeveloped: false,
                     ),
-                    const Divider(height: 1),
-                    
                     _buildSourceOption(
                       context: context,
                       icon: Icons.code,
@@ -133,17 +109,7 @@ class SelectKnowledgeSourceDialog extends StatelessWidget {
                       title: 'GitHub Repository',
                       description: 'Connect to GitHub Repository',
                       value: 'github',
-                      badge: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        child: Text(
-                          'Coming soon',
-                          style: TextStyle(
-                            color: Colors.white, 
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                      badgeColor: Colors.grey,
+                      isDeveloped: false,
                     ),
                   ],
                 ),
@@ -157,135 +123,104 @@ class SelectKnowledgeSourceDialog extends StatelessWidget {
 
   Widget _buildSourceOption({
     required BuildContext context,
-    required IconData icon,
-    required Color iconColor,
+    IconData? icon,
+    Color? iconColor,
+    String? imagePath,
     required String title,
     required String description,
     required String value,
-    Widget? badge,
-    Color? badgeColor,
+    bool isDeveloped = true,
   }) {
-    return InkWell(
-      onTap: () => Navigator.of(context).pop(value),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: iconColor.withAlpha((0.1 * 255).round()),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: iconColor, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (badge != null) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: badgeColor ?? Colors.grey,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: badge,
-                        ),
-                      ],
-                    ],
-                  ),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios, size: 16),
-          ],
-        ),
-      ),
-    );
-  }
+    assert((icon != null && iconColor != null) || imagePath != null,
+        'Either provide icon and iconColor, or imagePath');
 
-  Widget _buildSourceOptionWithImage({
-    required BuildContext context,
-    required String imagePath,
-    required String title,
-    required String description,
-    required String value,
-    Widget? badge,
-    Color? badgeColor,
-  }) {
     return InkWell(
       onTap: () => Navigator.of(context).pop(value),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              width: 40,
-              height: 40,
-              child: Image.asset(
-                imagePath,
-                fit: BoxFit.contain,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          border: Border.all(
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(50)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: imagePath == null
+                      ? iconColor!.withAlpha((0.2 * 255).round())
+                      : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                width: 40,
+                height: 40,
+                child: imagePath == null
+                    ? Icon(icon, color: iconColor, size: 24)
+                    : Image.asset(
+                        imagePath,
+                        fit: BoxFit.contain,
                       ),
-                      if (badge != null) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: badgeColor ?? Colors.grey,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: badge,
-                        ),
-                      ],
-                    ],
-                  ),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
               ),
-            ),
-            const Icon(Icons.arrow_forward_ios, size: 16),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (!isDeveloped) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withAlpha(24),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            child: Text(
+                              'Coming soon',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontFamily: 'monospace',
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    Text(
+                      description,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).hintColor,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.arrow_forward_ios, size: 16),
+            ],
+          ),
         ),
       ),
     );

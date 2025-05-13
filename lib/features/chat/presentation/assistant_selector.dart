@@ -446,9 +446,13 @@ class AssistantSelectorState extends State<AssistantSelector> with SingleTickerP
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium,
+              Flexible(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               ),
               const SizedBox(width: 8),
               if (isCustomBot)

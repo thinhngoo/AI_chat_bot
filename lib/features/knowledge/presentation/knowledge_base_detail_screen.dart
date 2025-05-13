@@ -1,17 +1,19 @@
 import 'dart:io';
 import 'dart:math';
-import 'package:ai_chat_bot/widgets/button.dart';
-import 'package:ai_chat_bot/widgets/information.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:logger/logger.dart';
 import '../models/knowledge_base_model.dart';
 import '../services/knowledge_base_service.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../widgets/information.dart';
+import '../../../widgets/dialog.dart';
+import '../../../widgets/button.dart';
 import 'add_website_dialog.dart';
 import 'connect_google_drive_dialog.dart';
 import 'connect_slack_dialog.dart';
 import 'connect_confluence_dialog.dart';
 import 'select_knowledge_source_dialog.dart';
-import '../../../core/constants/app_colors.dart';
 
 class KnowledgeBaseDetailScreen extends StatefulWidget {
   final String knowledgeBaseId;
@@ -28,25 +30,27 @@ class KnowledgeBaseDetailScreen extends StatefulWidget {
 
 class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
   final KnowledgeBaseService _knowledgeBaseService = KnowledgeBaseService();
+  final _logger = Logger();
+
   bool _isLoading = true;
   KnowledgeBase? _knowledgeBase;
   String? _error; // Phương thức helper để định dạng bytes thành chuỗi đọc được
   String _formatBytes(int? bytes) {
-    print('KnowledgeBaseDetailScreen._formatBytes input: $bytes bytes');
+    _logger.d('KnowledgeBaseDetailScreen._formatBytes input: $bytes bytes');
     if (bytes == null || bytes <= 0) {
-      print(
+      _logger.d(
           'KnowledgeBaseDetailScreen._formatBytes returning: 0 B (null or <= 0)');
       return '0 B';
     }
 
     const suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
     final i = (log(bytes) / log(1024)).floor();
-    print('KnowledgeBaseDetailScreen._formatBytes suffixes index: $i');
+    _logger.d('KnowledgeBaseDetailScreen._formatBytes suffixes index: $i');
 
     // If less than 1 KB, show in bytes with no decimal places
     if (i == 0) {
       final result = '$bytes ${suffixes[i]}';
-      print(
+      _logger.d(
           'KnowledgeBaseDetailScreen._formatBytes returning: $result (bytes)');
       return result;
     }
@@ -54,7 +58,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     // Otherwise show with the specified number of decimal places
     final result =
         '${(bytes / pow(1024, i)).toStringAsFixed(1)} ${suffixes[i]}';
-    print('KnowledgeBaseDetailScreen._formatBytes returning: $result');
+    _logger.d('KnowledgeBaseDetailScreen._formatBytes returning: $result');
     return result;
   }
 
@@ -76,15 +80,15 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       final knowledgeBase =
           await _knowledgeBaseService.getKnowledgeBase(widget.knowledgeBaseId);
 
-      debugPrint('Knowledge Base loaded: ${knowledgeBase.knowledgeName}');
-      debugPrint('Initial sources count: ${knowledgeBase.sources.length}');
-      debugPrint('Unit count (from getter): ${knowledgeBase.unitCount}');
+      _logger.d('Knowledge Base loaded: ${knowledgeBase.knowledgeName}');
+      _logger.d('Initial sources count: ${knowledgeBase.sources.length}');
+      _logger.d('Unit count (from getter): ${knowledgeBase.unitCount}');
 
       // Now explicitly fetch datasources using the new method to ensure we get the latest data
       try {
         final datasources =
             await _knowledgeBaseService.getDatasources(widget.knowledgeBaseId);
-        debugPrint('Fetched ${datasources.length} datasources directly');
+        _logger.d('Fetched ${datasources.length} datasources directly');
 
         // Create an updated knowledge base with the fresh datasources
         final updatedKnowledgeBase = KnowledgeBase(
@@ -102,14 +106,14 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
 
         // Debug each source
         for (var source in updatedKnowledgeBase.sources) {
-          debugPrint(
+          _logger.d(
               'Source: ${source.name}, fileSize: ${source.fileSize}, type: ${source.type}');
         }
 
         // Debug the total size
-        debugPrint(
-            'Total size (from getter): ${updatedKnowledgeBase.totalSize}');
-        debugPrint(
+        _logger
+            .d('Total size (from getter): ${updatedKnowledgeBase.totalSize}');
+        _logger.d(
             'Total size formatted: ${_formatBytes(updatedKnowledgeBase.totalSize)}');
 
         if (!mounted) return;
@@ -118,7 +122,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
           _isLoading = false;
         });
       } catch (datasourceError) {
-        debugPrint(
+        _logger.d(
             'Error fetching datasources: $datasourceError, using original knowledge base');
 
         // Use the original knowledge base if there was an error fetching datasources
@@ -129,7 +133,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading knowledge base: $e');
+      _logger.d('Error loading knowledge base: $e');
       if (!mounted) return;
       setState(() {
         _error = 'Failed to load knowledge base: $e';
@@ -146,22 +150,19 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Source "${source.name}" deleted successfully'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Source "${source.name}" deleted successfully',
+        variant: SnackBarVariant.success,
       );
 
       _loadKnowledgeBase();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to delete source: $e'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Failed to delete source: $e',
+        variant: SnackBarVariant.error,
       );
     }
   }
@@ -195,6 +196,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       // Add more cases as needed
     }
   }
+
   Future<void> _uploadFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -213,11 +215,10 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
         );
 
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('File uploaded successfully'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        GlobalSnackBar.show(
+          context: context,
+          message: 'File uploaded successfully',
+          variant: SnackBarVariant.success,
         );
 
         _loadKnowledgeBase();
@@ -225,12 +226,10 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to upload file: $e'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
-        ),
+      GlobalSnackBar.show(
+        context: context,
+        message: 'Failed to upload file: $e',
+        variant: SnackBarVariant.error,
       );
     }
   }
@@ -287,10 +286,15 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     }
   }
 
-  @override  Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_knowledgeBase?.name ?? 'Knowledge Base'),
+        title: Text(
+          _knowledgeBase?.name ?? 'Knowledge Base',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         centerTitle: true,
         actions: [
           Padding(
@@ -306,42 +310,26 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _addKnowledgeUnit,
         tooltip: 'Add Knowledge Unit',
-        child: const Icon(Icons.add),
+        child: Icon(
+          Icons.add,
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? InformationIndicator(
+              message: 'Loading...',
+              variant: InformationVariant.loading,
+            )
           : _error != null
-              ? _buildErrorView()
+              ? InformationIndicator(
+                  message: _error!,
+                  variant: InformationVariant.error,
+                  buttonText: 'Retry',
+                  onButtonPressed: _loadKnowledgeBase,
+                )
               : _buildKnowledgeBaseDetail(),
     );
   }
 
-  Widget _buildErrorView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 48,
-            color: Theme.of(context).colorScheme.error,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _error!,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.error,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _loadKnowledgeBase,
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
   Widget _buildKnowledgeBaseDetail() {
     AppColors colors = Theme.of(context).brightness == Brightness.dark
         ? AppColors.dark
@@ -350,20 +338,6 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: ElevatedButton.icon(
-            onPressed: _addKnowledgeUnit,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Knowledge Unit'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1), // Indigo color to match the button in the screenshot
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ),
-
-        // Knowledge base header card
         Card(
           margin: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(
@@ -375,76 +349,27 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top row with status badge and indicators
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Status badge
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color:
+                            Theme.of(context).colorScheme.primary.withAlpha(25),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.storage,
+                          size: 24,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     _buildStatusBadge(_knowledgeBase!.status),
-
-                    const SizedBox(width: 12),
-
-                    // Unit count
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: colors.green.withAlpha(24),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.description_outlined,
-                            size: 16,
-                            color: colors.green,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${_knowledgeBase!.unitCount} ${_knowledgeBase!.unitCount == 1 ? 'unit' : 'units'}',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: colors.green,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // Size
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: colors.primary.withAlpha(24),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.data_usage,
-                            size: 16,
-                            color: colors.primary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatBytes(_knowledgeBase!.totalSize),
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: colors.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    // Refresh button could be added here if needed
                   ],
                 ),
 
@@ -479,19 +404,94 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Created: ${_formatDate(_knowledgeBase!.createdAt)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).hintColor,
+                    Row(
+                      children: [
+                        // Unit count
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: colors.green.withAlpha(24),
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                    ),
-                    Text(
-                      'Updated: ${_formatDate(_knowledgeBase!.updatedAt)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).hintColor,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.description_outlined,
+                                size: 16,
+                                color: colors.green,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${_knowledgeBase!.unitCount} ${_knowledgeBase!.unitCount == 1 ? 'unit' : 'units'}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: colors.green,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ],
                           ),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        // Size
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: colors.primary.withAlpha(24),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.data_usage,
+                                size: 16,
+                                color: colors.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatBytes(_knowledgeBase!.totalSize),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: colors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
 
+                    const Spacer(),
+
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Created: ${_formatDate(_knowledgeBase!.createdAt)}',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).hintColor,
+                                  ),
+                        ),
+                        Text(
+                          'Updated: ${_formatDate(_knowledgeBase!.updatedAt)}',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).hintColor,
+                                  ),
+                        ),
+                      ],
+                    ),
                     // Action buttons row
                   ],
                 ),
@@ -559,7 +559,7 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
       ],
     );
   }
-  
+
   Widget _buildSourcesList() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -706,33 +706,15 @@ class _KnowledgeBaseDetailScreenState extends State<KnowledgeBaseDetailScreen> {
   }
 
   void _showDeleteConfirmation(KnowledgeSource source) {
-    showDialog(
+    GlobalDialog.show(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirm Delete'),
-          content: Text(
-            'Are you sure you want to delete "${source.name}"? This action cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _deleteSource(source);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
+      title: 'Confirm Delete',
+      message:
+          'Are you sure you want to delete "${source.name}"? This action cannot be undone.',
+      variant: DialogVariant.warning,
+      cancelLabel: 'Cancel',
+      confirmLabel: 'Delete',
+      onConfirm: () => _deleteSource(source),
     );
   }
 }

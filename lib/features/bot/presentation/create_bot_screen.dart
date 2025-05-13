@@ -190,37 +190,25 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
                     isDarkMode: isDarkMode,
                     fullWidth: false,
                     size: ButtonSize.medium,
+                    radius: ButtonRadius.small,
                     width: 100,
                     color: isDarkMode
                         ? Theme.of(context).colorScheme.onSurface
                         : Theme.of(context).colorScheme.onSurface.withAlpha(204),
                   ),
                   const SizedBox(width: 8),
-                  _isLoading
-                      ? SizedBox(
-                          height: 40,
-                          width: 100,
-                          child: Center(
-                            child: SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(
-                                color: Theme.of(context).hintColor,
-                                strokeWidth: 2.5,
-                              ),
-                            ),
-                          ),
-                        )
-                      : Button(
-                          label: 'Create',
-                          onPressed: _createBot,
-                          variant: ButtonVariant.primary,
-                          isDarkMode: isDarkMode,
-                          fullWidth: false,
-                          size: ButtonSize.medium,
-                          fontWeight: FontWeight.bold,
-                          width: 100,
-                        ),
+                  Button(
+                    label: 'Create',
+                    onPressed: _createBot,
+                    icon: Icons.add,
+                    variant: ButtonVariant.primary,
+                    isDarkMode: isDarkMode,
+                    fullWidth: false,
+                    size: ButtonSize.medium,
+                    radius: ButtonRadius.small,
+                    fontWeight: FontWeight.bold,
+                    isLoading: _isLoading,
+                  ),
                 ],
               ),
             ],

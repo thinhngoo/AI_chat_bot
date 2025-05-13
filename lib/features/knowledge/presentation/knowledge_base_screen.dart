@@ -25,7 +25,10 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
   int _page = 1;
   String _searchQuery = '';
   String? _error;
-  List<KnowledgeBase> _knowledgeBases = [];
+  List<KnowledgeBase> _allKnowledgeBases =
+      []; // Store all loaded knowledge bases
+  List<KnowledgeBase> _filteredKnowledgeBases =
+      []; // Store filtered knowledge bases
 
   bool _isLoading = false;
   bool _hasMoreData = true;
@@ -89,13 +92,13 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
       _isLoading = true;
       _error = null;
       _page = 1;
-      _knowledgeBases = [];
+      _allKnowledgeBases = [];
+      _filteredKnowledgeBases = [];
     });
 
     try {
-      _logger.d('Loading knowledge bases with search query: "$_searchQuery"');
+      _logger.d('Loading knowledge bases');
       final knowledgeBases = await _knowledgeBaseService.getKnowledgeBases(
-        search: _searchQuery,
         page: _page,
         limit: _limit,
         includeUnits:
@@ -112,7 +115,8 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
       }
 
       setState(() {
-        _knowledgeBases = knowledgeBases;
+        _allKnowledgeBases = knowledgeBases;
+        _applySearch(); // Apply any current search filter
         _hasMoreData = knowledgeBases.length >= _limit;
         _isLoading = false;
       });
@@ -136,13 +140,13 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
 
     try {
       final moreKnowledgeBases = await _knowledgeBaseService.getKnowledgeBases(
-        search: _searchQuery,
         page: _page,
         limit: _limit,
       );
 
       setState(() {
-        _knowledgeBases.addAll(moreKnowledgeBases);
+        _allKnowledgeBases.addAll(moreKnowledgeBases);
+        _applySearch(); // Apply current search filter to include new data
         _hasMoreData = moreKnowledgeBases.length >= _limit;
         _isLoading = false;
       });
@@ -155,10 +159,30 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
     }
   }
 
+  // Apply search filter to knowledge bases
+  void _applySearch() {
+    if (_searchQuery.isEmpty) {
+      _filteredKnowledgeBases = List.from(_allKnowledgeBases);
+    } else {
+      final query = _searchQuery.toLowerCase();
+      _filteredKnowledgeBases = _allKnowledgeBases.where((kb) {
+        return kb.name.toLowerCase().contains(query) ||
+            kb.description.toLowerCase().contains(query);
+      }).toList();
+      _logger.d(
+          'Filtered knowledge bases: ${_filteredKnowledgeBases.length} found for query "$_searchQuery"');
+    }
+  }
+
   Future<void> _deleteKnowledgeBase(KnowledgeBase knowledgeBase) async {
     try {
       await _knowledgeBaseService.deleteKnowledgeBase(knowledgeBase.id);
-      _loadKnowledgeBases();
+
+      setState(() {
+        // Remove the knowledge base from all lists
+        _allKnowledgeBases.removeWhere((kb) => kb.id == knowledgeBase.id);
+        _applySearch(); // Re-apply search to update the filtered list
+      });
 
       if (mounted) {
         GlobalSnackBar.show(
@@ -183,8 +207,11 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
 
   Future<void> _createKnowledgeBase() async {
     await CreateKnowledgeBaseDrawer.show(
-      context, 
-      _loadKnowledgeBases,
+      context,
+      () {
+        // Only reload the entire list when a new knowledge base is created
+        _loadKnowledgeBases();
+      },
     );
   }
 
@@ -204,9 +231,7 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
               Icons.refresh,
               color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
             ),
-            onPressed: _isLoading
-                ? null
-                : _loadKnowledgeBases,
+            onPressed: _isLoading ? null : _loadKnowledgeBases,
             tooltip: 'Refresh',
           ),
         ),
@@ -229,7 +254,7 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
         children: [
           // Search section
           Padding(
-            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 12.0),
+            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
             child: CommonTextField(
               controller: _searchController,
               label: 'Search',
@@ -242,8 +267,8 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
                         _searchController.clear();
                         setState(() {
                           _searchQuery = '';
+                          _applySearch();
                         });
-                        _loadKnowledgeBases();
                       },
                     )
                   : null,
@@ -251,22 +276,23 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
               onChanged: (value) {
                 setState(() {
                   _searchQuery = value;
+                  _applySearch();
                 });
-                _loadKnowledgeBases();
               },
             ),
           ),
 
           // Stats summary
-          if (!_isLoading && _error == null && _knowledgeBases.isNotEmpty)
+          if (!_isLoading &&
+              _error == null &&
+              _filteredKnowledgeBases.isNotEmpty)
             Padding(
-              padding:
-                  const EdgeInsets.only(left: 26.0, right: 20.0, bottom: 8.0),
+              padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 16.0),
               child: Row(
                 children: [
                   ResultsCountIndicator(
-                    filteredCount: _knowledgeBases.length,
-                    totalCount: _knowledgeBases.length,
+                    filteredCount: _filteredKnowledgeBases.length,
+                    totalCount: _allKnowledgeBases.length,
                     itemType: 'KBs',
                   ),
                   const Spacer(),
@@ -279,8 +305,10 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '${_knowledgeBases.where((kb) => kb.status.toLowerCase() == 'active').length} active',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        '${_filteredKnowledgeBases.where((kb) => kb.status.toLowerCase() == 'active').length} active',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).hintColor,
+                            ),
                       ),
                     ],
                   ),
@@ -296,29 +324,37 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
                     variant: InformationVariant.loading,
                   )
                 : _error != null
-                    ? _buildErrorView()
-                    : _knowledgeBases.isEmpty && !_isLoading
-                        ? _buildEmptyView()
-                        : _buildKnowledgeBaseList(),
+                    ? InformationIndicator(
+                        message: _error,
+                        variant: InformationVariant.error,
+                        buttonText: 'Retry',
+                        onButtonPressed: _loadKnowledgeBases,
+                      )
+                    : _allKnowledgeBases.isEmpty && !_isLoading
+                        ? InformationIndicator(
+                            message:
+                                'No knowledge bases yet\nCreate one to get started',
+                            variant: InformationVariant.info,
+                          )
+                        : _filteredKnowledgeBases.isEmpty &&
+                                _searchQuery.isNotEmpty
+                            ? InformationIndicator(
+                                message:
+                                    'No results match "$_searchQuery"\nTry a different search term',
+                                variant: InformationVariant.info,
+                                buttonText: 'Clear Search',
+                                onButtonPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchQuery = '';
+                                    _applySearch();
+                                  });
+                                },
+                              )
+                            : _buildKnowledgeBaseList(),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildErrorView() {
-    return InformationIndicator(
-      message: _error,
-      variant: InformationVariant.error,
-      buttonText: 'Retry',
-      onButtonPressed: _loadKnowledgeBases,
-    );
-  }
-
-  Widget _buildEmptyView() {
-    return InformationIndicator(
-      message: 'No knowledge bases yet\nCreate one to get started',
-      variant: InformationVariant.info,
     );
   }
 
@@ -329,10 +365,10 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
       onRefresh: _loadKnowledgeBases,
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.all(16.0),
-        itemCount: _knowledgeBases.length,
+        padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 20.0),
+        itemCount: _filteredKnowledgeBases.length,
         itemBuilder: (context, index) {
-          final kb = _knowledgeBases[index];
+          final kb = _filteredKnowledgeBases[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: 16.0),
             child: KnowledgeBaseCard(
@@ -393,10 +429,6 @@ class KnowledgeBaseCard extends StatelessWidget {
     required this.isDarkMode,
   });
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-
   String _formatBytes(int? bytes) {
     if (bytes == null || bytes <= 0) {
       return '0 B';
@@ -441,7 +473,7 @@ class KnowledgeBaseCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withAlpha(12),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color.withAlpha(160)),
       ),
       child: Row(
@@ -476,7 +508,6 @@ class KnowledgeBaseCard extends StatelessWidget {
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: onView,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -487,71 +518,25 @@ class KnowledgeBaseCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Knowledge base icon
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color:
+                          Theme.of(context).colorScheme.primary.withAlpha(25),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.storage,
+                        size: 24,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   _buildStatusBadge(context, knowledgeBase.status, colors),
-
-                  const SizedBox(width: 12),
-
-                  // Unit count
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: colors.green.withAlpha(24),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.description_outlined,
-                          size: 16,
-                          color: colors.green,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${knowledgeBase.unitCount} ${knowledgeBase.unitCount == 1 ? 'unit' : 'units'}',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: colors.green,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  // Size
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: colors.primary.withAlpha(24),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.data_usage,
-                          size: 16,
-                          color: colors.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatBytes(knowledgeBase.totalSize),
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: colors.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-
                   const Spacer(),
-
                   IconButton(
                     icon: Icon(Icons.delete_outline),
                     onPressed: onDelete,
@@ -594,16 +579,71 @@ class KnowledgeBaseCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      Text(
-                        'Created: ${_formatDate(knowledgeBase.createdAt)}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).hintColor,
+                      // Unit count
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: colors.green.withAlpha(24),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.description_outlined,
+                              size: 16,
+                              color: colors.green,
                             ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${knowledgeBase.unitCount} ${knowledgeBase.unitCount == 1 ? 'unit' : 'units'}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: colors.green,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      // Size
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: colors.primary.withAlpha(24),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.data_usage,
+                              size: 16,
+                              color: colors.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatBytes(knowledgeBase.totalSize),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: colors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                   Button(
-                    label: 'Details',
+                    label: 'Update',
                     icon: Icons.edit,
                     onPressed: onView,
                     variant: ButtonVariant.primary,
@@ -611,6 +651,7 @@ class KnowledgeBaseCard extends StatelessWidget {
                     isDarkMode: isDarkMode,
                     width: 120,
                     fullWidth: false,
+                    radius: ButtonRadius.small,
                     fontWeight: FontWeight.bold,
                   ),
                 ],

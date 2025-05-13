@@ -9,14 +9,21 @@ import '../../../widgets/dialog.dart';
 import '../../../features/chat/widgets/chat_zone.dart' as chat;
 import '../../../core/constants/app_colors.dart';
 
+enum BotScreenMode {
+  preview,
+  chat,
+}
+
 class BotPreviewScreen extends StatefulWidget {
   final String botId;
   final String botName;
+  final BotScreenMode mode;
 
   const BotPreviewScreen({
     super.key,
     required this.botId,
     required this.botName,
+    this.mode = BotScreenMode.preview,
   });
 
   @override
@@ -28,6 +35,8 @@ class _BotPreviewScreenState extends State<BotPreviewScreen>
   final Logger _logger = Logger();
   final BotService _botService = BotService();
 
+  // Animation controllers
+  late AnimationController _sendButtonController;
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
@@ -35,9 +44,6 @@ class _BotPreviewScreenState extends State<BotPreviewScreen>
   final List<chat.ChatMessage> _messages = [];
   bool _isLoading = false;
   bool _isTyping = false;
-
-  // Animation controllers
-  late AnimationController _sendButtonController;
 
   @override
   void initState() {
@@ -302,7 +308,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen>
     });
   }
 
-  // Simulate bot response with delay
+  // TEMPORARY
   Future<void> _simulateBotResponseWithDelay(String message) async {
     setState(() {
       _isTyping = true;
@@ -450,6 +456,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen>
                           variant: ButtonVariant.ghost,
                           color: colors.cardForeground.withAlpha(180),
                           label: 'Cancel',
+                          radius: ButtonRadius.small,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -458,13 +465,13 @@ class _BotPreviewScreenState extends State<BotPreviewScreen>
                           onPressed: () {
                             if (selectedRating > 0) {
                               // Submit rating and feedback
+                              Navigator.pop(context);
                               GlobalSnackBar.show(
                                 context: context,
                                 message:
                                     'Thanks for your $selectedRating-star rating!',
                                 variant: SnackBarVariant.success,
                               );
-                              Navigator.pop(context);
                             } else {
                               GlobalSnackBar.show(
                                 context: context,
@@ -475,6 +482,7 @@ class _BotPreviewScreenState extends State<BotPreviewScreen>
                           },
                           label: 'Submit',
                           fontWeight: FontWeight.bold,
+                          radius: ButtonRadius.small,
                         ),
                       ),
                     ],
@@ -488,6 +496,18 @@ class _BotPreviewScreenState extends State<BotPreviewScreen>
     ).then((_) => feedbackController.dispose());
   }
 
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -499,29 +519,29 @@ class _BotPreviewScreenState extends State<BotPreviewScreen>
               widget.botName,
               overflow: TextOverflow.ellipsis,
             ),
-            Text(
-              'Preview Mode',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).hintColor,
-                    fontStyle: FontStyle.italic,
-                  ),
-            ),
+            if (widget.mode == BotScreenMode.preview)
+              Text(
+                'Preview Mode',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).hintColor,
+                      fontStyle: FontStyle.italic,
+                    ),
+              ),
           ],
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.thumb_up,
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(180)),
+            icon: Icon(Icons.thumb_up_off_alt),
+            color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
             tooltip: 'Rate Conversation',
             onPressed: _rateConversation,
           ),
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: IconButton(
-              icon: Icon(Icons.delete_outline,
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withAlpha(180)),
+              icon: Icon(Icons.delete_outline),
+              color: Theme.of(context).colorScheme.error.withAlpha(204),
               tooltip: 'Clear Chat',
               onPressed: _clearChat,
             ),
@@ -530,31 +550,31 @@ class _BotPreviewScreenState extends State<BotPreviewScreen>
       ),
       body: Column(
         children: [
-          // Chat header info
-          Container(
-            padding:
-                const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info,
-                  size: 18,
-                  color: Theme.of(context).hintColor,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'This is a preview mode of the bot. Messages are not stored and this is only an environment for testing.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).hintColor,
-                          fontStyle: FontStyle.italic,
-                        ),
+          if (widget.mode == BotScreenMode.preview)
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info,
+                    size: 18,
+                    color: Theme.of(context).hintColor,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This is a preview mode of the bot. Messages are not stored and this is only an environment for testing.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).hintColor,
+                            fontStyle: FontStyle.italic,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
 
           // Chat messages
           Expanded(
@@ -694,17 +714,5 @@ class _BotPreviewScreenState extends State<BotPreviewScreen>
         ],
       ),
     );
-  }
-
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
   }
 }
