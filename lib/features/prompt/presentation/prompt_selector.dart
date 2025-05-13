@@ -8,8 +8,6 @@ import '../../../widgets/text_field.dart';
 import '../../../widgets/information.dart';
 import 'prompt_drawer.dart';
 import 'prompt_management_screen.dart';
-import 'prompt_drawer.dart';
-import 'prompt_management_screen.dart';
 
 class PromptSelector extends StatelessWidget {
   final Function(String content) onPromptSelected;
@@ -103,33 +101,12 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
       });
 
       // Fetch user's favorite prompts first with the correct parameter
-      // Fetch user's favorite prompts first with the correct parameter
       final favorites =
           await _promptService.getPrompts(isFavorite: true, limit: 5);
 
       // Then fetch some general prompts - explicitly NOT filtering for favorites
-
-      // Then fetch some general prompts - explicitly NOT filtering for favorites
       final allPrompts = await _promptService.getPrompts(limit: 10);
 
-      // Filter out prompts with empty IDs
-      final validFavorites = favorites.where((p) => p.id.isNotEmpty).toList();
-      final validAllPrompts = allPrompts.where((p) => p.id.isNotEmpty).toList();
-
-      final emptyIdCount = favorites.length -
-          validFavorites.length +
-          allPrompts.length -
-          validAllPrompts.length;
-
-      if (emptyIdCount > 0) {
-        _logger.w(
-            'Found $emptyIdCount prompts with empty IDs that were filtered out from prompt selector');
-      }
-
-      // Combine and remove duplicates - put favorites first
-      final combinedPrompts = [...validFavorites];
-      for (final prompt in validAllPrompts) {
-        // Only add non-favorite prompts that aren't already in the list
       // Filter out prompts with empty IDs
       final validFavorites = favorites.where((p) => p.id.isNotEmpty).toList();
       final validAllPrompts = allPrompts.where((p) => p.id.isNotEmpty).toList();
@@ -322,7 +299,6 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colors = isDarkMode ? AppColors.dark : AppColors.light;
 
     return Container(
@@ -335,10 +311,7 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const DrawerTopIndicator(),
-          const DrawerTopIndicator(),
           Padding(
-            padding:
-                const EdgeInsets.symmetric(vertical: 6.0, horizontal: 10.0),
             padding:
                 const EdgeInsets.symmetric(vertical: 6.0, horizontal: 10.0),
             child: Row(
@@ -364,7 +337,6 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                 Text(
                   'Select a prompt',
                   style: Theme.of(context).textTheme.headlineMedium,
-                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 Container(
                   width: 40,
@@ -373,7 +345,6 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                   child: IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
-                    padding: EdgeInsets.zero,
                     padding: EdgeInsets.zero,
                     iconSize: 24,
                     constraints: const BoxConstraints(),
@@ -385,7 +356,6 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
           Padding(
             padding:
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: CommonTextField(
             child: CommonTextField(
               controller: _searchController,
               label: '',
@@ -490,7 +460,6 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                             message: 'No prompts found',
                           )
                         : ListView.builder(
-                        : ListView.builder(
                             shrinkWrap: true,
                             padding: const EdgeInsets.fromLTRB(
                               16.0,
@@ -537,23 +506,10 @@ class _PromptSelectorContentState extends State<PromptSelectorContent> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                 ),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyLarge
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                ),
                                 subtitle: Text(
                                   prompt.description,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        color: colors.muted,
-                                      ),
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodyMedium

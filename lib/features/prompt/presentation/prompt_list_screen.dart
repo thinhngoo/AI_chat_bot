@@ -3,9 +3,7 @@ import '../models/prompt.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/category_constants.dart';
 import '../../../widgets/information.dart';
-import '../../../widgets/information.dart';
 import '../../../widgets/text_field.dart';
-import 'prompt_drawer.dart';
 import 'prompt_drawer.dart';
 
 class PromptListScreen extends StatefulWidget {
