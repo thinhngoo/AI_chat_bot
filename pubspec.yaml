@@ -1,5 +1,5 @@
 name: ai_chat_bot
-description: An AI chat bot application
+description: An intelligent AI chat bot application powered by advanced language models
 version: 1.0.0+1
 
 environment:
@@ -42,6 +42,7 @@ dev_dependencies:
   mockito: ^5.4.2
   mocktail: ^1.0.1
   build_runner: ^2.4.7
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
