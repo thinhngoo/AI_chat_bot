@@ -69,7 +69,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'vinh-aff13.firebasestorage.app',
     androidClientId: '784300763720-8c6g1oabd4ut00r1v0fup2atdmba90ov.apps.googleusercontent.com',
     iosClientId: '784300763720-brbm86j2cjjo9tr8sc2jv4s3d1943thd.apps.googleusercontent.com',
-    iosBundleId: 'com.example.flutterApplication1',
+    iosBundleId: 'com.aichatbot.assistant',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -81,7 +81,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'vinh-aff13.firebasestorage.app',
     androidClientId: '784300763720-8c6g1oabd4ut00r1v0fup2atdmba90ov.apps.googleusercontent.com',
     iosClientId: '784300763720-brbm86j2cjjo9tr8sc2jv4s3d1943thd.apps.googleusercontent.com',
-    iosBundleId: 'com.example.flutterApplication1',
+    iosBundleId: 'com.aichatbot.assistant',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

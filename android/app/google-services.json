@@ -10,7 +10,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:784300763720:android:db9bbff664f9acd5fe067d",
         "android_client_info": {
-          "package_name": "com.example.flutter_application_1"
+          "package_name": "com.aichatbot.assistant"
         }
       },
       "oauth_client": [
@@ -18,7 +18,7 @@
           "client_id": "784300763720-8c6g1oabd4ut00r1v0fup2atdmba90ov.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.flutter_application_1",
+            "package_name": "com.aichatbot.assistant",
             "certificate_hash": "f2572f56e4a13676f41be05eff618be2ed5edba7"
           }
         },
@@ -43,7 +43,7 @@
               "client_id": "784300763720-brbm86j2cjjo9tr8sc2jv4s3d1943thd.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.flutterApplication1"
+                "bundle_id": "com.aichatbot.assistant"
               }
             }
           ]

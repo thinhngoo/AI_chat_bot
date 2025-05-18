@@ -1,6 +1,6 @@
 name: ai_chat_bot
 description: An intelligent AI chat bot application powered by advanced language models
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -30,7 +30,7 @@ dependencies:
   mime: ^1.0.4
   path: ^1.8.3  
   flutter_markdown: ^0.7.7+1  
-  firebase_core: ^2.24.2
+  firebase_core: ^2.32.0
   firebase_analytics: ^10.10.7
   # Thêm Firebase Crashlytics để theo dõi sự cố
   firebase_crashlytics: ^3.4.3
