@@ -1,15 +1,85 @@
-# AI Chat Bot
+<a name="readme-top"></a>
 
-A Flutter-based multi-platform chat bot application with Firebase backend integration.
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="assets/images/icon.svg">
+    <img src="assets/images/icon.svg" alt="Logo" width="80" height="80">
+  </a>
 
-## Features
+  <h3 align="center">AI-Powered Chat Platform</h3>
 
-- Cross-platform support: Web, Android, iOS, Windows
-- Firebase authentication with multiple login methods
-- Gemini AI integration for intelligent responses
-- Offline capabilities on Windows with local authentication
-- Cloud data synchronization
-- Google authentication on desktop platforms
+  <p align="center">
+    A Flutter-based multi-platform for interactive AI chat, bot creation, and knowledge management with monetization features.
+    <br />
+    <a href="https://www.youtube.com/watch?v=lBHZlj41hyA"><strong>Watch Demo »</strong></a>
+    <br />
+    <br />
+    <a href="https://docs.google.com/forms/d/1oUM87A2Kkv7ME9OhRtNDZ_HyMsoKzJR_lOCwna4T_rU/viewform?edit_requested=true">Report Bug</a>
+    ·
+    <a href="https://docs.google.com/forms/d/1Buxc42n_T9O5ELi6t2nj0SGoZE1yg675G625TSSLJcA/viewform?pli=1&pli=1&edit_requested=true">Request Feature</a>
+  </p>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li>
+      <a href="#about-the-project">About The Project</a>
+      <ul>
+        <li><a href="#key-features">Key Features</a></li>
+        <li><a href="#built-with">Built With</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#environment-setup">Environment Setup</a></li>
+        <li><a href="#running-the-application">Running the Application</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#project-directory-structure">Project Directory Structure</a>
+    </li>
+    <li><a href="#contact">Contact</a></li>
+  </ol>
+</details>
+
+<!-- ABOUT THE PROJECT -->
+
+## About The Project
+
+<div align="center">
+  <img src="assets/images/login.webp" alt="Product Name Screen Shot" style="max-height: 500px;">
+</div>
+
+**AI-Powered Chat Platform** is a Flutter-based multi-platform designed to provide users with an interactive AI chat experience, customizable AI bot creation, and knowledge dataset management. This platform emphasizes secure authentication, intuitive UI/UX, and monetization through in-app purchases (IAP) and ads. It integrates AI-driven features like email drafting and prompt management to enhance user productivity and engagement.
+
+### Key Features:
+- **Secure Authentication**: User registration, login, and logout with validation for usernames and passwords.
+- **AI Chat System**: Interactive chat with AI bots, thread creation, history tracking, and token-based usage.
+- **AI Bot Management**: Create, update, delete, and customize AI bots with tailored prompts and knowledge datasets.
+- **Knowledge Datasets**: Upload and manage datasets from files or URLs, with options to disable or delete sources.
+- **Prompt Library**: Create, search, and manage public/private prompts, with categorization and quick-access via slash commands.
+- **Monetization**: Upgrade to Pro accounts with unlimited tokens, in-app purchases, and ad integration for revenue.
+AI Email Drafting: Dedicated tab for composing emails with AI-driven actions (e.g., Thanks, Sorry, Follow Up).
+- **Responsive Design**: User-friendly interface with support for dark mode and seamless navigation.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### Built With
+
+This platform is built with modern Flutter/Dart technologies:
+
+- [![Flutter][Flutter.js]][Flutter-url]
+- [![Dart][Dart.js]][Dart-url]
+- [![Firebase][Firebase.js]][Firebase-url]
+- [![Google Cloud][GoogleCloud.js]][GoogleCloud-url]
+- [![Gemini AI][Gemini.js]][Gemini-url]
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Getting Started
 
@@ -45,47 +115,6 @@ flutter run -d chrome
 flutter run -d android
 ```
 
-## CI/CD Pipeline
-
-This project uses GitHub Actions for Continuous Integration and Continuous Deployment.
-
-### Workflow Structure
-
-- **Flutter Build & Test**: Runs on every push and pull request
-  - Code formatting check
-  - Static analysis
-  - Unit tests
-  - Web build
-
-- **Firebase Functions**: Tests and builds backend functions
-  - Linting
-  - TypeScript compilation
-
-- **Windows Build**: Creates a Windows executable on pushes to main
-  - Uploads build artifacts for release
-
-- **Deployment**:
-  - Preview deployments for pull requests
-  - Production deployment when merged to main
-
-### Setting Up the Pipeline
-
-1. Configure the following secrets in your GitHub repository:
-   - `FIREBASE_SERVICE_ACCOUNT_VINH_AFF13`: Firebase service account JSON để deploy lên Firebase Hosting
-
-2. Enable GitHub Actions in your repository settings
-
-3. Các workflow đã được cấu hình trong thư mục `.github/workflows/`:
-   - `flutter_build_test.yml`: Kiểm tra mã nguồn và build web
-   - `firebase_functions.yml`: Build và kiểm tra Firebase Functions
-   - `windows_build.yml`: Build ứng dụng Windows
-   - `firebase_deployment.yml`: Triển khai lên Firebase Hosting
-
-4. Mỗi push lên nhánh `main` sẽ tự động:
-   - Chạy kiểm thử
-   - Build ứng dụng
-   - Triển khai lên Firebase Hosting
-
 ## Project Directory Structure
 
 - `lib/`: Flutter application code
@@ -98,10 +127,26 @@ This project uses GitHub Actions for Continuous Integration and Continuous Deplo
 
 - `windows/`: Windows-specific platform code
 
-## Windows-Specific Features
+## Contact
 
-On Windows, the application provides fallback authentication when Firebase is not available. See `setup_oauth.bat` for configuring Google authentication on Windows.
+Ngo Cao Anh Thinh - anhthinhncat@gmail.com
 
-## Contributing
+Google Play: [AI Chat Bot](https://play.google.com/store/apps/details?id=com.aichatbot.assistant&hl=en&pli=1)
 
-Please follow the pull request template when contributing. Make sure all tests pass before submitting a PR.
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- MARKDOWN LINKS & IMAGES -->
+[Flutter.js]: https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white
+[Flutter-url]: https://flutter.dev/
+[Dart.js]: https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white
+[Dart-url]: https://dart.dev/
+[Firebase.js]: https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black
+[Firebase-url]: https://firebase.google.com/
+[GoogleCloud.js]: https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white
+[GoogleCloud-url]: https://cloud.google.com/
+[Gemini.js]: https://img.shields.io/badge/Gemini_AI-8E75B2?style=for-the-badge&logo=google&logoColor=white
+[Gemini-url]: https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/gemini
+[Hive.js]: https://img.shields.io/badge/Hive-FF7043?style=for-the-badge&logo=hive&logoColor=white
+[Hive-url]: https://docs.hivedb.dev/
+[Provider.js]: https://img.shields.io/badge/Provider-4CAF50?style=for-the-badge&logo=flutter&logoColor=white
+[Provider-url]: https://pub.dev/packages/provider
