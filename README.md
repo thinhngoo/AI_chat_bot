@@ -3,7 +3,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="assets/images/icon.svg">
+  <a href="assets/images/icon.svg" target="_blank" rel="noopener noreferrer">
     <img src="assets/images/icon.svg" alt="Logo" width="80" height="80">
   </a>
 
@@ -12,12 +12,12 @@
   <p align="center">
     A Flutter-based multi-platform for interactive AI chat, bot creation, and knowledge management with monetization features.
     <br />
-    <a href="https://www.youtube.com/watch?v=lBHZlj41hyA"><strong>Watch Demo »</strong></a>
+    <a href="https://www.youtube.com/watch?v=lBHZlj41hyA" target="_blank" rel="noopener noreferrer"><strong>Watch Demo »</strong></a>
     <br />
     <br />
-    <a href="https://docs.google.com/forms/d/1oUM87A2Kkv7ME9OhRtNDZ_HyMsoKzJR_lOCwna4T_rU/viewform?edit_requested=true">Report Bug</a>
+    <a href="https://docs.google.com/forms/d/1oUM87A2Kkv7ME9OhRtNDZ_HyMsoKzJR_lOCwna4T_rU/viewform?edit_requested=true" target="_blank" rel="noopener noreferrer">Report Bug</a>
     ·
-    <a href="https://docs.google.com/forms/d/1Buxc42n_T9O5ELi6t2nj0SGoZE1yg675G625TSSLJcA/viewform?pli=1&pli=1&edit_requested=true">Request Feature</a>
+    <a href="https://docs.google.com/forms/d/1Buxc42n_T9O5ELi6t2nj0SGoZE1yg675G625TSSLJcA/viewform?pli=1&pli=1&edit_requested=true" target="_blank" rel="noopener noreferrer">Request Feature</a>
   </p>
 </div>
 
@@ -52,7 +52,7 @@
 ## About The Project
 
 <div align="center">
-  <img src="assets/images/login.webp" alt="Product Name Screen Shot" style="max-height: 500px;">
+  <img src="assets/images/login.webp" alt="Product Name Screen Shot" height="500">
 </div>
 
 **AI-Powered Chat Platform** is a Flutter-based multi-platform designed to provide users with an interactive AI chat experience, customizable AI bot creation, and knowledge dataset management. This platform emphasizes secure authentication, intuitive UI/UX, and monetization through in-app purchases (IAP) and ads. It integrates AI-driven features like email drafting and prompt management to enhance user productivity and engagement.
