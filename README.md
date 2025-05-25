@@ -57,7 +57,7 @@
 
 <br />
 
-**AI-Powered Chat Platform** is a Flutter-based multi-platform designed to provide users with an interactive AI chat experience, customizable AI bot creation, and knowledge dataset management. This platform emphasizes secure authentication, intuitive UI/UX, and monetization through in-app purchases (IAP) and ads. It integrates AI-driven features like email drafting and prompt management to enhance user productivity and engagement.
+**AI-Powered Chat Platform** is a Flutter-based multi-platform designed to provide users with an interactive AI chat experience, customizable AI bot creation, and knowledge dataset management. This platform emphasizes secure authentication, intuitive UI/UX, and ads. It integrates AI-driven features like email drafting and prompt management to enhance user productivity and engagement.
 
 ### Key Features:
 - **Secure Authentication**: User registration, login, and logout with validation for usernames and passwords.
@@ -65,8 +65,7 @@
 - **AI Bot Management**: Create, update, delete, and customize AI bots with tailored prompts and knowledge datasets.
 - **Knowledge Datasets**: Upload and manage datasets from files or URLs, with options to disable or delete sources.
 - **Prompt Library**: Create, search, and manage public/private prompts, with categorization and quick-access via slash commands.
-- **Monetization**: Upgrade to Pro accounts with unlimited tokens, in-app purchases, and ad integration for revenue.
-AI Email Drafting: Dedicated tab for composing emails with AI-driven actions (e.g., Thanks, Sorry, Follow Up).
+- **AI Email Drafting**: Dedicated tab for composing emails with AI-driven actions (e.g., Thanks, Sorry, Follow Up).
 - **Responsive Design**: User-friendly interface with support for dark mode and seamless navigation.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
